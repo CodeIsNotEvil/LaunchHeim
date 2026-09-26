@@ -20,8 +20,25 @@ public static class QmlNetSignalFix
   [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
   private delegate void InitDelegate(IntPtr getAllLiveInstances, IntPtr activateSignal);
 
+  /// <summary>Installs the fix on Linux; on Windows, checks that QmlNet.dll was built with it.</summary>
+  /// <remarks>
+  /// MSVC only exports what is marked for export, and QmlNet.dll does not export the NetValue methods this
+  /// fix calls. So the Windows build compiles Qml.Net's native library from source with the same change
+  /// (packaging/windows/qmlnet-signal-fix.patch), which also exports a marker to check for here.
+  /// </remarks>
   public static void Apply()
   {
+    if (OperatingSystem.IsWindows())
+    {
+      var library = NativeLibrary.Load(FindQmlNet());
+      if (!NativeLibrary.TryGetExport(library, "launchheim_signal_fix", out _))
+      {
+        Console.Error.WriteLine("LaunchHeim: QmlNet.dll is the upstream build without the signal fix, so parts of the UI will not update. Build with packaging/windows/build.ps1.");
+      }
+
+      return;
+    }
+
     var qmlNet = NativeLibrary.Load(FindQmlNet());
     var fix = NativeLibrary.Load(Path.Combine(AppContext.BaseDirectory, "libLaunchHeimSignalFix.so"));
 
@@ -38,11 +55,12 @@ public static class QmlNetSignalFix
   // A plain build keeps NuGet's runtimes/ layout; a RID-specific publish flattens it into the root.
   private static string FindQmlNet()
   {
+    var (rid, file) = OperatingSystem.IsWindows() ? ("win-x64", "QmlNet.dll") : ("linux-x64", "libQmlNet.so");
     string[] candidates =
     [
-      Path.Combine(AppContext.BaseDirectory, "runtimes", "linux-x64", "native", "libQmlNet.so"),
-      Path.Combine(AppContext.BaseDirectory, "libQmlNet.so"),
+      Path.Combine(AppContext.BaseDirectory, file),
+      Path.Combine(AppContext.BaseDirectory, "runtimes", rid, "native", file),
     ];
-    return candidates.FirstOrDefault(File.Exists) ?? throw new FileNotFoundException("libQmlNet.so was not found next to LaunchHeim.");
+    return candidates.FirstOrDefault(File.Exists) ?? throw new FileNotFoundException($"{file} was not found next to LaunchHeim.");
   }
 }

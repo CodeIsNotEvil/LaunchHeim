@@ -10,12 +10,26 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>LaunchHeim</AssemblyName>
     <Version>0.1.0</Version>
+    <ApplicationIcon Condition="'$(OS)' == 'Windows_NT' or $(RuntimeIdentifier.StartsWith('win'))">packaging\launchheim.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!--
+    Linux or Windows, from the runtime identifier when one is given (dotnet publish -r win-x64 on Linux
+    builds for Windows), otherwise from the machine building it.
+  -->
+  <PropertyGroup>
+    <TargetsWindows Condition="$(RuntimeIdentifier.StartsWith('win')) or ('$(RuntimeIdentifier)' == '' and '$(OS)' == 'Windows_NT')">true</TargetsWindows>
+    <TargetsWindows Condition="'$(TargetsWindows)' == ''">false</TargetsWindows>
+    <!-- A GUI app on Windows, or Explorer opens a console window next to it. -->
+    <OutputType Condition="'$(TargetsWindows)' == 'true'">WinExe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Markdig" Version="1.4.0" />
     <PackageReference Include="Qml.Net" Version="0.11.0" />
-    <PackageReference Include="Qml.Net.LinuxBinaries" Version="0.11.0" />
+    <PackageReference Include="Qml.Net.LinuxBinaries" Version="0.11.0" Condition="'$(TargetsWindows)' != 'true'" />
+    <!-- Its QmlNet.dll lacks the signal fix; packaging/windows/build.ps1 replaces it with a patched build. -->
+    <PackageReference Include="Qml.Net.WindowsBinaries" Version="0.11.0" Condition="'$(TargetsWindows)' == 'true'" />
     <!-- Qml.Net pins 12.0.2, which has a known DoS advisory. Lifting it is binary compatible. -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
@@ -40,14 +54,14 @@
     <NativeCompiler Condition="'$(NativeCompiler)' == ''">g++</NativeCompiler>
   </PropertyGroup>
 
-  <Target Name="BuildSignalFix" BeforeTargets="BeforeBuild" Inputs="native/signal_fix.cpp" Outputs="$(SignalFixLibrary)">
+  <Target Name="BuildSignalFix" BeforeTargets="BeforeBuild" Inputs="native/signal_fix.cpp" Outputs="$(SignalFixLibrary)" Condition="'$(TargetsWindows)' != 'true'">
     <Error Condition="!Exists('$(QtIncludeDirectory)/QtCore/qstring.h')" Text="Qt 5 headers not found in $(QtIncludeDirectory). Install qt5-base, or pass -p:QtIncludeDirectory=..." />
     <MakeDir Directories="$(BaseIntermediateOutputPath)native" />
     <Exec Command="$(NativeCompiler) -std=c++17 -O2 -fPIC -shared -Wall -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -s -I$(QtIncludeDirectory) -I$(QtIncludeDirectory)/QtCore native/signal_fix.cpp -o $(SignalFixLibrary) -lQt5Core" />
   </Target>
 
   <ItemGroup>
-    <None Include="$(SignalFixLibrary)" Link="libLaunchHeimSignalFix.so" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" />
+    <None Include="$(SignalFixLibrary)" Link="libLaunchHeimSignalFix.so" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" Condition="'$(TargetsWindows)' != 'true'" />
   </ItemGroup>
 
   <!--

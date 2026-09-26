@@ -60,14 +60,33 @@ public class VdfTests
     var library = temp.Combine("games");
     Directory.CreateDirectory(Path.Combine(steam, "steamapps"));
     File.WriteAllText(Path.Combine(steam, "steamapps", "libraryfolders.vdf"),
-      $"\"libraryfolders\" {{ \"0\" {{ \"path\" \"{steam}\" }} \"1\" {{ \"path\" \"{library}\" }} }}");
+      $"\"libraryfolders\" {{ \"0\" {{ \"path\" \"{Escape(steam)}\" }} \"1\" {{ \"path\" \"{Escape(library)}\" }} }}");
     Directory.CreateDirectory(Path.Combine(library, "steamapps", "common", "Valheim"));
     File.WriteAllText(Path.Combine(library, "steamapps", "appmanifest_892970.acf"), "\"AppState\" { \"installdir\" \"Valheim\" }");
     File.WriteAllText(Path.Combine(library, "steamapps", "common", "Valheim", "valheim.x86_64"), "");
 
-    var found = new SteamLibraryLocator([steam]).FindValheim();
+    var found = new SteamLibraryLocator([steam], GamePlatform.Linux).FindValheim();
 
     Assert.Equal(Path.Combine(library, "steamapps", "common", "Valheim"), found);
+  }
+
+  [Fact]
+  public void Finds_the_windows_build_and_ignores_the_linux_one_on_windows()
+  {
+    using var temp = new TempDirectory();
+    var steam = temp.Combine("steam");
+    Directory.CreateDirectory(Path.Combine(steam, "steamapps", "common", "Valheim"));
+    // Steam writes Windows paths with escaped backslashes and whatever case the user typed.
+    File.WriteAllText(Path.Combine(steam, "steamapps", "libraryfolders.vdf"),
+      $"\"libraryfolders\" {{ \"0\" {{ \"path\" \"{Escape(steam.ToUpperInvariant())}\" }} }}");
+    File.WriteAllText(Path.Combine(steam, "steamapps", "appmanifest_892970.acf"), "\"AppState\" { \"installdir\" \"Valheim\" }");
+    File.WriteAllText(Path.Combine(steam, "steamapps", "common", "Valheim", "valheim.x86_64"), "");
+
+    Assert.Null(new SteamLibraryLocator([steam], GamePlatform.Windows).FindValheim());
+
+    File.WriteAllText(Path.Combine(steam, "steamapps", "common", "Valheim", "valheim.exe"), "");
+    Assert.Equal(Path.Combine(steam, "steamapps", "common", "Valheim"), new SteamLibraryLocator([steam], GamePlatform.Windows).FindValheim());
+    Assert.Single(new SteamLibraryLocator([steam], GamePlatform.Windows).LibraryFolders());
   }
 
   [Fact]
@@ -77,4 +96,7 @@ public class VdfTests
 
     Assert.Null(new SteamLibraryLocator([temp.Combine("nowhere")]).FindValheim());
   }
+
+  // VDF strings escape backslashes, which Windows paths are full of.
+  private static string Escape(string path) => path.Replace("\\", "\\\\");
 }

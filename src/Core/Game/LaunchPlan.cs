@@ -47,11 +47,23 @@ public sealed class LaunchException(string message) : Exception(message);
 /// options cannot be set per launch. <c>SteamAppId</c> lets the Steam API attach to the running client
 /// anyway, which is how the BepInEx script does it as well.
 /// </para>
+/// <para>
+/// On Windows Doorstop is not preloaded but found by the game: it is a <c>winhttp.dll</c> proxy that
+/// Windows only loads from the game folder. <see cref="PrepareGameFolder"/> puts it there once, with a
+/// <c>doorstop_config.ini</c> that keeps it disabled, and each launch switches it on and points it at
+/// the instance with Doorstop 4's command-line options. r2modman does the same. The game folder then
+/// holds two extra files, but still no mods, and a launch from Steam stays vanilla.
+/// </para>
 /// </remarks>
 public static class GameLauncher
 {
   public const string PreloaderPath = "BepInEx/core/BepInEx.Preloader.dll";
   public const string DoorstopLibrary = "doorstop_libs/libdoorstop_x64.so";
+  public const string WindowsDoorstopProxy = "winhttp.dll";
+  public const string WindowsDoorstopConfig = "doorstop_config.ini";
+
+  /// <summary>First line of the config LaunchHeim writes, so it can tell its own proxy from a manual install.</summary>
+  public const string WindowsConfigMarker = "# Written by LaunchHeim.";
 
   /// <summary>
   /// Variables LaunchHeim's own Qt runtime sets on its process. The game must not inherit them, and
@@ -63,9 +75,11 @@ public static class GameLauncher
     string gameDirectory,
     string? instanceDirectory,
     string extraArguments,
-    IReadOnlyDictionary<string, string?> currentEnvironment)
+    IReadOnlyDictionary<string, string?> currentEnvironment,
+    GamePlatform? platform = null)
   {
-    var executable = Path.Combine(gameDirectory, SteamLibraryLocator.ValheimExecutable);
+    var target = platform ?? GamePlatforms.Current;
+    var executable = Path.Combine(gameDirectory, SteamLibraryLocator.ExecutableFor(target));
     if (!File.Exists(executable))
     {
       throw new LaunchException($"Valheim was not found in {gameDirectory}. Set the game folder in Settings.");
@@ -82,6 +96,13 @@ public static class GameLauncher
       environment[variable] = null;
     }
 
+    if (target == GamePlatform.Windows)
+    {
+      var arguments = WindowsDoorstopArguments(gameDirectory, instanceDirectory);
+      arguments.AddRange(SplitArguments(extraArguments));
+      return new LaunchPlan(executable, gameDirectory, arguments, environment);
+    }
+
     if (instanceDirectory is null)
     {
       // A preload left over in the user's session would otherwise mod the "vanilla" launch.
@@ -94,6 +115,82 @@ public static class GameLauncher
     }
 
     return new LaunchPlan(executable, gameDirectory, SplitArguments(extraArguments), environment);
+  }
+
+  // Doorstop 4 reads these before the game does, and Valheim ignores them.
+  private static List<string> WindowsDoorstopArguments(string gameDirectory, string? instanceDirectory)
+  {
+    if (instanceDirectory is null)
+    {
+      // Only matters when a manual BepInEx install in the game folder has Doorstop switched on.
+      return File.Exists(Path.Combine(gameDirectory, WindowsDoorstopProxy)) ? ["--doorstop-enabled", "false"] : [];
+    }
+
+    var preloader = Path.Combine(instanceDirectory, PreloaderPath);
+    if (!File.Exists(preloader) || !File.Exists(Path.Combine(gameDirectory, WindowsDoorstopProxy)))
+    {
+      throw new LaunchException("BepInEx is not installed in this instance. Install BepInExPack_Valheim from Thunderstore first.");
+    }
+
+    List<string> arguments = ["--doorstop-enabled", "true", "--doorstop-target-assembly", Path.GetFullPath(preloader)];
+    var corlib = Path.Combine(instanceDirectory, "unstripped_corlib");
+    if (Directory.Exists(corlib))
+    {
+      arguments.AddRange(["--doorstop-mono-dll-search-path-override", Path.GetFullPath(corlib)]);
+    }
+
+    return arguments;
+  }
+
+  /// <summary>
+  /// Puts the instance's Doorstop proxy into the game folder before a modded launch on Windows. Nothing
+  /// happens on Linux or for a vanilla launch.
+  /// </summary>
+  /// <remarks>
+  /// A proxy that is not LaunchHeim's (a manual BepInEx install, recognised by a config without the
+  /// marker) is left alone: replacing it could break that setup, and the launch arguments steer it anyway.
+  /// LaunchHeim's own proxy is refreshed when the instance brings a different one, so it always matches
+  /// the instance's BepInEx.
+  /// </remarks>
+  public static void PrepareGameFolder(string gameDirectory, string? instanceDirectory, GamePlatform? platform = null)
+  {
+    if ((platform ?? GamePlatforms.Current) != GamePlatform.Windows || instanceDirectory is null)
+    {
+      return;
+    }
+
+    var source = Path.Combine(instanceDirectory, WindowsDoorstopProxy);
+    if (!File.Exists(source))
+    {
+      throw new LaunchException("BepInEx is not installed in this instance. Install BepInExPack_Valheim from Thunderstore first.");
+    }
+
+    var proxy = Path.Combine(gameDirectory, WindowsDoorstopProxy);
+    var config = Path.Combine(gameDirectory, WindowsDoorstopConfig);
+    var ours = File.Exists(config) && File.ReadLines(config).FirstOrDefault() == WindowsConfigMarker;
+    if (File.Exists(proxy) && !ours)
+    {
+      return;
+    }
+
+    if (!File.Exists(proxy) || !File.ReadAllBytes(proxy).AsSpan().SequenceEqual(File.ReadAllBytes(source)))
+    {
+      File.Copy(source, proxy, overwrite: true);
+    }
+
+    if (!File.Exists(config) || ours)
+    {
+      File.WriteAllText(config, $"""
+        {WindowsConfigMarker}
+        # Keeps Doorstop off, so starting Valheim from Steam stays vanilla. LaunchHeim turns it on per
+        # launch with --doorstop-enabled and points it at the instance. Delete this file and winhttp.dll
+        # to remove LaunchHeim from the game folder completely.
+        [General]
+        enabled = false
+        target_assembly = BepInEx\core\BepInEx.Preloader.dll
+
+        """);
+    }
   }
 
   private static void AddDoorstop(

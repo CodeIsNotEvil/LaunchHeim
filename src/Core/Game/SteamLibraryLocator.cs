@@ -4,15 +4,31 @@ namespace CINE.LaunchHeim.Core.Game;
 /// <remarks>
 /// Games are often on a second drive (the owner's is <c>/mnt/games/SteamLibrary</c>), so looking in
 /// <c>~/.local/share/Steam/steamapps/common</c> alone is not enough. <c>libraryfolders.vdf</c> lists
-/// every library, and the app manifest there says which folder the game was installed into.
+/// every library, and the app manifest there says which folder the game was installed into. Windows
+/// uses the same files; only the Steam folder itself is found differently (the registry).
 /// </remarks>
-public sealed class SteamLibraryLocator(IEnumerable<string> steamRoots)
+public sealed class SteamLibraryLocator(IEnumerable<string> steamRoots, GamePlatform platform)
 {
   public const string ValheimAppId = "892970";
-  public const string ValheimExecutable = "valheim.x86_64";
+
+  public SteamLibraryLocator(IEnumerable<string> steamRoots)
+    : this(steamRoots, GamePlatforms.Current)
+  {
+  }
+
+  /// <summary>The game binary on this machine: the native Linux build, or valheim.exe on Windows.</summary>
+  public static string ValheimExecutable => ExecutableFor(GamePlatforms.Current);
+
+  public static string ExecutableFor(GamePlatform platform) =>
+    platform == GamePlatform.Windows ? "valheim.exe" : "valheim.x86_64";
 
   public static SteamLibraryLocator ForCurrentUser()
   {
+    if (OperatingSystem.IsWindows())
+    {
+      return new SteamLibraryLocator(WindowsSteamRoots(), GamePlatform.Windows);
+    }
+
     var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     return new SteamLibraryLocator(
     [
@@ -21,12 +37,28 @@ public sealed class SteamLibraryLocator(IEnumerable<string> steamRoots)
       Path.Combine(home, ".steam/root"),
       // Flatpak Steam keeps its whole tree inside the sandbox's home.
       Path.Combine(home, ".var/app/com.valvesoftware.Steam/.local/share/Steam"),
-    ]);
+    ], GamePlatform.Linux);
+  }
+
+  // Steam records where it lives on every start. The default folder covers a registry that was cleaned.
+  [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+  private static IEnumerable<string> WindowsSteamRoots()
+  {
+    using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Valve\Steam"))
+    {
+      if (key?.GetValue("SteamPath") is string steamPath && steamPath.Length > 0)
+      {
+        yield return Path.GetFullPath(steamPath);
+      }
+    }
+
+    yield return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Steam");
   }
 
   public IEnumerable<string> LibraryFolders()
   {
-    var seen = new HashSet<string>(StringComparer.Ordinal);
+    // Windows paths differ only in case (the registry says c:/program files (x86)/steam, the vdf C:\\...).
+    var seen = new HashSet<string>(platform == GamePlatform.Windows ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
     foreach (var root in steamRoots)
     {
       var vdf = Path.Combine(root, "steamapps", "libraryfolders.vdf");
@@ -68,7 +100,7 @@ public sealed class SteamLibraryLocator(IEnumerable<string> steamRoots)
 
       var installDir = VdfNode.Parse(File.ReadAllText(manifest))["AppState"]?.Value("installdir") ?? "Valheim";
       var gameDir = Path.Combine(library, "steamapps", "common", installDir);
-      if (IsValheimDirectory(gameDir))
+      if (IsValheimDirectory(gameDir, platform))
       {
         return gameDir;
       }
@@ -77,8 +109,10 @@ public sealed class SteamLibraryLocator(IEnumerable<string> steamRoots)
     return null;
   }
 
-  public static bool IsValheimDirectory(string? directory) =>
-    !string.IsNullOrEmpty(directory) && File.Exists(Path.Combine(directory, ValheimExecutable));
+  public static bool IsValheimDirectory(string? directory) => IsValheimDirectory(directory, GamePlatforms.Current);
+
+  public static bool IsValheimDirectory(string? directory, GamePlatform platform) =>
+    !string.IsNullOrEmpty(directory) && File.Exists(Path.Combine(directory, ExecutableFor(platform)));
 
   // ~/.steam/steam is usually a symlink to ~/.local/share/Steam, and both list the same libraries.
   private static string Canonical(string path)
@@ -86,11 +120,11 @@ public sealed class SteamLibraryLocator(IEnumerable<string> steamRoots)
     try
     {
       var info = new DirectoryInfo(path);
-      return (info.ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? info.FullName).TrimEnd('/');
+      return (info.ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? info.FullName).TrimEnd('/', '\\');
     }
     catch (IOException)
     {
-      return path.TrimEnd('/');
+      return path.TrimEnd('/', '\\');
     }
   }
 }

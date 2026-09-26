@@ -1,13 +1,21 @@
 namespace CINE.LaunchHeim.Desktop.Hosting;
 
 /// <summary>Registers LaunchHeim with the desktop so it shows up in the launcher and receives nxm:// links.</summary>
+/// <remarks>On Windows this is a URL protocol in the registry instead, see <see cref="WindowsProtocol"/>.</remarks>
 public static class NxmHandler
 {
   public const string DesktopFileName = "launchheim.desktop";
   private const string Scheme = "x-scheme-handler/nxm";
 
-  public static async Task<bool> IsRegisteredAsync() =>
-    string.Equals(await DesktopShell.CaptureAsync("xdg-mime", "query", "default", Scheme), DesktopFileName, StringComparison.Ordinal);
+  public static async Task<bool> IsRegisteredAsync()
+  {
+    if (OperatingSystem.IsWindows())
+    {
+      return WindowsProtocol.IsRegistered();
+    }
+
+    return string.Equals(await DesktopShell.CaptureAsync("xdg-mime", "query", "default", Scheme), DesktopFileName, StringComparison.Ordinal);
+  }
 
   /// <remarks>
   /// A distribution package already installs the entry and icon system-wide, so only the default
@@ -16,6 +24,12 @@ public static class NxmHandler
   /// </remarks>
   public static async Task RegisterAsync()
   {
+    if (OperatingSystem.IsWindows())
+    {
+      WindowsProtocol.Register();
+      return;
+    }
+
     if (!DistroPackage.IsInstalled)
     {
       var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

@@ -30,7 +30,7 @@ public static class Program
       // xdg-mime fails quietly (a missing ~/.config, no xdg-utils), so ask it back instead of trusting it.
       if (!NxmHandler.IsRegisteredAsync().GetAwaiter().GetResult())
       {
-        Console.Error.WriteLine($"xdg-mime did not make {NxmHandler.DesktopFileName} the nxm:// handler. Try again from LaunchHeim's settings.");
+        Console.Error.WriteLine("LaunchHeim could not make itself the nxm:// handler. Try again from LaunchHeim's settings.");
         return 1;
       }
 

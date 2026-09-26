@@ -3,7 +3,10 @@ using Qml.Net;
 
 namespace CINE.LaunchHeim.Desktop.ViewModels;
 
-/// <summary>The Plasma color scheme as QML color strings, updated live when kdeglobals changes.</summary>
+/// <summary>
+/// The Plasma color scheme as QML color strings, updated live when kdeglobals changes. On Windows, the
+/// system's app mode and accent color instead (see <see cref="WindowsColorScheme"/>).
+/// </summary>
 public sealed class ThemeViewModel : ViewModel, IDisposable
 {
   private readonly FileSystemWatcher? _watcher;
@@ -12,6 +15,12 @@ public sealed class ThemeViewModel : ViewModel, IDisposable
 
   public ThemeViewModel()
   {
+    if (OperatingSystem.IsWindows())
+    {
+      _scheme = WindowsColorScheme.Load();
+      return;
+    }
+
     _scheme = KdeColorScheme.Load(KdeColorScheme.ConfigPath);
 
     var directory = Path.GetDirectoryName(KdeColorScheme.ConfigPath)!;

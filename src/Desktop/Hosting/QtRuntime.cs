@@ -36,8 +36,19 @@ public static class QtRuntime
 
   public static void Prepare()
   {
-    NativeLibrary.SetDllImportResolver(typeof(NetNativeLibLoader.Loader.PlatformLoaderBase).Assembly, (name, _, _) =>
-      name is "dl" or "libdl" or "libdl.so" ? NativeLibrary.Load("libdl.so.2") : IntPtr.Zero);
+    if (OperatingSystem.IsLinux())
+    {
+      NativeLibrary.SetDllImportResolver(typeof(NetNativeLibLoader.Loader.PlatformLoaderBase).Assembly, (name, _, _) =>
+        name is "dl" or "libdl" or "libdl.so" ? NativeLibrary.Load("libdl.so.2") : IntPtr.Zero);
+    }
+
+    // The Windows build ships Qt next to LaunchHeim.exe (windeployqt), because its QmlNet.dll is built
+    // from source against that Qt (see packaging/windows). Windows finds DLLs in the exe's folder first.
+    if (OperatingSystem.IsWindows() && File.Exists(Path.Combine(AppContext.BaseDirectory, "Qt5Core.dll")))
+    {
+      Description = "Qt 5.15 (shipped with LaunchHeim)";
+      return;
+    }
 
     RuntimeManager.ExtractTarGZStream = (stream, destination) =>
     {
@@ -66,7 +77,7 @@ public static class QtRuntime
 
     // The bundled Qt has no KDE platform theme. The portal theme gives native Plasma file dialogs
     // and opens links through the desktop portal instead.
-    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("QT_QPA_PLATFORMTHEME")))
+    if (OperatingSystem.IsLinux() && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("QT_QPA_PLATFORMTHEME")))
     {
       Environment.SetEnvironmentVariable("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
     }

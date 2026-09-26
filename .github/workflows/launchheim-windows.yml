@@ -1,0 +1,56 @@
+# Builds the Windows version of LaunchHeim with packaging/windows/build.ps1, runs the Core tests on
+# Windows, starts the app offscreen and keeps the zip plus screenshots as an artifact.
+# The Windows build needs MSVC, so this is where it gets built and tested; see
+# Applications/LaunchHeim/packaging/README.md.
+name: LaunchHeim Windows
+
+on:
+  push:
+    paths:
+      - Applications/LaunchHeim/**
+      - .github/workflows/launchheim-windows.yml
+  pull_request:
+    paths:
+      - Applications/LaunchHeim/**
+      - .github/workflows/launchheim-windows.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    defaults:
+      run:
+        working-directory: Applications/LaunchHeim
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # The Qt that QmlNet.dll is compiled against and that ships next to LaunchHeim.exe.
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: 5.15.2
+          arch: win64_msvc2019_64
+          cache: true
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Build, test and smoke-test
+        shell: pwsh
+        run: ./packaging/windows/build.ps1 -Smoke
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: LaunchHeim-win-x64
+          path: |
+            Applications/LaunchHeim/packaging/dist/*.zip
+            Applications/LaunchHeim/packaging/dist/test-windows-*
+          if-no-files-found: warn

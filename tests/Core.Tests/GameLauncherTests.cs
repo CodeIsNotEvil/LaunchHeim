@@ -21,7 +21,7 @@ public class GameLauncherTests : IDisposable
   [Fact]
   public void Modded_launch_points_doorstop_at_the_instance_preloader()
   {
-    var plan = GameLauncher.Plan(_game, _instance, "", NoEnvironment);
+    var plan = GameLauncher.Plan(_game, _instance, "", NoEnvironment, GamePlatform.Linux);
 
     Assert.Equal(Path.Combine(_game, "valheim.x86_64"), plan.FileName);
     Assert.Equal(_game, plan.WorkingDirectory);
@@ -38,7 +38,7 @@ public class GameLauncherTests : IDisposable
   {
     var environment = new Dictionary<string, string?> { ["LD_PRELOAD"] = "gameoverlayrenderer.so", ["LD_LIBRARY_PATH"] = "/usr/lib/steam" };
 
-    var plan = GameLauncher.Plan(_game, _instance, "", environment);
+    var plan = GameLauncher.Plan(_game, _instance, "", environment, GamePlatform.Linux);
 
     Assert.Equal("libdoorstop_x64.so:gameoverlayrenderer.so", plan.Environment["LD_PRELOAD"]);
     Assert.Equal($"{Path.Combine(_instance, "doorstop_libs")}:/usr/lib/steam", plan.Environment["LD_LIBRARY_PATH"]);
@@ -47,7 +47,7 @@ public class GameLauncherTests : IDisposable
   [Fact]
   public void Vanilla_launch_does_not_preload_doorstop()
   {
-    var plan = GameLauncher.Plan(_game, null, "", NoEnvironment);
+    var plan = GameLauncher.Plan(_game, null, "", NoEnvironment, GamePlatform.Linux);
 
     Assert.False(plan.Environment.ContainsKey("LD_PRELOAD"));
     Assert.Equal("TRUE", plan.Environment["DOORSTOP_DISABLE"]);
@@ -56,7 +56,7 @@ public class GameLauncherTests : IDisposable
   [Fact]
   public void The_launchers_qt_variables_are_removed_from_the_game_environment()
   {
-    var plan = GameLauncher.Plan(_game, null, "", NoEnvironment);
+    var plan = GameLauncher.Plan(_game, null, "", NoEnvironment, GamePlatform.Linux);
     var info = plan.ToStartInfo();
 
     Assert.All(GameLauncher.HostOnlyVariables, v => Assert.False(info.Environment.ContainsKey(v)));
@@ -67,14 +67,113 @@ public class GameLauncherTests : IDisposable
   {
     var empty = _temp.Tree("empty");
 
-    var error = Assert.Throws<LaunchException>(() => GameLauncher.Plan(_game, empty, "", NoEnvironment));
+    var error = Assert.Throws<LaunchException>(() => GameLauncher.Plan(_game, empty, "", NoEnvironment, GamePlatform.Linux));
     Assert.Contains("BepInEx", error.Message);
   }
 
   [Fact]
   public void Refuses_to_launch_without_the_game()
   {
-    Assert.Throws<LaunchException>(() => GameLauncher.Plan(_temp.Tree("nogame"), null, "", NoEnvironment));
+    Assert.Throws<LaunchException>(() => GameLauncher.Plan(_temp.Tree("nogame"), null, "", NoEnvironment, GamePlatform.Linux));
+  }
+
+  [Fact]
+  public void Windows_modded_launch_passes_the_instance_to_doorstop_on_the_command_line()
+  {
+    var (game, instance) = WindowsSetup();
+    Directory.CreateDirectory(Path.Combine(instance, "unstripped_corlib"));
+    GameLauncher.PrepareGameFolder(game, instance, GamePlatform.Windows);
+
+    var plan = GameLauncher.Plan(game, instance, "-console", NoEnvironment, GamePlatform.Windows);
+
+    Assert.Equal(Path.Combine(game, "valheim.exe"), plan.FileName);
+    Assert.Equal(
+      [
+        "--doorstop-enabled", "true",
+        "--doorstop-target-assembly", Path.GetFullPath(Path.Combine(instance, GameLauncher.PreloaderPath)),
+        "--doorstop-mono-dll-search-path-override", Path.GetFullPath(Path.Combine(instance, "unstripped_corlib")),
+        "-console",
+      ],
+      plan.Arguments);
+    Assert.False(plan.Environment.ContainsKey("LD_PRELOAD"));
+    Assert.Equal("892970", plan.Environment["SteamAppId"]);
+  }
+
+  [Fact]
+  public void Windows_vanilla_launch_switches_doorstop_off_only_when_a_proxy_is_there()
+  {
+    var (game, instance) = WindowsSetup();
+
+    Assert.Empty(GameLauncher.Plan(game, null, "", NoEnvironment, GamePlatform.Windows).Arguments);
+
+    GameLauncher.PrepareGameFolder(game, instance, GamePlatform.Windows);
+    Assert.Equal(["--doorstop-enabled", "false"], GameLauncher.Plan(game, null, "", NoEnvironment, GamePlatform.Windows).Arguments);
+  }
+
+  [Fact]
+  public void Preparing_the_windows_game_folder_adds_the_proxy_with_doorstop_disabled()
+  {
+    var (game, instance) = WindowsSetup();
+
+    GameLauncher.PrepareGameFolder(game, instance, GamePlatform.Windows);
+
+    Assert.Equal("proxy from the instance", File.ReadAllText(Path.Combine(game, "winhttp.dll")));
+    var config = File.ReadAllLines(Path.Combine(game, "doorstop_config.ini"));
+    Assert.Equal(GameLauncher.WindowsConfigMarker, config[0]);
+    Assert.Contains("enabled = false", config);
+  }
+
+  [Fact]
+  public void Preparing_the_windows_game_folder_refreshes_launchheims_own_proxy()
+  {
+    var (game, instance) = WindowsSetup();
+    GameLauncher.PrepareGameFolder(game, instance, GamePlatform.Windows);
+    File.WriteAllText(Path.Combine(instance, "winhttp.dll"), "newer proxy");
+
+    GameLauncher.PrepareGameFolder(game, instance, GamePlatform.Windows);
+
+    Assert.Equal("newer proxy", File.ReadAllText(Path.Combine(game, "winhttp.dll")));
+  }
+
+  [Fact]
+  public void Preparing_the_windows_game_folder_leaves_a_manual_bepinex_install_alone()
+  {
+    var (game, instance) = WindowsSetup();
+    File.WriteAllText(Path.Combine(game, "winhttp.dll"), "manual proxy");
+    File.WriteAllText(Path.Combine(game, "doorstop_config.ini"), "[General]\nenabled = true\n");
+
+    GameLauncher.PrepareGameFolder(game, instance, GamePlatform.Windows);
+
+    Assert.Equal("manual proxy", File.ReadAllText(Path.Combine(game, "winhttp.dll")));
+    Assert.Equal("[General]\nenabled = true\n", File.ReadAllText(Path.Combine(game, "doorstop_config.ini")));
+  }
+
+  [Fact]
+  public void Preparing_the_game_folder_does_nothing_on_linux()
+  {
+    var (game, instance) = WindowsSetup();
+
+    GameLauncher.PrepareGameFolder(game, instance, GamePlatform.Linux);
+
+    Assert.False(File.Exists(Path.Combine(game, "winhttp.dll")));
+  }
+
+  [Fact]
+  public void Windows_refuses_an_instance_without_bepinex()
+  {
+    var (game, _) = WindowsSetup();
+    var empty = _temp.Tree("empty-windows");
+
+    Assert.Throws<LaunchException>(() => GameLauncher.PrepareGameFolder(game, empty, GamePlatform.Windows));
+    Assert.Throws<LaunchException>(() => GameLauncher.Plan(game, empty, "", NoEnvironment, GamePlatform.Windows));
+  }
+
+  private (string Game, string Instance) WindowsSetup()
+  {
+    var game = _temp.Tree("ValheimWindows", "valheim.exe");
+    var instance = _temp.Tree("windows-instance", GameLauncher.PreloaderPath);
+    File.WriteAllText(Path.Combine(instance, "winhttp.dll"), "proxy from the instance");
+    return (game, instance);
   }
 
   [Theory]

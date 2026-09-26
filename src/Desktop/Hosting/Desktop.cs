@@ -15,8 +15,27 @@ public static class DesktopShell
 
     // Links from mod descriptions are untrusted; only web pages and local files are opened.
     var isWeb = target.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || target.StartsWith("http://", StringComparison.OrdinalIgnoreCase);
-    if (!isWeb && !target.StartsWith('/') && !target.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
+    var isLocal = Path.IsPathFullyQualified(target) || target.StartsWith("file://", StringComparison.OrdinalIgnoreCase);
+    if (!isWeb && !isLocal)
     {
+      return;
+    }
+
+    if (OperatingSystem.IsWindows())
+    {
+      // The shell picks the default browser, Explorer for folders, or the app for a file. Checked above
+      // to be a web link or an existing path, so nothing else (a .exe URL scheme, say) is handed over.
+      if (isWeb || File.Exists(target) || Directory.Exists(target))
+      {
+        try
+        {
+          Process.Start(new ProcessStartInfo(target) { UseShellExecute = true })?.Dispose();
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+        }
+      }
+
       return;
     }
 

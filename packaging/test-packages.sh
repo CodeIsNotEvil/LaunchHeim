@@ -13,6 +13,7 @@ cd "$(dirname "$0")/dist"
 engine="${CONTAINER_ENGINE:-podman}"
 deb=$(ls launchheim_*_amd64.deb | tail -1)
 rpm=$(ls launchheim-*.x86_64.rpm | tail -1)
+failed=0
 targets=("$@")
 [ ${#targets[@]} -gt 0 ] || targets=(debian:13 ubuntu:24.04 fedora:44 almalinux:9 almalinux:10)
 
@@ -53,5 +54,8 @@ for target in "${targets[@]}"; do
   else
     echo "   FAILED" >&2
     rm -f "$name"
+    failed=1
   fi
 done
+
+exit "$failed"

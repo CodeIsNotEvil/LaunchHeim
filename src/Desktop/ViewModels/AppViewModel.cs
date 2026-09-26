@@ -182,9 +182,12 @@ public sealed class AppViewModel : ViewModel
 
     try
     {
+      var instanceDirectory = instance is null ? null : Instances.DirectoryOf(instance.Model);
+      // Windows only: Doorstop's proxy has to sit in the game folder (see GameLauncher).
+      GameLauncher.PrepareGameFolder(Settings.GameDirectory, instanceDirectory);
       var plan = GameLauncher.Plan(
         Settings.GameDirectory,
-        instance is null ? null : Instances.DirectoryOf(instance.Model),
+        instanceDirectory,
         instance?.Model.LaunchArguments ?? SettingsModel.VanillaLaunchArguments,
         GameLauncher.CurrentEnvironment());
 

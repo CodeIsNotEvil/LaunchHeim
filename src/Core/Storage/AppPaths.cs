@@ -5,6 +5,10 @@ namespace CINE.LaunchHeim.Core.Storage;
 /// Instances are data (they hold mods and configs the user cares about), settings are config, and the
 /// Thunderstore index plus downloaded archives are cache that can be thrown away at any time. Keeping
 /// them apart means clearing <c>~/.cache</c> never costs the user a modpack.
+/// <para>
+/// Windows has the same split under other names: instances and caches in <c>%LOCALAPPDATA%</c> (large,
+/// and must not roam with the profile), settings in <c>%APPDATA%</c>.
+/// </para>
 /// </remarks>
 public sealed record AppPaths(string DataDirectory, string ConfigDirectory, string CacheDirectory, string RuntimeDirectory)
 {
@@ -18,6 +22,17 @@ public sealed record AppPaths(string DataDirectory, string ConfigDirectory, stri
 
   public static AppPaths FromEnvironment()
   {
+    if (OperatingSystem.IsWindows())
+    {
+      var local = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppName);
+      return new AppPaths(
+        local,
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppName),
+        Path.Combine(local, "Cache"),
+        // %TEMP% is per user, like $XDG_RUNTIME_DIR. Windows 10 1803 and newer support Unix sockets.
+        Path.GetTempPath());
+    }
+
     var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
     string Xdg(string variable, string fallback)
