@@ -1,23 +1,30 @@
 # LaunchHeim
 
-A Valheim mod launcher for Linux desktops (built on CachyOS with KDE Plasma 6). It manages
+A Valheim mod launcher for Linux (built on CachyOS with KDE Plasma 6) and Windows. It manages
 **instances**: self-contained modded setups, each with its own BepInEx, plugins and configs. It finds
 and installs mods from Thunderstore, Nexus Mods and CurseForge, and starts Valheim with one of them,
-or vanilla. The game folder is never modified.
+or vanilla. On Linux the game folder is never modified. On Windows it gets Doorstop's `winhttp.dll`
+(see [Windows](#windows)).
 
 .NET 10 with a Qt Quick (QML) front end hosted through [Qml.Net](https://github.com/qmlnet/qmlnet).
 
 ## Install
 
-```fish
-./install.sh
-```
+| System | How |
+|---|---|
+| Arch, CachyOS | `makepkg -si` in `packaging/arch` (pacman package `launchheim-git`) |
+| Debian 13, Ubuntu 24.04+ | `sudo apt install ./launchheim_*_amd64.deb` from `packaging/build-packages.sh` |
+| Fedora, RHEL 9/10 | `sudo dnf install ./launchheim-*.x86_64.rpm` (RHEL 10 needs EPEL) |
+| Any Linux, per user | `./install.sh` (and `./install.sh --uninstall`) |
+| Windows 10/11 | unzip `LaunchHeim-*-win-x64.zip` from the *LaunchHeim Windows* workflow and run `LaunchHeim.exe` |
 
-The script publishes a Release build to `~/.local/opt/LaunchHeim` (override with `LAUNCHHEIM_PREFIX`),
+[`packaging/README.md`](packaging/README.md) covers each of these: dependencies, upgrading, removing,
+and how the packages are built and tested.
+
+`install.sh` publishes a Release build to `~/.local/opt/LaunchHeim` (override with `LAUNCHHEIM_PREFIX`),
 links `~/.local/bin/launchheim` and registers `launchheim.desktop`, which adds the app to the
 launcher and makes it the `nxm://` handler. Run it again to update. Instances and settings are kept.
-
-The build needs `dotnet`, `g++` and the Qt 5 headers from `qt5-base`. See [Qt runtime](#qt-runtime).
+It needs `dotnet`, `g++` and the Qt 5 headers from `qt5-base`. See [Qt runtime](#qt-runtime).
 
 ## Develop
 
@@ -40,7 +47,8 @@ not a C# change.
 | Project | Holds |
 |---|---|
 | `src/Core` | Everything testable, with no UI: Steam/Valheim discovery (`Game/`), instances, the mod installer and dependency resolution (`Mods/`), the three catalogs (`Catalogs/`), downloads and XDG storage. |
-| `src/Desktop` | The Qml.Net host, view models, QML pages and components, the Plasma colour scheme reader and desktop integration (single instance, `nxm://`). |
+| `src/Desktop` | The Qml.Net host, view models, QML pages and components, the Plasma (or Windows) colour scheme and desktop integration (single instance, `nxm://`). |
+| `packaging/` | The pacman, deb, rpm and Windows builds. See [`packaging/README.md`](packaging/README.md). |
 | `tests/Core.Tests` | xUnit tests for Core. |
 
 The namespaces sit under `CINE.` (set in `Directory.Build.props`), like every .NET app in the repo.
@@ -111,3 +119,30 @@ Three workarounds keep Qml.Net working on a current system:
 
 The view model is registered as a QML singleton (`import LaunchHeim 1.0`, `App`), not a context
 property. Context-property objects get JavaScript ownership, and the GC eventually deletes them.
+
+## Windows
+
+The same QML UI runs on Windows. The differences:
+
+- **Qml.Net's native library is built from source.** On Windows `QmlNet.dll` doesn't export the
+  functions the signal fix calls, so `packaging/windows/build.ps1` compiles qmlnet-native (the commit
+  Qml.Net 0.11.0 was built from) with the same change as a patch. It ships Qt 5.15.2 and the Visual C++
+  runtime next to `LaunchHeim.exe`, so nothing needs installing or downloading. At startup the app
+  checks that the patch is present and logs an error if it isn't.
+- **Launching.** Windows only loads Doorstop's `winhttp.dll` proxy from the game folder. Before the
+  first modded launch LaunchHeim copies it there, with a `doorstop_config.ini` that keeps it
+  **disabled**. Every modded launch then enables it and points it at the instance on the command line
+  (`--doorstop-target-assembly`), so starting Valheim from Steam stays vanilla. r2modman does the same.
+  An existing manual BepInEx install in the game folder is left alone. To remove LaunchHeim's trace,
+  delete those two files.
+- **Folders.** Instances and caches go in `%LOCALAPPDATA%\LaunchHeim`, settings in
+  `%APPDATA%\LaunchHeim`. Steam is found through the registry, then `libraryfolders.vdf` as on Linux.
+- **nxm://** is registered per user under `HKCU\Software\Classes\nxm` (Settings → Register). No
+  administrator rights are needed.
+- **Theme.** Breeze Light or Dark to match Windows' app mode, with the Windows accent colour. It's read
+  at start.
+
+Building needs Visual Studio 2022 with C++, Qt 5.15.2 `msvc2019_64`, the .NET 10 SDK and git:
+`packaging\windows\build.ps1 -QtDir C:\Qt\5.15.2\msvc2019_64` (add `-Smoke` to take screenshots). The
+GitHub workflow `.github/workflows/launchheim-windows.yml` runs the same script on every change and
+keeps the zip as an artifact. It also runs the Core tests on Windows.

@@ -62,6 +62,17 @@ public sealed class SettingsViewModel : ViewModel
   [NotifySignal]
   public string Version => Core.AppInfo.Version;
 
+  /// <summary>Where the colors come from, for the page subtitle and About.</summary>
+  [NotifySignal]
+  public string ThemeSource => OperatingSystem.IsWindows() ? "the Windows app mode and accent color" : "your Plasma color scheme and accent color";
+
+  [NotifySignal]
+  public string NxmHint => OperatingSystem.IsWindows()
+    ? "Registers LaunchHeim for nxm:// links for your Windows account."
+    : DistroPackage.IsInstalled
+      ? "Makes LaunchHeim the default app for nxm:// links."
+      : "Registers LaunchHeim for nxm:// links and adds it to your application launcher.";
+
   [NotifySignal]
   public string DataDirectory => _app.Paths.DataDirectory;
 
@@ -132,7 +143,7 @@ public sealed class SettingsViewModel : ViewModel
       await NxmHandler.RegisterAsync();
       await RefreshNxmAsync();
       _app.Toast(NxmRegistered ? "success" : "error", "Nexus links",
-        NxmRegistered ? "\"Mod Manager Download\" buttons on Nexus now open LaunchHeim." : "xdg-mime did not accept the handler.");
+        NxmRegistered ? "\"Mod Manager Download\" buttons on Nexus now open LaunchHeim." : "The system did not accept LaunchHeim as the handler.");
     }
     catch (Exception ex)
     {

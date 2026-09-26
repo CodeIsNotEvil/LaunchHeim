@@ -31,6 +31,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# Resolved once, so paths compare equal to what Windows records (the registry holds no "..").
+New-Item -ItemType Directory -Force $OutputDir | Out-Null
+$OutputDir = (Resolve-Path $OutputDir).Path
 $app = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $work = Join-Path $app 'packaging\windows\build'
 
@@ -110,10 +113,9 @@ Compress-Archive -Path $package -DestinationPath $zip
 Write-Host "Built $zip"
 
 if ($Smoke) {
-  # Offscreen needs a platform plugin windeployqt leaves out; it only goes into the tested folder.
-  Copy-Item (Join-Path $QtDir 'plugins\platforms\qoffscreen.dll') (Join-Path $package 'platforms')
-  $env:QT_QPA_PLATFORM = 'offscreen'
-  $env:QT_QUICK_BACKEND = 'software'
+  # The real Windows platform, as users get it. Qt's offscreen platform has no font database on
+  # Windows and renders no text at all. Without a GPU (CI runners) Qt falls back to opengl32sw.dll,
+  # which windeployqt ships, so that fallback is tested too.
   $exe = Join-Path $package 'LaunchHeim.exe'
   $failed = $false
 
@@ -135,7 +137,7 @@ if ($Smoke) {
   $register = Start-Process $exe -ArgumentList '--register-desktop' -Wait -PassThru
   $command = (Get-ItemProperty 'HKCU:\Software\Classes\nxm\shell\open\command' -ErrorAction SilentlyContinue).'(default)'
   Write-Host "nxm handler: $command"
-  if ($register.ExitCode -ne 0 -or $command -notlike "*$exe*") { Write-Host '::error::nxm:// registration failed'; $failed = $true }
+  if ($register.ExitCode -ne 0 -or -not "$command".Contains("`"$exe`"")) { Write-Host '::error::nxm:// registration failed'; $failed = $true }
 
   if (Test-Path (Join-Path $env:USERPROFILE '.qmlnet-qt-runtimes')) { Write-Host '::error::downloaded a Qt runtime instead of using the shipped one'; $failed = $true }
   if ($failed) { throw 'The smoke test failed.' }

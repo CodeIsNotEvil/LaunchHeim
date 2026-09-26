@@ -107,6 +107,21 @@ rpm -ql launchheim
 - **Fedora 44 and RHEL 9:** everything is in the base repositories.
 - **RHEL 10:** Qt 5 is gone from AppStream, so enable EPEL first (`sudo dnf install epel-release`).
 
+## Windows 10 / 11
+
+There's no installer yet. The Windows build is a portable folder:
+
+1. Download the `LaunchHeim-win-x64` artifact of the latest *LaunchHeim Windows* workflow run (GitHub
+   → Actions) and unzip `LaunchHeim-<version>-win-x64.zip` anywhere, for example
+   `%LOCALAPPDATA%\Programs\LaunchHeim`.
+2. Start `LaunchHeim.exe`. .NET, Qt and the Visual C++ runtime are included.
+3. Settings → *Handle "Mod Manager Download" links* → Register, so Nexus links open LaunchHeim.
+4. To update, replace the folder. Instances live in `%LOCALAPPDATA%\LaunchHeim` and are kept. To
+   uninstall, delete the folder and the `HKCU\Software\Classes\nxm` registry key.
+
+It's built by `windows/build.ps1` (see the app README's Windows section), which needs MSVC, so it can't
+be built from Linux.
+
 ## Building the packages
 
 ```fish

@@ -33,7 +33,7 @@ Item {
 
       PageHeader {
         title: "Settings"
-        subtitle: "LaunchHeim follows your Plasma color scheme and accent color automatically."
+        subtitle: "LaunchHeim follows " + page.settings.themeSource + " automatically."
         Layout.fillWidth: true
       }
 
@@ -93,7 +93,7 @@ Item {
             Layout.fillWidth: true
             Label { text: "Handle “Mod Manager Download” links"; font.bold: true }
             Label {
-              text: "Registers LaunchHeim for nxm:// links and adds it to your application launcher."
+              text: page.settings.nxmHint
               color: Theme.textMuted
               wrapMode: Text.Wrap
               Layout.fillWidth: true
@@ -171,7 +171,7 @@ Item {
           Label { text: "Qt runtime"; color: Theme.textMuted }
           Label { text: page.settings.qtRuntime }
           Label { text: "UI"; color: Theme.textMuted }
-          Label { text: "Qt Quick through Qml.Net, colored by your Plasma scheme" }
+          Label { text: "Qt Quick through Qml.Net, colored by " + page.settings.themeSource }
         }
       }
     }
