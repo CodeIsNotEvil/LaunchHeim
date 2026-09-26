@@ -32,6 +32,7 @@
   <!--
     native/signal_fix.cpp works around a signal bug in Qml.Net's native library (see the file). It is
     compiled against the system's Qt 5 headers (qt5-base) with g++, which Arch's base-devel provides.
+    Hardened and stripped the way distribution packages expect (namcap and rpmlint check for it).
   -->
   <PropertyGroup>
     <SignalFixLibrary>$(BaseIntermediateOutputPath)native/libLaunchHeimSignalFix.so</SignalFixLibrary>
@@ -42,7 +43,7 @@
   <Target Name="BuildSignalFix" BeforeTargets="BeforeBuild" Inputs="native/signal_fix.cpp" Outputs="$(SignalFixLibrary)">
     <Error Condition="!Exists('$(QtIncludeDirectory)/QtCore/qstring.h')" Text="Qt 5 headers not found in $(QtIncludeDirectory). Install qt5-base, or pass -p:QtIncludeDirectory=..." />
     <MakeDir Directories="$(BaseIntermediateOutputPath)native" />
-    <Exec Command="$(NativeCompiler) -std=c++17 -O2 -fPIC -shared -Wall -I$(QtIncludeDirectory) -I$(QtIncludeDirectory)/QtCore native/signal_fix.cpp -o $(SignalFixLibrary) -lQt5Core" />
+    <Exec Command="$(NativeCompiler) -std=c++17 -O2 -fPIC -shared -Wall -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -s -I$(QtIncludeDirectory) -I$(QtIncludeDirectory)/QtCore native/signal_fix.cpp -o $(SignalFixLibrary) -lQt5Core" />
   </Target>
 
   <ItemGroup>

@@ -11,4 +11,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <!--
+    Distribution packages build reproducibly, which also maps the source paths recorded in the assemblies
+    to /_/. Without it the build folder ends up in the package (makepkg warns about $srcdir).
+  -->
+  <PropertyGroup Condition="'$(LaunchHeimDistroPackage)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
 </Project>
