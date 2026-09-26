@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Everything that does not need Qt: instances, the mod installer, the mod site clients and the game
+    launcher. Keeping Qt out of here means the logic is unit-testable without a display, and the UI
+    layer could be swapped if Qml.Net (unmaintained, Qt 5 only) ever becomes a dead end.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="SharpCompress" Version="1.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="LaunchHeim.Core.Tests" />
+  </ItemGroup>
+
+</Project>
