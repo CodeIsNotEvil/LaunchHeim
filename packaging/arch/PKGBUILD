@@ -12,7 +12,7 @@ pkgrel=1
 pkgdesc='Valheim mod launcher with separate modded instances (Thunderstore, Nexus Mods, CurseForge)'
 arch=('x86_64')
 url='https://github.com/CodeIsNotEvil/MyMonoRepo/tree/main/Applications/LaunchHeim'
-license=('LicenseRef-proprietary')
+license=('MIT')
 # Qt comes from the system instead of the runtime Qml.Net would otherwise download (see QtRuntime.cs).
 # qt5-svg draws the icons, qt5-wayland lets it run natively on Wayland.
 depends=('dotnet-runtime>=10.0' 'qt5-base' 'qt5-declarative' 'qt5-quickcontrols2' 'qt5-svg' 'qt5-wayland'
@@ -49,4 +49,6 @@ check() {
 
 package() {
   "$srcdir/mymonorepo/$_app/packaging/stage.sh" "$srcdir/publish" "$pkgdir" /usr/lib
+  # MIT names the copyright holder, so Arch wants the text itself, not just the identifier.
+  install -Dm644 "$srcdir/mymonorepo/$_app/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }

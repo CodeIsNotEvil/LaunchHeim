@@ -5,7 +5,7 @@
   <name>LaunchHeim</name>
   <summary>Valheim mod launcher with separate modded instances</summary>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>LicenseRef-proprietary</project_license>
+  <project_license>MIT</project_license>
   <developer id="io.github.codeisnotevil">
     <name>CodeIsNotEvil</name>
   </developer>

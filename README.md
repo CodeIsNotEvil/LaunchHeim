@@ -7,6 +7,7 @@ or vanilla. On Linux the game folder is never modified. On Windows it gets Doors
 (see [Windows](#windows)).
 
 .NET 10 with a Qt Quick (QML) front end hosted through [Qml.Net](https://github.com/qmlnet/qmlnet).
+MIT-licensed, see [`LICENSE`](LICENSE).
 
 ## Install
 

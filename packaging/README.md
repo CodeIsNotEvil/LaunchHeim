@@ -63,7 +63,7 @@ nothing to register by hand.
 `pacman -Syu` doesn't upgrade it by itself, because it isn't in a repository. That's normal for
 self-built and AUR packages. An AUR helper (`paru`, `yay`) could handle it once it's published on the
 AUR. `paru -S --devel` then catches new commits. Publishing needs a `.SRCINFO`
-(`makepkg --printsrcinfo > .SRCINFO`) and a decision on the license (see below).
+(`makepkg --printsrcinfo > .SRCINFO`).
 
 ### A local pacman repository (optional)
 
@@ -162,10 +162,9 @@ QML imports to packages, and it can't see libraries that are loaded at runtime r
   could create it could inject a Qt library. The build overwrites it with `$ORIGIN`
   (`LaunchHeim.Desktop.csproj`). rpmbuild refuses the unpatched file.
 
-## Open: the license
+## License
 
-The repository has no license yet, so the packages say `LicenseRef-proprietary` (no rights granted).
-namcap reports an error for it because a `LicenseRef-*` identifier needs a license file in
-`/usr/share/licenses/`. Choosing a license (for example MIT or GPL-3.0-or-later), adding it to the
-repository and setting it in `PKGBUILD`, `rpm/launchheim.spec` and the metainfo removes the error. It's
-also needed before publishing to the AUR.
+LaunchHeim is MIT-licensed (`../LICENSE`). Each package installs the text where its distribution looks
+for it: `/usr/share/licenses/launchheim-git/LICENSE` (Arch), `/usr/share/doc/launchheim/copyright`
+(Debian), `/usr/share/licenses/launchheim/LICENSE` (rpm, via `%license`), and `LICENSE.txt` next to
+`LaunchHeim.exe` on Windows. The metainfo says `MIT` too.

@@ -33,6 +33,8 @@ build_deb() {
   # make the package uninstallable without extra setup.
   publish "$work/publish-deb" true
   packaging/stage.sh "$work/publish-deb" "$work/deb" /usr/lib
+  # Debian keeps the license as the package's copyright file.
+  install -Dm644 LICENSE "$work/deb/usr/share/doc/launchheim/copyright"
   install -d "$work/deb/DEBIAN"
   install -m755 packaging/deb/postinst "$work/deb/DEBIAN/postinst"
   sed -e "s/@VERSION@/$version/" -e "s/@INSTALLED_SIZE@/$(du -sk --exclude=DEBIAN "$work/deb" | cut -f1)/" \
@@ -51,7 +53,7 @@ build_rpm() {
   packaging/stage.sh "$work/publish-rpm" "$work/rpm-root" /usr/lib64
   mkdir -p "$work/rpm"
   tar -C "$work/rpm-root" --owner=0 --group=0 -cf "$work/rpm/launchheim-root.tar" .
-  cp packaging/rpm/launchheim.spec "$work/rpm/"
+  cp packaging/rpm/launchheim.spec LICENSE "$work/rpm/"
 
   local out="launchheim-${version}-1.x86_64.rpm"
   # %{dist} is left empty so one rpm serves every Fedora and RHEL release.

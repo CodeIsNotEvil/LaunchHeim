@@ -98,6 +98,7 @@ Remove-Item -Recurse -Force $package -ErrorAction SilentlyContinue
 Invoke-Checked dotnet @('publish', (Join-Path $app 'src\Desktop'), '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true',
   '-p:ContinuousIntegrationBuild=true', '-o', $package)
 Copy-Item -Force $qmlNetDll.FullName (Join-Path $package 'QmlNet.dll')
+Copy-Item (Join-Path $app 'LICENSE') (Join-Path $package 'LICENSE.txt')
 
 # 3. Qt and the Visual C++ runtime next to LaunchHeim.exe
 Invoke-Checked (Join-Path $QtDir 'bin\windeployqt.exe') @('--release', '--no-translations', '--no-system-d3d-compiler',

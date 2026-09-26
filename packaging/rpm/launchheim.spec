@@ -12,9 +12,10 @@ Name:           launchheim
 Version:        %{app_version}
 Release:        1%{?dist}
 Summary:        Valheim mod launcher with separate modded instances
-License:        LicenseRef-proprietary
+License:        MIT
 URL:            https://github.com/CodeIsNotEvil/MyMonoRepo/tree/main/Applications/LaunchHeim
 Source0:        launchheim-root.tar
+Source1:        LICENSE
 ExclusiveArch:  x86_64
 
 # Qt comes from the distribution instead of the runtime Qml.Net would otherwise download.
@@ -34,6 +35,7 @@ Thunderstore, Nexus Mods and CurseForge, with dependencies and BepInEx installed
 automatically.
 
 %prep
+cp %{SOURCE1} .
 
 %build
 
@@ -41,6 +43,7 @@ automatically.
 tar -xf %{SOURCE0} -C %{buildroot}
 
 %files
+%license LICENSE
 %{_libdir}/launchheim/
 %{_bindir}/launchheim
 %{_datadir}/applications/launchheim.desktop

@@ -18,6 +18,8 @@ vanilla. Mods come from Thunderstore (full index cached locally), Nexus (API key
 accounts) and CurseForge (API key).
 
 ## Key ideas
+- MIT-licensed (owner's choice, 2026-09-26), `Applications/LaunchHeim/LICENSE`. Only LaunchHeim, not the
+  whole monorepo.
 - Per-instance BepInEx through Doorstop instead of copying mods into the game folder: switching
   modpacks costs nothing, and the Steam install never has to be verified or repaired.
 - Qml.Net (Qt 5.15) as the UI host. It's unmaintained since 2020, so it needs three workarounds
@@ -44,7 +46,6 @@ accounts) and CurseForge (API key).
   (`.gitattributes`) or `git apply` fails.
 
 ## Open
-- The license. The packages say `LicenseRef-proprietary` until the owner picks one, and namcap flags it.
 - A Windows installer (Inno Setup, MSIX or winget), and live theme switching on Windows.
 - Moving Linux to the same patched qmlnet-native build as Windows would drop `signal_fix.cpp`, the
   g++/qt5-base build dependencies and the RPATH patch.
