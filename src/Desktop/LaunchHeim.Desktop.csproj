@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Qt Quick front end, hosted through Qml.Net. Qml.Net 0.11 is the last release (2020) and is
+    built against Qt 5.15, which is why the QML here imports Qt 5 modules. See the README for the two
+    runtime workarounds it needs on current .NET and glibc (Hosting/QtRuntime.cs).
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>LaunchHeim</AssemblyName>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Markdig" Version="1.4.0" />
+    <PackageReference Include="Qml.Net" Version="0.11.0" />
+    <PackageReference Include="Qml.Net.LinuxBinaries" Version="0.11.0" />
+    <!-- Qml.Net pins 12.0.2, which has a known DoS advisory. Lifting it is binary compatible. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\LaunchHeim.Core.csproj" />
+  </ItemGroup>
+
+  <!--
+    native/signal_fix.cpp works around a signal bug in Qml.Net's native library (see the file). It is
+    compiled against the system's Qt 5 headers (qt5-base) with g++, which Arch's base-devel provides.
+  -->
+  <PropertyGroup>
+    <SignalFixLibrary>$(BaseIntermediateOutputPath)native/libLaunchHeimSignalFix.so</SignalFixLibrary>
+    <QtIncludeDirectory Condition="'$(QtIncludeDirectory)' == ''">/usr/include/qt</QtIncludeDirectory>
+    <NativeCompiler Condition="'$(NativeCompiler)' == ''">g++</NativeCompiler>
+  </PropertyGroup>
+
+  <Target Name="BuildSignalFix" BeforeTargets="BeforeBuild" Inputs="native/signal_fix.cpp" Outputs="$(SignalFixLibrary)">
+    <Error Condition="!Exists('$(QtIncludeDirectory)/QtCore/qstring.h')" Text="Qt 5 headers not found in $(QtIncludeDirectory). Install qt5-base, or pass -p:QtIncludeDirectory=..." />
+    <MakeDir Directories="$(BaseIntermediateOutputPath)native" />
+    <Exec Command="$(NativeCompiler) -std=c++17 -O2 -fPIC -shared -Wall -I$(QtIncludeDirectory) -I$(QtIncludeDirectory)/QtCore native/signal_fix.cpp -o $(SignalFixLibrary) -lQt5Core" />
+  </Target>
+
+  <ItemGroup>
+    <None Include="$(SignalFixLibrary)" Link="libLaunchHeimSignalFix.so" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- QML is loaded from disk next to the binary, so editing it needs no recompile of the C#. -->
+    <None Include="qml\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="packaging\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
