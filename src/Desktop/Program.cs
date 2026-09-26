@@ -26,6 +26,14 @@ public static class Program
     if (args is ["--register-desktop"])
     {
       NxmHandler.RegisterAsync().GetAwaiter().GetResult();
+
+      // xdg-mime fails quietly (a missing ~/.config, no xdg-utils), so ask it back instead of trusting it.
+      if (!NxmHandler.IsRegisteredAsync().GetAwaiter().GetResult())
+      {
+        Console.Error.WriteLine($"Added {NxmHandler.DesktopFileName} to the application launcher, but xdg-mime did not make it the nxm:// handler. Try again from LaunchHeim's settings.");
+        return 1;
+      }
+
       Console.WriteLine($"Registered {NxmHandler.DesktopFileName} as the application entry and nxm:// handler.");
       return 0;
     }

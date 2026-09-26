@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace CINE.LaunchHeim.Desktop.Hosting;
 
 /// <summary>Registers LaunchHeim with the desktop so it shows up in the launcher and receives nxm:// links.</summary>
@@ -21,7 +19,9 @@ public static class NxmHandler
     Directory.CreateDirectory(icons);
 
     File.Copy(Path.Combine(AppContext.BaseDirectory, "packaging", "launchheim.svg"), Path.Combine(icons, "launchheim.svg"), overwrite: true);
-    await File.WriteAllTextAsync(Path.Combine(applications, DesktopFileName), DesktopEntry(), Encoding.UTF8);
+    // No encoding argument on purpose: the default is UTF-8 without a BOM. Encoding.UTF8 writes one, and
+    // the spec (and desktop-file-validate) then sees no [Desktop Entry] group at all.
+    await File.WriteAllTextAsync(Path.Combine(applications, DesktopFileName), DesktopEntry());
 
     await DesktopShell.CaptureAsync("update-desktop-database", applications);
     await DesktopShell.CaptureAsync("xdg-mime", "default", DesktopFileName, Scheme);
@@ -47,7 +47,7 @@ public static class NxmHandler
       Exec={exec}
       Icon=launchheim
       Terminal=false
-      Categories=Game;Utility;
+      Categories=Game;
       Keywords=valheim;mods;bepinex;thunderstore;nexus;curseforge;
       MimeType={Scheme};
       StartupWMClass=LaunchHeim

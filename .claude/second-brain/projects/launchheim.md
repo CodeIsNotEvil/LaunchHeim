@@ -28,6 +28,8 @@ accounts) and CurseForge (API key).
   QML singleton.
 - Qt 5.15's Material `ComboBox` logs a `foreground` binding loop. Setting `Material.foreground` on the
   instance silences it (2026-09-26).
+- .NET's `Encoding.UTF8` writes a BOM. Files other tools parse (`.desktop`) must use the default
+  BOM-less UTF-8 (2026-09-26).
 
 ## Open
 - Only Thunderstore mods are checked for updates (Nexus and CurseForge would cost one API call per mod).
