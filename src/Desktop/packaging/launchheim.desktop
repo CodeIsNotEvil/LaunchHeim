@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=LaunchHeim
+GenericName=Valheim Mod Launcher
+Comment=Manage modded Valheim instances and install mods from Thunderstore, Nexus Mods and CurseForge
+Exec=launchheim %u
+Icon=launchheim
+Terminal=false
+Categories=Game;
+Keywords=valheim;mods;bepinex;thunderstore;nexus;curseforge;
+MimeType=x-scheme-handler/nxm;
+StartupWMClass=LaunchHeim

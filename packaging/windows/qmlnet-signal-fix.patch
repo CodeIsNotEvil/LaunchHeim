@@ -1,0 +1,30 @@
+diff --git a/QmlNet/types/NetReference.cpp b/QmlNet/types/NetReference.cpp
+index 65d25ec..632619f 100644
+--- a/QmlNet/types/NetReference.cpp
++++ b/QmlNet/types/NetReference.cpp
+@@ -69,9 +69,15 @@ Q_DECL_EXPORT uchar net_instance_activateSignal(NetReferenceContainer* container
+         parameters = parametersContainer->list;
+     }
+ 
++    // LaunchHeim: notify every live wrapper. Upstream wrote `result = result || ...`, which stops after
++    // the first wrapper, so only one of the bindings showing a property ever updated. Handling a signal
++    // re-runs bindings, which can drop other wrappers, so each one is checked to still be alive first.
+     bool result = false;
+     for(NetValue* liveInstance : liveInstances) {
+-        result = result || liveInstance->activateSignal(signalNameString, parameters);
++        if(!NetValue::getAllLiveInstances(container->instance).contains(liveInstance)) {
++            continue;
++        }
++        result = liveInstance->activateSignal(signalNameString, parameters) || result;
+     }
+ 
+     if(result) {
+@@ -82,3 +88,8 @@ Q_DECL_EXPORT uchar net_instance_activateSignal(NetReferenceContainer* container
+ }
+ 
+ }
++
++// LaunchHeim: lets the app check at startup that it runs on this patched build.
++extern "C" Q_DECL_EXPORT int launchheim_signal_fix() {
++    return 1;
++}

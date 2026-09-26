@@ -1,0 +1,22 @@
+Package: launchheim
+Version: @VERSION@-1
+Architecture: amd64
+Maintainer: CodeIsNotEvil <noreply@github.com>
+Installed-Size: @INSTALLED_SIZE@
+Section: games
+Priority: optional
+Homepage: https://github.com/CodeIsNotEvil/MyMonoRepo/tree/main/Applications/LaunchHeim
+Depends: libqt5core5t64 | libqt5core5a, libqt5gui5t64 | libqt5gui5, libqt5widgets5t64 | libqt5widgets5,
+ libqt5qml5, libqt5quick5, libqt5quickcontrols2-5, libqt5svg5, qtwayland5,
+ qml-module-qtquick2, qml-module-qtquick-window2, qml-module-qtquick-layouts,
+ qml-module-qtquick-controls2, qml-module-qtquick-templates2, qml-module-qt-labs-platform,
+ libicu76 | libicu74 | libicu72, libssl3t64 | libssl3, zlib1g, ca-certificates,
+ xdg-utils, hicolor-icon-theme
+Description: Valheim mod launcher with separate modded instances
+ LaunchHeim keeps modded Valheim setups apart. Every instance has its own
+ BepInEx, plugins and configs, and the game folder is never changed.
+ .
+ Mods come from Thunderstore, Nexus Mods and CurseForge, with dependencies and
+ BepInEx installed automatically.
+ .
+ The .NET runtime is included, because Debian does not package .NET 10.

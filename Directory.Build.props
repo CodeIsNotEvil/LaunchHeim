@@ -1,0 +1,22 @@
+<Project>
+  <!--
+    Every application and library in the monorepo lives under the CINE root namespace
+    (LaunchHeim.Core -> CINE.LaunchHeim.Core), see decision 0004 in the second brain. Each app sets it in
+    its own Directory.Build.props so it stays self-contained, the same way GroceryTracker does.
+    Assembly and project names keep no prefix.
+  -->
+  <PropertyGroup>
+    <RootNamespace>CINE.$(MSBuildProjectName)</RootNamespace>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!--
+    Distribution packages build reproducibly, which also maps the source paths recorded in the assemblies
+    to /_/. Without it the build folder ends up in the package (makepkg warns about $srcdir).
+  -->
+  <PropertyGroup Condition="'$(LaunchHeimDistroPackage)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+</Project>
