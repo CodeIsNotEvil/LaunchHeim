@@ -12,7 +12,13 @@ namespace CINE.LaunchHeim.Desktop.Hosting;
 /// has no <c>qt5-quickcontrols2</c> by default), so by default the matching Qt runtime that Qml.Net
 /// publishes is downloaded once into <c>~/.qmlnet-qt-runtimes</c> (about 60 MB). Setting
 /// <c>LAUNCHHEIM_QT=system</c> uses the distribution's Qt 5 instead, which needs qt5-base,
-/// qt5-declarative, qt5-quickcontrols2 and qt5-wayland.
+/// qt5-declarative, qt5-quickcontrols2, qt5-svg and qt5-wayland.
+/// </para>
+/// <para>
+/// Distribution packages default to the system Qt: they declare those libraries as dependencies, and a
+/// package that downloads 60 MB into the home folder on first start is not what pacman or apt users
+/// expect. libQmlNet only uses public Qt 5.15 API plus QMetaObjectBuilder, which is unchanged across
+/// 5.15.x, so every distribution's 5.15 works. <c>LAUNCHHEIM_QT=bundled</c> forces the download anyway.
 /// </para>
 /// <para>Workarounds, both needed on any current system:</para>
 /// <list type="number">
@@ -39,7 +45,11 @@ public static class QtRuntime
       TarFile.ExtractToDirectory(gzip, destination, overwriteFiles: true);
     };
 
-    if (string.Equals(Environment.GetEnvironmentVariable("LAUNCHHEIM_QT"), "system", StringComparison.OrdinalIgnoreCase))
+    var requested = Environment.GetEnvironmentVariable("LAUNCHHEIM_QT");
+    var useSystem = string.IsNullOrEmpty(requested)
+      ? DistroPackage.IsInstalled
+      : string.Equals(requested, "system", StringComparison.OrdinalIgnoreCase);
+    if (useSystem)
     {
       Description = "System Qt 5";
       return;

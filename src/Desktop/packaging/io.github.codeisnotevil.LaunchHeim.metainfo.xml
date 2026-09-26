@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata, so Discover and GNOME Software can show LaunchHeim with a description. -->
+<component type="desktop-application">
+  <id>io.github.codeisnotevil.LaunchHeim</id>
+  <name>LaunchHeim</name>
+  <summary>Valheim mod launcher with separate modded instances</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <developer id="io.github.codeisnotevil">
+    <name>CodeIsNotEvil</name>
+  </developer>
+  <description>
+    <p>
+      LaunchHeim keeps modded Valheim setups apart. Every instance has its own BepInEx, plugins and
+      configs, and the game folder is never changed, so switching between modpacks takes one click.
+    </p>
+    <p>
+      Mods come from Thunderstore, Nexus Mods and CurseForge. Dependencies and BepInEx are installed
+      automatically, and Thunderstore mods can be updated in place.
+    </p>
+  </description>
+  <launchable type="desktop-id">launchheim.desktop</launchable>
+  <url type="homepage">https://github.com/CodeIsNotEvil/MyMonoRepo/tree/main/Applications/LaunchHeim</url>
+  <url type="bugtracker">https://github.com/CodeIsNotEvil/MyMonoRepo/issues</url>
+  <categories>
+    <category>Game</category>
+  </categories>
+  <provides>
+    <binary>launchheim</binary>
+  </provides>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="0.1.0" date="2026-09-26" />
+  </releases>
+</component>

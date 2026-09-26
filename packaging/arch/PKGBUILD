@@ -1,0 +1,52 @@
+# Maintainer: CodeIsNotEvil
+#
+# Builds LaunchHeim from the Git repository. A -git package, because LaunchHeim has no tagged releases:
+# pkgver comes from the app version plus the commit, so `makepkg -si` after a pull is an upgrade.
+#
+# Building from a local checkout instead of GitHub (for example to try a branch):
+#   LAUNCHHEIM_GIT="file://$HOME/repos/MyMonoRepo#branch=my-branch" makepkg -si
+
+pkgname=launchheim-git
+pkgver=0.1.0.r0.g0000000
+pkgrel=1
+pkgdesc='Valheim mod launcher with separate modded instances (Thunderstore, Nexus Mods, CurseForge)'
+arch=('x86_64')
+url='https://github.com/CodeIsNotEvil/MyMonoRepo/tree/main/Applications/LaunchHeim'
+license=('LicenseRef-proprietary')
+# Qt comes from the system instead of the runtime Qml.Net would otherwise download (see QtRuntime.cs).
+# qt5-svg draws the icons, qt5-wayland lets it run natively on Wayland.
+depends=('dotnet-runtime>=10.0' 'qt5-base' 'qt5-declarative' 'qt5-quickcontrols2' 'qt5-svg' 'qt5-wayland'
+         'hicolor-icon-theme' 'xdg-utils')
+makedepends=('git' 'dotnet-sdk>=10.0' 'gcc')
+provides=('launchheim')
+conflicts=('launchheim')
+# .NET assemblies carry no native debug info worth splitting, and stripping the apphost is pointless.
+options=('!strip' '!debug')
+source=("mymonorepo::git+${LAUNCHHEIM_GIT:-https://github.com/CodeIsNotEvil/MyMonoRepo.git}")
+sha256sums=('SKIP')
+
+_app=Applications/LaunchHeim
+
+pkgver() {
+  cd mymonorepo
+  local version
+  version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$_app/src/Desktop/LaunchHeim.Desktop.csproj")
+  printf '%s.r%s.g%s' "$version" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+build() {
+  cd "mymonorepo/$_app"
+  export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
+  # Framework-dependent: pacman provides the .NET runtime, like it provides Qt.
+  dotnet publish src/Desktop -c Release -r linux-x64 --self-contained false \
+    -p:LaunchHeimDistroPackage=true -o "$srcdir/publish"
+}
+
+check() {
+  cd "mymonorepo/$_app"
+  dotnet test tests/Core.Tests -c Release
+}
+
+package() {
+  "$srcdir/mymonorepo/$_app/packaging/stage.sh" "$srcdir/publish" "$pkgdir" /usr/lib
+}

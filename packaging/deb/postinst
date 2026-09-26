@@ -1,0 +1,7 @@
+#!/bin/sh
+# Only needed for installs with dpkg -i. apt runs the same updates through its triggers anyway.
+set -e
+if [ "$1" = "configure" ]; then
+  command -v update-desktop-database >/dev/null && update-desktop-database -q /usr/share/applications || true
+  command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q -t /usr/share/icons/hicolor || true
+fi

@@ -24,6 +24,11 @@
     <ProjectReference Include="..\Core\LaunchHeim.Core.csproj" />
   </ItemGroup>
 
+  <!-- Set by the pacman, deb and rpm builds. See Hosting/DistroPackage.cs. -->
+  <ItemGroup Condition="'$(LaunchHeimDistroPackage)' == 'true'">
+    <RuntimeHostConfigurationOption Include="LaunchHeim.DistroPackage" Value="true" />
+  </ItemGroup>
+
   <!--
     native/signal_fix.cpp works around a signal bug in Qml.Net's native library (see the file). It is
     compiled against the system's Qt 5 headers (qt5-base) with g++, which Arch's base-devel provides.
@@ -43,6 +48,67 @@
   <ItemGroup>
     <None Include="$(SignalFixLibrary)" Link="libLaunchHeimSignalFix.so" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
+
+  <!--
+    Qml.Net's libQmlNet.so still carries the RPATH of its CI machine,
+    /home/travis/build/qmlnet/qmlnet/build/Qt/qt/lib. The loader searches RPATH before the system
+    libraries, so anyone able to create that folder (a user called travis, say) could get their own Qt
+    loaded into LaunchHeim. Fedora's rpmbuild refuses the file for that reason. The path is overwritten
+    in place with $ORIGIN, the app's own folder, padded with NULs. It is not emptied: an empty RPATH entry
+    means the current directory, which is worse. Runs on every build and publish, so install.sh and dev
+    builds are fixed too, and it leaves the file alone once patched.
+  -->
+  <UsingTask TaskName="NeutralizeQmlNetRpath" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Files ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var stale = System.Text.Encoding.ASCII.GetBytes("/home/travis/build/qmlnet/qmlnet/build/Qt/qt/lib");
+        var origin = System.Text.Encoding.ASCII.GetBytes("$ORIGIN");
+        foreach (var item in Files)
+        {
+          var bytes = System.IO.File.ReadAllBytes(item.ItemSpec);
+          // Inline tasks compile against a reference set without Span, hence the plain search.
+          var at = -1;
+          for (var i = 0; at < 0 && i <= bytes.Length - stale.Length; i++)
+          {
+            var match = true;
+            for (var j = 0; match && j < stale.Length; j++)
+            {
+              match = bytes[i + j] == stale[j];
+            }
+
+            at = match ? i : -1;
+          }
+
+          if (at < 0)
+          {
+            continue;
+          }
+
+          Array.Clear(bytes, at, stale.Length);
+          origin.CopyTo(bytes, at);
+          System.IO.File.WriteAllBytes(item.ItemSpec, bytes);
+          Log.LogMessage(MessageImportance.Normal, "Replaced the stale RPATH in " + item.ItemSpec);
+        }
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="NeutralizeQmlNetRpathInOutput" AfterTargets="Build">
+    <ItemGroup>
+      <_QmlNetLibrary Include="$(OutDir)**/libQmlNet.so" />
+    </ItemGroup>
+    <NeutralizeQmlNetRpath Files="@(_QmlNetLibrary)" />
+  </Target>
+
+  <Target Name="NeutralizeQmlNetRpathInPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_QmlNetPublished Include="$(PublishDir)**/libQmlNet.so" />
+    </ItemGroup>
+    <NeutralizeQmlNetRpath Files="@(_QmlNetPublished)" />
+  </Target>
 
   <ItemGroup>
     <!-- QML is loaded from disk next to the binary, so editing it needs no recompile of the C#. -->
