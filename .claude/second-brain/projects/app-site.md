@@ -18,5 +18,4 @@ downloads, install guides, Ko-fi at https://ko-fi.com/codeisnotevil). Code: `sit
 - GitHub's `paths` filters are ignored for tag pushes, so the release tags always build.
 
 ## Open
-- GroceryTracker has no license yet (LaunchHeim is MIT). Decide before promoting it widely.
 - No custom domain. A `CNAME` file in `site/src` plus DNS would add one.
