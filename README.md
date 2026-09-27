@@ -97,8 +97,13 @@ gives the mod its name and dependencies.
 **Single instance.** A second start, usually the browser handing over an `nxm://` link, forwards its
 arguments over a Unix socket in `$XDG_RUNTIME_DIR` and exits.
 
-**Theme.** The colours come from the active Plasma colour scheme (`~/.config/kdeglobals`), including the
-accent colour, and change live when it changes. Breeze Dark is the fallback outside Plasma.
+**Theme.** The window, text and card colours come from the active Plasma colour scheme
+(`~/.config/kdeglobals`), and change live when it changes. Breeze Dark is the fallback outside Plasma.
+The accent is always LaunchHeim's own orange `#DE5833`, and the font is always Kode Mono (SIL OFL 1.1,
+shipped in `qml/fonts`), so the app matches its icon and the repo's other logos. Qt 5 can't read
+woff2 or pick weights from a variable font, so `Scripts/kodemono_static.py` cuts static Regular and
+Bold TTFs out of the variable font GroceryTracker ships. The logos come from `Scripts/text_logo.py`
+as SVG, and the `.ico` is rendered from that SVG.
 
 ## Qt runtime
 
@@ -140,7 +145,7 @@ The same QML UI runs on Windows. The differences:
   `%APPDATA%\LaunchHeim`. Steam is found through the registry, then `libraryfolders.vdf` as on Linux.
 - **nxm://** is registered per user under `HKCU\Software\Classes\nxm` (Settings → Register). No
   administrator rights are needed.
-- **Theme.** Breeze Light or Dark to match Windows' app mode, with the Windows accent colour. It's read
+- **Theme.** Breeze Light or Dark to match Windows' app mode, with LaunchHeim's orange accent and Kode Mono. It's read
   at start.
 
 Building needs Visual Studio 2022 with C++, Qt 5.15.2 `msvc2019_64`, the .NET 10 SDK and git:

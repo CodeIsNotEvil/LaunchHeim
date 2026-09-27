@@ -26,6 +26,8 @@ accounts) and CurseForge (API key).
   (tar extraction, `libdl.so`, the native signal fix). They're listed in the README. Any upgrade of
   .NET, glibc or Qt should re-check them.
 - Colours come from `kdeglobals` because Plasma 6 has no Qt 5 platform theme.
+- Branding: accent `#DE5833` and Kode Mono are fixed (Theme.qml), matching the repo's logos. Logos are SVG
+  from `Scripts/text_logo.py`, and raster files are always rendered from the SVG (2026-09-27).
 
 - Distro packages use the system Qt ([[0005-launchheim-distro-packages-use-system-qt]]). Windows keeps
   the QML UI with a patched QmlNet.dll built in CI ([[0006-launchheim-windows-keeps-qml]]).

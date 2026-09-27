@@ -14,6 +14,8 @@ Rectangle {
     id: label
     anchors.centerIn: parent
     color: parent.solid ? "white" : parent.tint
+    // Plain Text does not inherit the window font the way controls do.
+    font.family: Theme.fontFamily
     font.pointSize: Theme.small
     font.bold: true
   }

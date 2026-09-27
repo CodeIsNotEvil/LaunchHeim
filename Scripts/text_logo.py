@@ -11,8 +11,11 @@ instanced out of it here rather than needing a separate static file.
 
   Scripts/text_logo.py GT Applications/GroceryTracker/assets/GT-logo-optimized.svg
 
-Rasterise with rsvg-convert and magick, e.g. for an .ico:
-  rsvg-convert -w 256 -h 256 logo.svg -o logo.png && magick logo.png -define icon:auto-resize=256,48,32,16 logo.ico
+The SVG is always the source. Raster files (PNG, .ico) are rendered from it, never drawn directly,
+and each size is rendered from the vector rather than scaled down from a big PNG, so small icons
+stay sharp:
+  for n in 16 24 32 48 64 128 256; do rsvg-convert -w $n -h $n logo.svg -o logo-$n.png; done
+  magick logo-{16,24,32,48,64,128,256}.png logo.ico
 """
 import argparse
 from pathlib import Path

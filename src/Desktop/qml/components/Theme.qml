@@ -4,7 +4,9 @@ import LaunchHeim 1.0
 
 // The Plasma color scheme (read from kdeglobals by ThemeViewModel) plus the few colors derived from
 // it. The C# side re-reads kdeglobals when it changes, so switching color schemes in System Settings
-// repaints the window live.
+// repaints the window live. Two things are LaunchHeim's own instead of the desktop's: the accent is
+// the orange of the repo's logos (#DE5833, see Scripts/text_logo.py), and the font is Kode Mono
+// (loaded from qml/fonts in Main.qml), so the app looks like its icon on every desktop.
 QtObject {
   readonly property var source: App.theme
 
@@ -15,14 +17,15 @@ QtObject {
   readonly property color button: source.button
   readonly property color text: source.text
   readonly property color textMuted: source.textMuted
-  readonly property color accent: source.accent
-  readonly property color accentText: source.accentText
+  readonly property color accent: "#de5833"
+  // White on this orange is 3.8:1: enough for the bold button labels it is used for, not for body text.
+  readonly property color accentText: "#ffffff"
   readonly property color positive: source.positive
   readonly property color negative: source.negative
   readonly property color neutral: source.neutral
   readonly property color link: source.link
   readonly property bool dark: source.isDark
-  readonly property string fontFamily: source.fontFamily
+  readonly property string fontFamily: "Kode Mono"
   readonly property real fontPointSize: source.fontPointSize
 
   // Cards sit slightly off the window color, like Kirigami cards do.

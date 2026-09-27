@@ -6,7 +6,8 @@ namespace CINE.LaunchHeim.Desktop.Theming;
 /// <summary>Windows' light or dark app mode and accent color, mapped onto the Breeze palettes.</summary>
 /// <remarks>
 /// The QML is styled around a Plasma color scheme, so Windows gets Breeze Light or Breeze Dark (whichever
-/// matches "Choose your app mode") with the user's accent color and Segoe UI. It is read once at start;
+/// matches "Choose your app mode"). The Windows accent is read too, but Theme.qml uses LaunchHeim's own
+/// orange and Kode Mono on every platform. It is read once at start;
 /// Windows announces changes only through window messages, which Qml.Net does not pass on.
 /// </remarks>
 [SupportedOSPlatform("windows")]

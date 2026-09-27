@@ -15,7 +15,7 @@ RowLayout {
     id: field
     echoMode: reveal.checked ? TextInput.Normal : TextInput.Password
     selectByMouse: true
-    font.family: "monospace"
+    font.family: Theme.fontFamily
     Layout.fillWidth: true
     onAccepted: secret.saved(text)
   }
