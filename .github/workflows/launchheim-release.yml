@@ -1,0 +1,122 @@
+# Builds every LaunchHeim download and publishes them as one GitHub release.
+#
+#   tag launchheim-v1.2.3    Windows zip, Arch package, .deb and .rpm, tested, then released
+#   Run workflow (manual)    the same builds and tests as a dry run; the files stay as artifacts
+#
+# Release:  bump <Version> in src/Desktop/LaunchHeim.Desktop.csproj, merge, then
+#           git tag launchheim-v1.2.3 && git push origin launchheim-v1.2.3
+# The download page (site/) picks the new files up by itself once the release is published.
+name: LaunchHeim release
+
+on:
+  push:
+    tags: ["launchheim-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      # The tag names the release; the csproj is what the app reports in Settings → About. They must agree.
+      - name: Tag matches the app version
+        if: startsWith(github.ref, 'refs/tags/launchheim-v')
+        run: |
+          app=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Applications/LaunchHeim/src/Desktop/LaunchHeim.Desktop.csproj)
+          tag="${GITHUB_REF_NAME#launchheim-v}"
+          if [ "$app" != "$tag" ]; then
+            echo "::error::Tag says $tag but LaunchHeim.Desktop.csproj says $app. Bump <Version> first."
+            exit 1
+          fi
+
+  windows:
+    needs: version
+    uses: ./.github/workflows/launchheim-windows.yml
+
+  linux:
+    needs: version
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: Applications/LaunchHeim
+    steps:
+      # Full history: the Arch package's version counts commits.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # The signal fix compiles against Qt 5's headers, which Ubuntu keeps under a multiarch path.
+      - name: Qt 5 headers and g++
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq g++ qtbase5-dev
+
+      - name: Build the .deb, .rpm and Arch package
+        env:
+          CONTAINER_ENGINE: docker
+          QtIncludeDirectory: /usr/include/x86_64-linux-gnu/qt5
+        run: packaging/build-packages.sh deb rpm arch
+
+      - name: Install and start them in clean containers
+        env:
+          CONTAINER_ENGINE: docker
+        run: packaging/test-packages.sh debian:13 fedora:44
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LaunchHeim-linux
+          path: |
+            Applications/LaunchHeim/packaging/dist/*.deb
+            Applications/LaunchHeim/packaging/dist/*.rpm
+            Applications/LaunchHeim/packaging/dist/*.pkg.tar.zst
+            Applications/LaunchHeim/packaging/dist/test-*.png
+          if-no-files-found: error
+
+  release:
+    needs: [windows, linux]
+    if: startsWith(github.ref, 'refs/tags/launchheim-v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#launchheim-v}"
+          cat > notes.md <<EOF
+          | System | File | Install |
+          |---|---|---|
+          | Windows 10/11 | \`LaunchHeim-${version}-win-x64.zip\` | unzip anywhere, run \`LaunchHeim.exe\` |
+          | Arch, CachyOS | \`launchheim-git-*.pkg.tar.zst\` | \`sudo pacman -U <file>\` |
+          | Debian 13, Ubuntu 24.04+ | \`launchheim_${version}-1_amd64.deb\` | \`sudo apt install ./<file>\` |
+          | Fedora, RHEL 9/10 (EPEL) | \`launchheim-${version}-1.x86_64.rpm\` | \`sudo dnf install ./<file>\` |
+
+          Getting started: https://codeisnotevil.github.io/MyMonoRepo/download.html#launchheim
+          EOF
+          gh release create "$TAG" \
+            artifacts/LaunchHeim-win-x64/*.zip \
+            artifacts/LaunchHeim-linux/*.pkg.tar.zst \
+            artifacts/LaunchHeim-linux/*.deb \
+            artifacts/LaunchHeim-linux/*.rpm \
+            --title "LaunchHeim ${version}" --notes-file notes.md --latest=false
+
+      # A release made with GITHUB_TOKEN triggers no other workflows (GitHub's loop protection), so
+      # "release: published" in site.yml won't fire. A manual dispatch is the allowed way round it.
+      - name: Refresh the download page
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run site.yml --ref main

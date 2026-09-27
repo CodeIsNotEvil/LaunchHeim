@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# Builds the Debian/Ubuntu .deb and the Fedora/RHEL .rpm into packaging/dist/.
-# (Arch uses packaging/arch/PKGBUILD with makepkg instead. See packaging/README.md.)
+# Builds the Debian/Ubuntu .deb, the Fedora/RHEL .rpm and the Arch package into packaging/dist/.
 #
-#   packaging/build-packages.sh            # both
-#   packaging/build-packages.sh deb        # or just one: deb | rpm
+#   packaging/build-packages.sh            # deb and rpm
+#   packaging/build-packages.sh deb rpm arch
+#
+# arch runs packaging/arch/PKGBUILD with makepkg in an Arch container, from the current commit (the
+# PKGBUILD builds from git, so uncommitted changes are not in it). For your own machine, makepkg -si
+# in packaging/arch does the same and installs it. See packaging/README.md.
 #
 # The app is published once on this machine. dpkg-deb and rpmbuild then run in Debian and Fedora
 # containers, so neither has to be installed here. The staged files go into the container over stdin
@@ -66,10 +69,38 @@ build_rpm() {
   echo "Built packaging/dist/$out"
 }
 
+build_arch() {
+  local commit
+  commit=$(git rev-parse HEAD)
+  git diff --quiet HEAD || echo "warning: uncommitted changes are not in the Arch package (it builds commit ${commit:0:7})" >&2
+
+  # A bare clone gives makepkg's git source the history pkgver counts (CI checks out with
+  # fetch-depth: 0 for this). makepkg refuses to run as root, hence the builder user.
+  mkdir -p "$work/arch"
+  git clone -q --bare "$(git rev-parse --show-toplevel)" "$work/arch/repo.git"
+  cp packaging/arch/PKGBUILD "$work/arch/"
+  cat > "$work/arch/run.sh" <<'SCRIPT'
+set -e
+pacman -Syu --noconfirm --needed base-devel git >/dev/null
+useradd -m builder
+echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder
+chown -R builder /tmp/arch
+cd /tmp/arch
+sudo -u builder env LAUNCHHEIM_GIT="file:///tmp/arch/repo.git#commit=$1" makepkg -s --noconfirm >&2
+tar -c ./*.pkg.tar.zst
+SCRIPT
+
+  tar -C "$work" --owner=0 --group=0 -c arch \
+    | "$engine" run --rm -i docker.io/library/archlinux:latest sh -c 'tar -x -C /tmp && sh /tmp/arch/run.sh "$1"' sh "$commit" \
+    | tar -x -C "$dist"
+  echo "Built packaging/dist/$(cd "$dist" && ls -t ./*.pkg.tar.zst | head -1 | cut -c3-)"
+}
+
 for format in "${formats[@]}"; do
   case "$format" in
     deb) build_deb ;;
     rpm) build_rpm ;;
-    *) echo "Unknown format '$format'. Use deb or rpm." >&2; exit 2 ;;
+    arch) build_arch ;;
+    *) echo "Unknown format '$format'. Use deb, rpm or arch." >&2; exit 2 ;;
   esac
 done
