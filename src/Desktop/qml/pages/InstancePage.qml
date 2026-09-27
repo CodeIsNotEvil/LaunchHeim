@@ -309,7 +309,7 @@ Item {
                       text: root.inst.launchArguments
                       placeholderText: "No extra arguments"
                       selectByMouse: true
-                      font.family: "monospace"
+                      font.family: Theme.fontFamily
                       Layout.fillWidth: true
                       onAccepted: root.inst.saveLaunchArguments(text)
                     }
@@ -337,7 +337,7 @@ Item {
                   }
 
                   RowLayout {
-                    Label { text: root.inst.directory; font.family: "monospace"; elide: Text.ElideMiddle; Layout.fillWidth: true }
+                    Label { text: root.inst.directory; font.family: Theme.fontFamily; elide: Text.ElideMiddle; Layout.fillWidth: true }
                     LhButton { text: "Open"; iconName: "folder"; onClicked: root.inst.openFolder() }
                   }
                 }

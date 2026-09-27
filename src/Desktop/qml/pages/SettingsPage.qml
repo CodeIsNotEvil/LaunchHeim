@@ -48,7 +48,7 @@ Item {
           Icon { iconName: page.settings.gameFound ? "check" : "alert"; color: page.settings.gameFound ? Theme.positive : Theme.negative }
           Label {
             text: page.settings.gameDirectory.length > 0 ? page.settings.gameDirectory : "Valheim was not found"
-            font.family: "monospace"
+            font.family: Theme.fontFamily
             elide: Text.ElideMiddle
             Layout.fillWidth: true
           }
@@ -150,7 +150,7 @@ Item {
         Layout.fillWidth: true
 
         RowLayout {
-          Label { text: page.settings.dataDirectory; font.family: "monospace"; elide: Text.ElideMiddle; Layout.fillWidth: true }
+          Label { text: page.settings.dataDirectory; font.family: Theme.fontFamily; elide: Text.ElideMiddle; Layout.fillWidth: true }
           LhButton { text: "Open"; iconName: "folder"; kind: "ghost"; onClicked: page.settings.openDataDirectory() }
           LhButton { text: "Clear download cache"; iconName: "trash"; onClicked: page.settings.clearDownloadCache() }
         }

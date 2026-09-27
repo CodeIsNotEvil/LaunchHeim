@@ -214,6 +214,7 @@ Drawer {
                   maximumLineCount: 3
                   elide: Text.ElideRight
                   color: Theme.textMuted
+                  font.family: Theme.fontFamily
                   font.pointSize: Theme.small
                   Layout.fillWidth: true
                 }

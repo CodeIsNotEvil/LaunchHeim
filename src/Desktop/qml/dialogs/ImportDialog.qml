@@ -28,7 +28,7 @@ LhDialog {
 
     Label {
       text: Vm.settings.gameDirectory
-      font.family: "monospace"
+      font.family: Theme.fontFamily
       font.pointSize: Theme.small
       elide: Text.ElideMiddle
       Layout.fillWidth: true

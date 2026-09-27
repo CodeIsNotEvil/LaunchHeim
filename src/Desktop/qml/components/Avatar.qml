@@ -18,6 +18,7 @@ Rectangle {
     visible: image.status !== Image.Ready
     text: parent.initials
     color: "white"
+    font.family: Theme.fontFamily
     font.bold: true
     font.pixelSize: parent.height * 0.38
   }

@@ -64,7 +64,7 @@ public sealed class SettingsViewModel : ViewModel
 
   /// <summary>Where the colors come from, for the page subtitle and About.</summary>
   [NotifySignal]
-  public string ThemeSource => OperatingSystem.IsWindows() ? "the Windows app mode and accent color" : "your Plasma color scheme and accent color";
+  public string ThemeSource => OperatingSystem.IsWindows() ? "the Windows app mode" : "your Plasma color scheme";
 
   [NotifySignal]
   public string NxmHint => OperatingSystem.IsWindows()

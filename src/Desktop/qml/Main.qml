@@ -25,6 +25,12 @@ ApplicationWindow {
   Material.primary: Theme.accent
   Material.background: Theme.window
 
+  // Kode Mono ships with the app (qml/fonts, SIL OFL 1.1) as static Regular and Bold TTFs. Qt 5 reads
+  // neither woff2 nor variable-font weights, so Scripts/kodemono_static.py cuts these out of the
+  // variable font GroceryTracker uses. Once loaded they are ordinary "Kode Mono" in font.family.
+  FontLoader { source: "fonts/KodeMono-Regular.ttf" }
+  FontLoader { source: "fonts/KodeMono-Bold.ttf" }
+
   // An opaque root, so screenshots taken with LAUNCHHEIM_SCREENSHOT have the real background.
   Rectangle {
     id: root
