@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Downloads · GroceryTracker and LaunchHeim</title>
+  <meta name="description" content="Download GroceryTracker and LaunchHeim, with a quick guide to installing and using them.">
+  <link rel="icon" href="img/c-logo.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/KodeMono.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="img/c-logo.svg" alt="" width="32" height="32">CodeIsNotEvil</a>
+      <nav aria-label="Main">
+        <a href="./">Apps</a>
+        <a href="download.html" aria-current="page">Downloads</a>
+        <a href="{{ repo_url }}">GitHub</a>
+        <a href="https://ko-fi.com/codeisnotevil">Ko-fi</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <h1>Downloads</h1>
+    <p class="lead">Everything here is free. Each app has a short guide for getting it running and for
+      your first steps.</p>
+    <nav class="toc" aria-label="Apps on this page">
+      <a class="button" href="#grocerytracker"><img src="img/grocerytracker.svg" alt="" width="22" height="22">GroceryTracker</a>
+      <a class="button" href="#launchheim"><img src="img/launchheim.svg" alt="" width="22" height="22">LaunchHeim</a>
+    </nav>
+
+    <!-- ================= GroceryTracker ================= -->
+    <section class="app-section card" id="grocerytracker" aria-labelledby="gt-title">
+      <header>
+        <img src="img/grocerytracker.svg" alt="" width="48" height="48">
+        <div>
+          <h2 id="gt-title">GroceryTracker</h2>
+          <!-- if:gt_release -->
+          <p class="version">Version {{ gt_version }} · released {{ gt_date }} · <a href="{{ gt_release_url }}">release notes</a> · MIT license</p>
+          <!-- else -->
+          <p class="version">No release yet · MIT license</p>
+          <!-- end -->
+        </div>
+      </header>
+
+      <p>GroceryTracker runs on a computer in your home, such as a Raspberry Pi 4 or 5, a NAS or any
+        Linux machine, and every phone and laptop in the household uses it in the browser. It comes as
+        ready-made containers for x86-64 and ARM64, so there is nothing to build.</p>
+
+      <div class="note">
+        <p><strong>Keep it at home.</strong> GroceryTracker has no login: anyone who can reach it can
+          read and change everything. Use it on your home network or over a VPN such as Tailscale,
+          and don't open it to the internet.</p>
+      </div>
+
+      <h3>You need</h3>
+      <ul>
+        <li>A Linux machine that stays on (x86-64 or ARM64).</li>
+        <li><a href="https://podman.io/docs/installation">Podman</a> with <code>podman compose</code>,
+          or <a href="https://docs.docker.com/engine/install/">Docker</a> with its Compose plugin.</li>
+      </ul>
+
+      <!-- if:gt_release -->
+      <h3>Install</h3>
+      <ol class="steps">
+        <li>Make a folder for it and download the two setup files:
+<pre><code>mkdir grocerytracker &amp;&amp; cd grocerytracker
+curl -LO {{ gt_compose_url }}
+curl -LO {{ gt_env_url }}</code></pre></li>
+        <li>Create your settings and choose a database password:
+<pre><code>cp env.example .env
+nano .env        # set POSTGRES_PASSWORD</code></pre></li>
+        <li>Start it. The first start downloads the images:
+<pre><code>podman compose up -d        # or: docker compose up -d</code></pre></li>
+        <li>Open <code>http://&lt;your-machine&gt;:8080</code> on any device in your home.</li>
+      </ol>
+
+      <h3>Update</h3>
+<pre><code>podman compose pull &amp;&amp; podman compose up -d</code></pre>
+      <p>Your data stays in its own volume, and database changes are applied automatically when the
+        new version starts. To stay on one version until you choose to update, set
+        <code>GROCERYTRACKER_VERSION={{ gt_version }}</code> in <code>.env</code>.</p>
+      <!-- else -->
+      <div class="note">
+        <p>The first release with prebuilt containers is on its way. Until then you can build it
+          from source with the <a href="{{ repo_url }}/tree/main/Applications/GroceryTracker#deploying-to-the-raspberry-pi">Raspberry Pi guide</a>.</p>
+      </div>
+      <!-- end -->
+
+      <details>
+        <summary>Install it on your phone (HTTPS)</summary>
+        <p>Browsers only let you install GroceryTracker as an app, and use it offline, over HTTPS.
+          Put a certificate named <code>grocerytracker.crt</code> with its key
+          <code>grocerytracker.key</code> in a <code>certs</code> folder next to
+          <code>compose.yaml</code>. It is then served on port 8443. The
+          <a href="{{ repo_url }}/blob/main/Applications/GroceryTracker/deploy/https.md">HTTPS guide</a>
+          shows how to make a certificate your devices trust.</p>
+      </details>
+
+      <h3>First steps</h3>
+      <ol class="steps">
+        <li><strong>Manage:</strong> add the people who share the groceries, and your stores and
+          categories.</li>
+        <li><strong>Trips → Add trip:</strong> record a shopping trip with its total and who paid.
+          Line items are optional and split the total across categories.</li>
+        <li><strong>Dashboard:</strong> see your spending for this month, 3, 6 or 12 months, and per
+          category and store.</li>
+        <li><strong>Balance:</strong> see who owes whom, and record a transfer when you settle up.</li>
+        <li>Coming from a spreadsheet? <strong>Manage → Import bookings from CSV</strong> brings in your
+          history. Importing the same file again never creates duplicates.</li>
+      </ol>
+      <p>Everything works offline and syncs when the server is reachable again. More in the
+        <a href="{{ repo_url }}/tree/main/Applications/GroceryTracker#readme">GroceryTracker README</a>.</p>
+    </section>
+
+    <!-- ================= LaunchHeim ================= -->
+    <section class="app-section card" id="launchheim" aria-labelledby="lh-title">
+      <header>
+        <img src="img/launchheim.svg" alt="" width="48" height="48">
+        <div>
+          <h2 id="lh-title">LaunchHeim</h2>
+          <!-- if:lh_release -->
+          <p class="version">Version {{ lh_version }} · released {{ lh_date }} · <a href="{{ lh_release_url }}">release notes</a> · MIT license</p>
+          <!-- else -->
+          <p class="version">No release yet · MIT license</p>
+          <!-- end -->
+        </div>
+      </header>
+
+      <p>A Valheim mod launcher. Each instance is its own modpack with its own BepInEx, mods and
+        configs, and the game install stays vanilla. You need Valheim on Steam.</p>
+
+      <!-- if:lh_release -->
+      <div class="downloads">
+        <!-- if:lh_windows_url -->
+        <a class="button primary" href="{{ lh_windows_url }}">Windows 10/11 <small>.zip · {{ lh_windows_size }}</small></a>
+        <!-- end -->
+        <!-- if:lh_arch_url -->
+        <a class="button" href="{{ lh_arch_url }}">Arch, CachyOS <small>pacman · {{ lh_arch_size }}</small></a>
+        <!-- end -->
+        <!-- if:lh_deb_url -->
+        <a class="button" href="{{ lh_deb_url }}">Debian, Ubuntu <small>.deb · {{ lh_deb_size }}</small></a>
+        <!-- end -->
+        <!-- if:lh_rpm_url -->
+        <a class="button" href="{{ lh_rpm_url }}">Fedora, RHEL <small>.rpm · {{ lh_rpm_size }}</small></a>
+        <!-- end -->
+      </div>
+
+      <h3>Install</h3>
+      <!-- if:lh_windows_url -->
+      <details open>
+        <summary>Windows 10 and 11</summary>
+        <p>Unzip it anywhere, for example into <code>%LOCALAPPDATA%\Programs</code>, and start
+          <code>LaunchHeim.exe</code>. Nothing else is needed. To update, replace the folder; your
+          instances are kept in <code>%LOCALAPPDATA%\LaunchHeim</code>.</p>
+      </details>
+      <!-- end -->
+      <!-- if:lh_arch_url -->
+      <details>
+        <summary>Arch Linux, CachyOS</summary>
+<pre><code>sudo pacman -U {{ lh_arch_url }}</code></pre>
+        <p>Qt 5 and .NET come from the official repositories. To build it yourself instead, run
+          <code>makepkg -si</code> in <code>Applications/LaunchHeim/packaging/arch</code>.</p>
+      </details>
+      <!-- end -->
+      <!-- if:lh_deb_url -->
+      <details>
+        <summary>Debian 13, Ubuntu 24.04 and newer</summary>
+<pre><code>curl -LO {{ lh_deb_url }}
+sudo apt install ./{{ lh_deb_file }}</code></pre>
+      </details>
+      <!-- end -->
+      <!-- if:lh_rpm_url -->
+      <details>
+        <summary>Fedora, RHEL 9 and 10</summary>
+<pre><code>sudo dnf install {{ lh_rpm_url }}</code></pre>
+        <p>On RHEL 10 and its rebuilds, enable EPEL first (<code>sudo dnf install epel-release</code>),
+          which still has Qt 5.</p>
+      </details>
+      <!-- end -->
+      <!-- else -->
+      <div class="note">
+        <p>The first release is on its way. Until then, the
+          <a href="{{ repo_url }}/blob/main/Applications/LaunchHeim/packaging/README.md">packaging guide</a>
+          shows how to build it for Arch (<code>makepkg -si</code>), Debian, Fedora and Windows.</p>
+      </div>
+      <!-- end -->
+
+      <h3>First steps</h3>
+      <ol class="steps">
+        <li>LaunchHeim finds Valheim through your Steam libraries. If it doesn't, pick the folder under
+          <strong>Settings → Game</strong>.</li>
+        <li><strong>Library → New instance.</strong> BepInEx is installed into it for you.</li>
+        <li><strong>Browse mods</strong>, pick the instance under <em>Install into</em>, and install.
+          Dependencies come along automatically.</li>
+        <li>Press <strong>Play</strong> on the instance. The sidebar's play button starts vanilla
+          Valheim.</li>
+        <li>Already modded by hand? <strong>Import game folder</strong> turns it into an instance and
+          leaves the original alone.</li>
+      </ol>
+
+      <details>
+        <summary>Nexus Mods and CurseForge</summary>
+        <p>Thunderstore works right away. For <strong>Nexus Mods</strong>, add your personal API key under
+          Settings and press <strong>Register</strong>, so the website's "Mod Manager Download" buttons
+          open LaunchHeim. Premium accounts can install straight from LaunchHeim. For
+          <strong>CurseForge</strong>, add a free API key from the CurseForge for Studios console.</p>
+      </details>
+      <details>
+        <summary>What happens to my game folder?</summary>
+        <p>On Linux, nothing: each instance's BepInEx is loaded from the instance folder. On Windows,
+          BepInEx's loader (<code>winhttp.dll</code>) has to sit next to the game, so LaunchHeim puts it
+          there, switched off. Starting Valheim from Steam stays vanilla. Delete that file and
+          <code>doorstop_config.ini</code> to remove it.</p>
+      </details>
+      <p>More in the <a href="{{ repo_url }}/tree/main/Applications/LaunchHeim#readme">LaunchHeim README</a>.</p>
+    </section>
+
+    <section class="card support" aria-labelledby="support-title">
+      <div>
+        <h2 id="support-title">Like the apps?</h2>
+        <p>They're free and stay that way. If they save you time, a coffee on Ko-fi is a lovely way to
+          say thanks.</p>
+      </div>
+      <a class="button primary" href="https://ko-fi.com/codeisnotevil">Support me on Ko-fi</a>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>© {{ year }} CodeIsNotEvil</p>
+      <p><a href="{{ repo_url }}">Source on GitHub</a></p>
+      <p>Set in <a href="fonts/OFL.txt">Kode Mono</a> (SIL Open Font License)</p>
+    </div>
+  </footer>
+</body>
+</html>

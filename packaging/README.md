@@ -111,9 +111,11 @@ rpm -ql launchheim
 
 There's no installer yet. The Windows build is a portable folder:
 
-1. Download the `LaunchHeim-win-x64` artifact of the latest *LaunchHeim Windows* workflow run (GitHub
-   → Actions) and unzip `LaunchHeim-<version>-win-x64.zip` anywhere, for example
-   `%LOCALAPPDATA%\Programs\LaunchHeim`.
+1. Download `LaunchHeim-<version>-win-x64.zip` from the
+   [download page](https://codeisnotevil.github.io/MyMonoRepo/download.html#launchheim) (or the
+   `launchheim-v*` release on GitHub) and unzip it anywhere, for example
+   `%LOCALAPPDATA%\Programs\LaunchHeim`. Between releases, every change's zip is an artifact of the
+   *LaunchHeim Windows* workflow run.
 2. Start `LaunchHeim.exe`. .NET, Qt and the Visual C++ runtime are included.
 3. Settings → *Handle "Mod Manager Download" links* → Register, so Nexus links open LaunchHeim.
 4. To update, replace the folder. Instances live in `%LOCALAPPDATA%\LaunchHeim` and are kept. To
@@ -126,7 +128,7 @@ be built from Linux.
 
 ```fish
 cd Applications/LaunchHeim
-packaging/build-packages.sh          # .deb and .rpm into packaging/dist/ (or pass deb / rpm)
+packaging/build-packages.sh          # .deb and .rpm into packaging/dist/ (or pass deb / rpm / arch)
 packaging/test-packages.sh           # install them in clean containers and take screenshots
 ```
 
@@ -137,9 +139,31 @@ installed. `test-packages.sh` installs each package with apt or dnf in a clean D
 screenshot of the Settings page to `packaging/dist/test-*.png`. It fails if the app downloads its own
 Qt or writes a desktop entry into the home folder.
 
-To test the Arch package the same way, run `makepkg` in a `docker.io/library/archlinux` container as a
-non-root user. That's how it was verified. `namcap` then reports only the expected noise (it can't map
+`build-packages.sh arch` runs the PKGBUILD with `makepkg` in a clean `docker.io/library/archlinux`
+container, from the current commit (uncommitted changes aren't in it), and puts the
+`.pkg.tar.zst` into `packaging/dist/`. `namcap` then reports only the expected noise (it can't map
 QML imports to packages, and it can't see libraries that are loaded at runtime rather than linked).
+
+## Releases
+
+```fish
+# 1. bump <Version> in src/Desktop/LaunchHeim.Desktop.csproj and merge it
+git tag launchheim-v0.2.0
+git push origin launchheim-v0.2.0
+```
+
+The tag starts `.github/workflows/launchheim-release.yml`:
+1. It checks that the tag matches the csproj version.
+2. It builds the Windows zip (through the Windows workflow, smoke test included), plus the Arch
+   package, the .deb and the .rpm (`build-packages.sh deb rpm arch` on Ubuntu).
+3. It installs the .deb and .rpm in Debian and Fedora containers.
+4. It publishes all four files as the GitHub release `launchheim-v0.2.0`.
+
+The download page picks the new files up by itself. Starting the workflow by hand (*Run workflow*)
+does the same builds and tests as a dry run, without a release.
+
+The released Arch package is `launchheim-git` built at the tagged commit, so `pacman -U <url>`
+installs exactly that release.
 
 ## Why the packages look like this
 

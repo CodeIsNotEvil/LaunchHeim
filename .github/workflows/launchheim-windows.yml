@@ -14,6 +14,8 @@ on:
       - Applications/LaunchHeim/**
       - .github/workflows/launchheim-windows.yml
   workflow_dispatch:
+  # The release workflow (launchheim-release.yml) builds the Windows zip through this one.
+  workflow_call:
 
 permissions:
   contents: read

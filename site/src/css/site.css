@@ -1,0 +1,205 @@
+/* The look of the apps: Kode Mono and the orange of the logos, light or dark with the system. */
+
+@font-face {
+  font-family: "Kode Mono";
+  src: url("../fonts/KodeMono.woff2") format("woff2");
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+:root {
+  --accent: #de5833;
+  /* The orange is 3.3:1 on the light page: fine for headings and buttons, too light for small text
+     links, so links and small accented text use this darker shade. */
+  --accent-text: #b13f1c;
+  --bg: #f6f4f1;
+  --surface: #ffffff;
+  --border: #e3ded7;
+  --text: #211d1a;
+  --muted: #6b635c;
+  --code-bg: #f1ece6;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 4px 16px rgba(0, 0, 0, .05);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent-text: #f0845f;
+    --bg: #181614;
+    --surface: #221f1c;
+    --border: #36312c;
+    --text: #efebe6;
+    --muted: #a79f97;
+    --code-bg: #2b2723;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Kode Mono", ui-monospace, "Cascadia Mono", "DejaVu Sans Mono", monospace;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+a { color: var(--accent-text); text-underline-offset: .15em; }
+a:hover { text-decoration-thickness: 2px; }
+
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* Sideways only: the header, main and footer set their own vertical padding. */
+.wrap { max-width: 64rem; margin: 0 auto; padding-inline: 1rem; }
+
+/* ---------- Header ---------- */
+
+.site-header { border-bottom: 1px solid var(--border); background: var(--surface); }
+
+.site-header .wrap {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem 1.25rem;
+  padding-top: .75rem;
+  padding-bottom: .75rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: none;
+  margin-right: auto;
+}
+
+.brand img { width: 2rem; height: 2rem; }
+
+.site-header nav { display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
+.site-header nav a { color: var(--text); text-decoration: none; }
+.site-header nav a:hover, .site-header nav a[aria-current="page"] { color: var(--accent-text); text-decoration: underline; }
+
+/* ---------- Content ---------- */
+
+main { padding: 2.5rem 0 3rem; }
+
+h1, h2, h3 { line-height: 1.2; }
+h1 { font-size: clamp(1.7rem, 5vw, 2.6rem); margin: 0 0 .75rem; }
+h2 { font-size: clamp(1.35rem, 3.6vw, 1.8rem); margin: 0 0 .5rem; }
+h3 { font-size: 1.1rem; margin: 1.75rem 0 .5rem; }
+
+.lead { font-size: 1.1rem; color: var(--muted); max-width: 44rem; margin: 0 0 2rem; }
+
+.apps { display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+}
+
+.app-card { display: flex; flex-direction: column; }
+.app-card header { display: flex; align-items: center; gap: 1rem; margin-bottom: .75rem; }
+.app-card header img { width: 3.5rem; height: 3.5rem; flex: none; }
+.app-card header h2 { margin: 0; }
+.app-card header p { margin: 0; color: var(--muted); font-size: .9rem; }
+.app-card ul { padding-left: 1.2rem; margin: .5rem 0 1.25rem; }
+.app-card li { margin: .3rem 0; }
+.app-card .actions { margin-top: auto; }
+
+.actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  padding: .6rem 1.05rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  line-height: 1.3;
+}
+
+.button:hover { border-color: var(--accent); text-decoration: none; }
+/* White on the orange is 3.8:1, which is fine for these bold labels. */
+.button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.button.primary:hover { filter: brightness(1.08); }
+.button small { font-weight: 400; opacity: .85; }
+
+.support {
+  margin-top: 2.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.support p { margin: 0; max-width: 40rem; }
+
+/* ---------- Download page ---------- */
+
+.toc { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: 2rem; }
+
+.app-section { margin-bottom: 2.5rem; scroll-margin-top: 1rem; }
+.app-section > header { display: flex; align-items: center; gap: 1rem; margin-bottom: .5rem; }
+.app-section > header img { width: 3rem; height: 3rem; flex: none; }
+.app-section > header h2 { margin: 0; }
+.version { color: var(--muted); font-size: .9rem; margin: 0; }
+
+.downloads { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); margin: 1rem 0; }
+.downloads .button { justify-content: space-between; }
+
+ol.steps { padding-left: 1.4rem; }
+ol.steps > li { margin: .6rem 0; }
+
+pre, code { font-family: inherit; }
+code { background: var(--code-bg); border-radius: 5px; padding: .08em .35em; font-size: .92em; overflow-wrap: anywhere; }
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: .8rem 1rem;
+  /* Long commands scroll instead of wrapping, so copy and paste stays exact. */
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted) transparent;
+  line-height: 1.5;
+  font-size: .88rem;
+  margin: .5rem 0 1rem;
+}
+
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+
+.note {
+  border-left: 4px solid var(--accent);
+  background: var(--code-bg);
+  border-radius: 0 10px 10px 0;
+  padding: .75rem 1rem;
+  margin: 1rem 0;
+}
+
+.note p { margin: .25rem 0; }
+
+details { margin: .5rem 0; }
+summary { cursor: pointer; font-weight: 700; }
+
+/* ---------- Footer ---------- */
+
+.site-footer { border-top: 1px solid var(--border); color: var(--muted); font-size: .85rem; }
+.site-footer .wrap { padding-top: 1.25rem; padding-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; }
+.site-footer p { margin: 0; }
