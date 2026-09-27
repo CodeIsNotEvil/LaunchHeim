@@ -1,0 +1,61 @@
+# Builds site/ and publishes it on GitHub Pages: https://codeisnotevil.github.io/MyMonoRepo/
+#
+# It rebuilds when the site or the logos change, and whenever a release is published, because the
+# download page links each app's newest release files (site/build.py asks the GitHub API).
+# Pull requests only build it, as a check. One-time setup: Settings → Pages → Source: GitHub Actions.
+name: Site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - site/**
+      - Assets/**
+      - Applications/GroceryTracker/assets/**
+      - Applications/LaunchHeim/src/Desktop/packaging/launchheim.svg
+      - .github/workflows/site.yml
+  pull_request:
+    paths:
+      - site/**
+      - .github/workflows/site.yml
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time; a newer one replaces a queued one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 site/build.py _site --require-releases-api
+
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

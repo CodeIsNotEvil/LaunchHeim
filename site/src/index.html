@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CodeIsNotEvil · GroceryTracker and LaunchHeim</title>
+  <meta name="description" content="GroceryTracker, a self-hosted grocery spending tracker, and LaunchHeim, a Valheim mod launcher for Linux and Windows.">
+  <link rel="icon" href="img/c-logo.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/KodeMono.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="img/c-logo.svg" alt="" width="32" height="32">CodeIsNotEvil</a>
+      <nav aria-label="Main">
+        <a href="./" aria-current="page">Apps</a>
+        <a href="download.html">Downloads</a>
+        <a href="{{ repo_url }}">GitHub</a>
+        <a href="https://ko-fi.com/codeisnotevil">Ko-fi</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <h1>Small apps that do one job well</h1>
+    <p class="lead">
+      Tools I build for my own household and games, and share with anyone who has the same itch.
+      Free to use, the source is on GitHub, and nothing phones home.
+    </p>
+
+    <div class="apps">
+      <article class="card app-card" id="grocerytracker">
+        <header>
+          <img src="img/grocerytracker.svg" alt="GroceryTracker logo" width="56" height="56">
+          <div>
+            <h2>GroceryTracker</h2>
+            <p>Grocery spending, on your own server</p>
+          </div>
+        </header>
+        <p>Track what your household spends on groceries and who owes whom, without handing your
+          receipts to anyone.</p>
+        <ul>
+          <li>Works offline as an installable web app and syncs when it can.</li>
+          <li>Dashboard for this month, 3, 6 and 12 months, and year to date.</li>
+          <li>Split costs between people, with settle-up suggestions.</li>
+          <li>Import your old spreadsheet from CSV.</li>
+          <li>Runs in containers, even on a Raspberry Pi.</li>
+        </ul>
+        <div class="actions">
+          <a class="button primary" href="download.html#grocerytracker">Get GroceryTracker</a>
+          <a class="button" href="{{ repo_url }}/tree/main/Applications/GroceryTracker">Source</a>
+        </div>
+      </article>
+
+      <article class="card app-card" id="launchheim">
+        <header>
+          <img src="img/launchheim.svg" alt="LaunchHeim logo" width="56" height="56">
+          <div>
+            <h2>LaunchHeim</h2>
+            <p>A Valheim mod launcher</p>
+          </div>
+        </header>
+        <p>Keep every modpack in its own instance and switch between them with one click. Your game
+          install stays vanilla.</p>
+        <ul>
+          <li>Each instance has its own BepInEx, mods and configs.</li>
+          <li>Mods from Thunderstore, Nexus Mods and CurseForge, with dependencies installed for you.</li>
+          <li>Updates for Thunderstore mods, and Nexus "Mod Manager Download" links open in it.</li>
+          <li>For Linux (Arch, Debian/Ubuntu, Fedora/RHEL) and Windows 10/11.</li>
+          <li>MIT licensed.</li>
+        </ul>
+        <div class="actions">
+          <a class="button primary" href="download.html#launchheim">Get LaunchHeim</a>
+          <a class="button" href="{{ repo_url }}/tree/main/Applications/LaunchHeim">Source</a>
+        </div>
+      </article>
+    </div>
+
+    <section class="card support" aria-labelledby="support-title">
+      <div>
+        <h2 id="support-title">Support the work</h2>
+        <p>If one of these apps saves you time, you can buy me a coffee on Ko-fi. It keeps the apps
+          free and helps me keep them going.</p>
+      </div>
+      <a class="button primary" href="https://ko-fi.com/codeisnotevil">Support me on Ko-fi</a>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>© {{ year }} CodeIsNotEvil</p>
+      <p><a href="{{ repo_url }}">Source on GitHub</a></p>
+      <p>Set in <a href="fonts/OFL.txt">Kode Mono</a> (SIL Open Font License)</p>
+    </div>
+  </footer>
+</body>
+</html>
