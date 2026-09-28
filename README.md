@@ -103,7 +103,16 @@ The accent is always LaunchHeim's own orange `#DE5833`, and the font is always K
 shipped in `qml/fonts`), so the app matches its icon and the repo's other logos. Qt 5 can't read
 woff2 or pick weights from a variable font, so `Scripts/kodemono_static.py` cuts static Regular and
 Bold TTFs out of the variable font GroceryTracker ships. The logos come from `Scripts/text_logo.py`
-as SVG, and the `.ico` is rendered from that SVG.
+as SVG, and the `.ico` and the PNGs in `packaging/icons` (16 to 256 px) are rendered from that SVG.
+
+**Window icon.** Qml.Net can't set it, so `native/app_icon.cpp` (called from `Hosting/AppIcon.cs`)
+does two things before the window opens. It sets the window icon from `packaging/icons`, which X11 and
+Windows show in the title bar and taskbar. The `.exe` icon alone only reaches Explorer, because Qt looks
+for a resource named `IDI_ICON1` and .NET stores `<ApplicationIcon>` under a number. It also sets the
+desktop file name to `launchheim`. Qt 5 can't hand an icon to a Wayland compositor, so Plasma takes it
+from the desktop entry named by the window's app_id, and without this Qt calls the window
+`local.cine.LaunchHeim`. On Wayland a dev build therefore only shows the icon once `launchheim.desktop`
+is installed (a package, `install.sh` or `--register-desktop`).
 
 ## Qt runtime
 
@@ -134,7 +143,8 @@ The same QML UI runs on Windows. The differences:
   functions the signal fix calls, so `packaging/windows/build.ps1` compiles qmlnet-native (the commit
   Qml.Net 0.11.0 was built from) with the same change as a patch. It ships Qt 5.15.2 and the Visual C++
   runtime next to `LaunchHeim.exe`, so nothing needs installing or downloading. At startup the app
-  checks that the patch is present and logs an error if it isn't.
+  checks that the patch is present and logs an error if it isn't. `native/app_icon.cpp` (the window
+  icon) is compiled there with MSVC as well, so a plain `dotnet build` on Windows has no window icon.
 - **Launching.** Windows only loads Doorstop's `winhttp.dll` proxy from the game folder. Before the
   first modded launch LaunchHeim copies it there, with a `doorstop_config.ini` that keeps it
   **disabled**. Every modded launch then enables it and points it at the instance on the command line

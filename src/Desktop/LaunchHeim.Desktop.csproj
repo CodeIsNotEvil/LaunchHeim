@@ -50,18 +50,28 @@
   -->
   <PropertyGroup>
     <SignalFixLibrary>$(BaseIntermediateOutputPath)native/libLaunchHeimSignalFix.so</SignalFixLibrary>
+    <AppIconLibrary>$(BaseIntermediateOutputPath)native/libLaunchHeimAppIcon.so</AppIconLibrary>
     <QtIncludeDirectory Condition="'$(QtIncludeDirectory)' == ''">/usr/include/qt</QtIncludeDirectory>
     <NativeCompiler Condition="'$(NativeCompiler)' == ''">g++</NativeCompiler>
+    <NativeFlags>-std=c++17 -O2 -fPIC -shared -Wall -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -s -I$(QtIncludeDirectory)</NativeFlags>
   </PropertyGroup>
 
   <Target Name="BuildSignalFix" BeforeTargets="BeforeBuild" Inputs="native/signal_fix.cpp" Outputs="$(SignalFixLibrary)" Condition="'$(TargetsWindows)' != 'true'">
     <Error Condition="!Exists('$(QtIncludeDirectory)/QtCore/qstring.h')" Text="Qt 5 headers not found in $(QtIncludeDirectory). Install qt5-base, or pass -p:QtIncludeDirectory=..." />
     <MakeDir Directories="$(BaseIntermediateOutputPath)native" />
-    <Exec Command="$(NativeCompiler) -std=c++17 -O2 -fPIC -shared -Wall -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -s -I$(QtIncludeDirectory) -I$(QtIncludeDirectory)/QtCore native/signal_fix.cpp -o $(SignalFixLibrary) -lQt5Core" />
+    <Exec Command="$(NativeCompiler) $(NativeFlags) -I$(QtIncludeDirectory)/QtCore native/signal_fix.cpp -o $(SignalFixLibrary) -lQt5Core" />
+  </Target>
+
+  <!-- native/app_icon.cpp sets the window icon, which Qml.Net can't (see the file). Same headers and flags. -->
+  <Target Name="BuildAppIcon" BeforeTargets="BeforeBuild" Inputs="native/app_icon.cpp" Outputs="$(AppIconLibrary)" Condition="'$(TargetsWindows)' != 'true'">
+    <Error Condition="!Exists('$(QtIncludeDirectory)/QtGui/qicon.h')" Text="Qt 5 headers not found in $(QtIncludeDirectory). Install qt5-base, or pass -p:QtIncludeDirectory=..." />
+    <MakeDir Directories="$(BaseIntermediateOutputPath)native" />
+    <Exec Command="$(NativeCompiler) $(NativeFlags) native/app_icon.cpp -o $(AppIconLibrary) -lQt5Gui -lQt5Core" />
   </Target>
 
   <ItemGroup>
     <None Include="$(SignalFixLibrary)" Link="libLaunchHeimSignalFix.so" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" Condition="'$(TargetsWindows)' != 'true'" />
+    <None Include="$(AppIconLibrary)" Link="libLaunchHeimAppIcon.so" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" Condition="'$(TargetsWindows)' != 'true'" />
   </ItemGroup>
 
   <!--

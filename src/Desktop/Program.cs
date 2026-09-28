@@ -60,6 +60,7 @@ public static class Program
     _app = app;
     QCoreApplication.OrganizationName = "CINE";
     QCoreApplication.OrganizationDomain = "cine.local";
+    AppIcon.Apply();
 
     using var http = CreateHttpClient();
     var settingsStore = new SettingsStore(paths);
