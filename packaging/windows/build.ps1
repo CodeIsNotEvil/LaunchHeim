@@ -7,7 +7,8 @@
      QmlNet.dll on NuGet has the signal bug that native/signal_fix.cpp works around on Linux, and on
      Windows it cannot be worked around from outside because MSVC does not export the functions the
      Linux fix calls.
-  2. Publishes LaunchHeim self-contained for win-x64 and swaps in the patched QmlNet.dll.
+  2. Publishes LaunchHeim self-contained for win-x64, swaps in the patched QmlNet.dll and compiles
+     native/app_icon.cpp, which gives the window and the taskbar button the LaunchHeim icon.
   3. Copies the Qt 5.15 it was built against next to LaunchHeim.exe (windeployqt), plus the Visual C++
      runtime, so the folder runs on any Windows 10 or 11 without installing anything.
   4. Zips it, and with -Smoke starts it offscreen and saves a screenshot of every page.
@@ -98,6 +99,19 @@ Remove-Item -Recurse -Force $package -ErrorAction SilentlyContinue
 Invoke-Checked dotnet @('publish', (Join-Path $app 'src\Desktop'), '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true',
   '-p:ContinuousIntegrationBuild=true', '-o', $package)
 Copy-Item -Force $qmlNetDll.FullName (Join-Path $package 'QmlNet.dll')
+
+# The window icon (the csproj builds the same file on Linux). The .exe's own icon only reaches Explorer:
+# Qt looks for a resource named IDI_ICON1, and the .NET SDK stores <ApplicationIcon> under a number.
+# Built in its own folder, because the linker also writes an import library and .exp next to the DLL.
+# Same flags as qmake uses for QmlNet.dll, against the same Qt, whose Qt5Gui.dll windeployqt ships.
+$appIconBuild = Join-Path $work 'app-icon'
+Remove-Item -Recurse -Force $appIconBuild -ErrorAction SilentlyContinue
+New-Item -ItemType Directory $appIconBuild | Out-Null
+Invoke-Checked cl.exe @('/nologo', '/LD', '/MD', '/O2', '/EHsc', '/permissive-', '/Zc:__cplusplus', '/DQT_NO_DEBUG',
+  "/I$(Join-Path $QtDir 'include')", (Join-Path $app 'src\Desktop\native\app_icon.cpp'),
+  "/Fo$(Join-Path $appIconBuild 'app_icon.obj')", "/Fe$(Join-Path $appIconBuild 'LaunchHeimAppIcon.dll')",
+  '/link', "/LIBPATH:$(Join-Path $QtDir 'lib')", 'Qt5Gui.lib', 'Qt5Core.lib')
+Copy-Item (Join-Path $appIconBuild 'LaunchHeimAppIcon.dll') $package
 Copy-Item (Join-Path $app 'LICENSE') (Join-Path $package 'LICENSE.txt')
 
 # 3. Qt and the Visual C++ runtime next to LaunchHeim.exe
@@ -131,6 +145,7 @@ if ($Smoke) {
     Get-Content $log, "$log.out" -ErrorAction SilentlyContinue | Write-Host
     if (-not (Test-Path $shot)) { Write-Host "::error::no screenshot of $page"; $failed = $true }
     if (Select-String -Quiet -Path $log -Pattern 'without the signal fix') { Write-Host '::error::QmlNet.dll lacks the signal fix'; $failed = $true }
+    if (Select-String -Quiet -Path $log -Pattern 'no app icon') { Write-Host '::error::the window has no app icon'; $failed = $true }
   }
   Remove-Item Env:\LAUNCHHEIM_SCREENSHOT, Env:\LAUNCHHEIM_SCREENSHOT_PAGE, Env:\LAUNCHHEIM_SCREENSHOT_DELAY
 
