@@ -1,7 +1,7 @@
 ---
 tags: [project, dotnet, qml, gaming]
 created: 2026-09-26
-updated: 2026-09-26
+updated: 2026-09-28
 status: active
 ---
 # LaunchHeim
@@ -46,6 +46,13 @@ accounts) and CurseForge (API key).
   renders frames. Use `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software` (2026-09-26).
 - GitHub's Windows runners check out with `core.autocrlf=true`, so `.patch` files need `eol=lf`
   (`.gitattributes`) or `git apply` fails.
+- The window and taskbar showed placeholder icons on both systems (2026-09-28). Windows: Qt only
+  loads an exe icon resource named `IDI_ICON1`, and .NET's `<ApplicationIcon>` has a numeric id.
+  Plasma Wayland: Qt 5 derives the app_id from the organization domain (`local.cine.LaunchHeim`)
+  unless a desktop file name is set. `native/app_icon.cpp` fixes both; check the app_id with a KWin
+  script printing `workspace.windowList()` `desktopFileName`s.
+- .NET can't marshal `string[]` as UTF-8 (`LPUTF8Str` isn't allowed as an `ArraySubType`). Pass
+  `LPWStr` and take `const QChar*` natively (2026-09-28).
 
 ## Open
 - A Windows installer (Inno Setup, MSIX or winget), and live theme switching on Windows.
