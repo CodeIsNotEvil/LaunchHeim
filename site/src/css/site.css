@@ -82,6 +82,50 @@ a:hover { text-decoration-thickness: 2px; }
 
 .brand img { width: 2rem; height: 2rem; }
 
+/* ---------- Logo glint ----------
+   The same shine as the animated profile pictures (Assets/c-logo/C-logo-glint-*.gif): a light band
+   crosses the logo diagonally, from top-left to bottom-right. It sits on a layer masked to the logo's
+   own shape, so only the logo lights up, never the page behind it. The C in the header glints every
+   few seconds, with the GIF's timing (a 0.8 s sweep, then about 3 s of rest); the app logos glint
+   once when their card is hovered or focused. Nothing moves for people who ask for reduced motion. */
+.glint { position: relative; display: inline-flex; line-height: 0; }
+.glint::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* A band perpendicular to the diagonal, in the middle of a 3x3 image; 9% of that image is about a
+     quarter of the logo, like the GIF's band. Moving the image from 100% to 0% carries the band from
+     outside the top-left corner to outside the bottom-right one. */
+  background: linear-gradient(135deg,
+    transparent 45.5%, rgb(255 255 255 / .35) 48.3%, rgb(255 255 255 / .85) 50%,
+    rgb(255 255 255 / .35) 51.7%, transparent 54.5%) 100% 100% / 300% 300% no-repeat;
+  -webkit-mask: center / contain no-repeat;
+  mask: center / contain no-repeat;
+}
+/* Set per logo and not through a custom property: browsers disagree on whether a url() inside a
+   custom property resolves against the stylesheet or the page, and a mask that fails to load hides
+   the layer completely. */
+.glint-c::after { -webkit-mask-image: url("../img/c-logo.svg"); mask-image: url("../img/c-logo.svg"); }
+.glint-gt::after { -webkit-mask-image: url("../img/grocerytracker.svg"); mask-image: url("../img/grocerytracker.svg"); }
+.glint-lh::after { -webkit-mask-image: url("../img/launchheim.svg"); mask-image: url("../img/launchheim.svg"); }
+
+@keyframes glint-sweep {
+  from { background-position: 100% 100%; }
+  to { background-position: 0% 0%; }
+}
+/* 3.8 s in all: rest for 3 s, then sweep in the last 0.8 s. */
+@keyframes glint-loop {
+  0%, 79% { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .glint-c::after { animation: glint-loop 3.8s ease-in-out infinite; }
+  .app-card:hover .glint::after,
+  .app-card:focus-within .glint::after { animation: glint-sweep .8s ease-in-out; }
+}
+
 .site-header nav { display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
 .site-header nav a { color: var(--text); text-decoration: none; }
 .site-header nav a:hover, .site-header nav a[aria-current="page"] { color: var(--accent-text); text-decoration: underline; }
@@ -109,7 +153,8 @@ h3 { font-size: 1.1rem; margin: 1.75rem 0 .5rem; }
 
 .app-card { display: flex; flex-direction: column; }
 .app-card header { display: flex; align-items: center; gap: 1rem; margin-bottom: .75rem; }
-.app-card header img { width: 3.5rem; height: 3.5rem; flex: none; }
+.app-card header img { width: 3.5rem; height: 3.5rem; }
+.app-card header .glint { flex: none; }
 .app-card header h2 { margin: 0; }
 .app-card header p { margin: 0; color: var(--muted); font-size: .9rem; }
 .app-card ul { padding-left: 1.2rem; margin: .5rem 0 1.25rem; }
