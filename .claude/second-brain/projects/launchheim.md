@@ -75,6 +75,13 @@ accounts) and CurseForge (API key).
 - .NET can't marshal `string[]` as UTF-8 (`LPUTF8Str` isn't allowed as an `ArraySubType`). Pass
   `LPWStr` and take `const QChar*` natively (2026-09-28).
 
+- On Linux `Environment.SetEnvironmentVariable` only changes .NET's managed copy; Qt reads the C
+  environment with getenv and never sees it. So `QT_QPA_PLATFORMTHEME=xdgdesktopportal` was never
+  applied, Qt.labs.platform had no file dialog ("No native FileDialog implementation available ...
+  requires Qt Widgets"), and every file dialog silently did nothing on the bundled runtime.
+  `QtRuntime.SetForQt` also calls libc `setenv` (2026-09-30). `QT_QUICK_CONTROLS_MATERIAL_VARIANT=Dense`
+  in `Program.cs` has the same problem and is still not applied; switching it on would change the
+  look. Qt 5.15.1's portal dialog sends no suggested file name, so the export dialog starts empty.
 - A Unix socket path may be at most 108 characters. Screenshot runs with every XDG folder pointed at
   Claude's long scratchpad path crash in `SingleInstance.Listen`; keep `XDG_RUNTIME_DIR` short
   (2026-09-30).

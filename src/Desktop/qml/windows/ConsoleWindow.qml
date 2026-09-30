@@ -87,7 +87,9 @@ ApplicationWindow {
     function onRaiseRequested() {
       window.show()
       window.raise()
-      window.requestActivate()
+      // Wayland doesn't let a client take focus and only logs a warning for trying.
+      if (Qt.platform.pluginName.indexOf("wayland") < 0)
+        window.requestActivate()
     }
   }
 
