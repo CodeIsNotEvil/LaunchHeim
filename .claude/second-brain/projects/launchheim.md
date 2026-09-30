@@ -1,7 +1,7 @@
 ---
 tags: [project, dotnet, qml, gaming]
 created: 2026-09-26
-updated: 2026-09-28
+updated: 2026-09-30
 status: active
 ---
 # LaunchHeim
@@ -51,6 +51,13 @@ accounts) and CurseForge (API key).
   Plasma Wayland: Qt 5 derives the app_id from the organization domain (`local.cine.LaunchHeim`)
   unless a desktop file name is set. `native/app_icon.cpp` fixes both; check the app_id with a KWin
   script printing `workspace.windowList()` `desktopFileName`s.
+- Valheim started without a logged-in Steam client shows a black window and no error, because the game
+  is started directly rather than through Steam. `SteamClient` starts Steam and waits for the login
+  first (2026-09-30). Linux Steam no longer writes `ActiveProcess/ActiveUser` to `registry.vdf` (only
+  `HKLM/.../SteamPID`), so the first version waited forever. On Linux the login comes from
+  `logs/connection_log.txt` (last state `Logged On`, newer than the `steam` process); Windows keeps
+  the registry value. The pid Steam records is not trusted: Flatpak Steam writes its sandbox pid, and
+  `~/.steam/steam.pid` is left stale after Steam exits.
 - .NET can't marshal `string[]` as UTF-8 (`LPUTF8Str` isn't allowed as an `ArraySubType`). Pass
   `LPWStr` and take `const QChar*` natively (2026-09-28).
 
