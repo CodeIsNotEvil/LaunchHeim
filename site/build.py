@@ -45,7 +45,7 @@ CHANGELOGS = {
 
 # Files the site shows, taken from their real homes.
 ASSETS = {
-  "img/c-logo.svg": ROOT / "Assets/C-logo.svg",
+  "img/c-logo.svg": ROOT / "Assets/c-logo/C-logo.svg",
   "img/grocerytracker.svg": ROOT / "Applications/GroceryTracker/assets/GT-logo-optimized.svg",
   "img/launchheim.svg": ROOT / "Applications/LaunchHeim/src/Desktop/packaging/launchheim.svg",
   "fonts/KodeMono.woff2": ROOT / "Applications/GroceryTracker/src/UI/GroceryTracker.UI.Blazor/wwwroot/fonts/KodeMono.woff2",
