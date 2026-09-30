@@ -1,6 +1,7 @@
 using System.Formats.Tar;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
+using CINE.LaunchHeim.Core.Logging;
 using Qml.Net.Runtimes;
 
 namespace CINE.LaunchHeim.Desktop.Hosting;
@@ -68,7 +69,9 @@ public static class QtRuntime
 
     if (RuntimeManager.FindSuitableQtRuntime() is null)
     {
+      // On stderr as well, since the window takes a while to appear the first time.
       Console.Error.WriteLine("LaunchHeim: downloading the Qt 5.15 runtime for Qml.Net (about 60 MB, first start only)...");
+      Log.Info("Downloading the Qt 5.15 runtime for Qml.Net.");
     }
 
     RuntimeManager.DiscoverOrDownloadSuitableQtRuntime();
@@ -77,9 +80,31 @@ public static class QtRuntime
 
     // The bundled Qt has no KDE platform theme. The portal theme gives native Plasma file dialogs
     // and opens links through the desktop portal instead.
+    // Without it Qt.labs.platform has no file dialog at all (it would need Qt Widgets), so every "Choose
+    // folder", "Install from file" and "Export" silently did nothing.
     if (OperatingSystem.IsLinux() && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("QT_QPA_PLATFORMTHEME")))
     {
-      Environment.SetEnvironmentVariable("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
+      SetForQt("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
     }
   }
+
+  /// <summary>Sets an environment variable that Qt, which reads it with getenv, can see.</summary>
+  /// <remarks>
+  /// On Linux <see cref="Environment.SetEnvironmentVariable(string, string)"/> only changes .NET's own
+  /// copy of the environment; the C environment native code reads stays as it was. Qml.Net sets
+  /// QT_PLUGIN_PATH through its native qt_putenv for the same reason. The managed copy is set too, so
+  /// <see cref="Core.Game.GameLauncher.HostOnlyVariables"/> still sees it and keeps it from the game.
+  /// </remarks>
+  public static void SetForQt(string name, string value)
+  {
+    Environment.SetEnvironmentVariable(name, value);
+    if (!OperatingSystem.IsWindows() && setenv(name, value, overwrite: 1) != 0)
+    {
+      Log.Warning($"{name} could not be set for Qt (errno {Marshal.GetLastPInvokeError()}).");
+    }
+  }
+
+  // libc.so.6 by its versioned name: plain "libc.so" is a linker script that dlopen can't load.
+  [DllImport("libc.so.6", SetLastError = true)]
+  private static extern int setenv([MarshalAs(UnmanagedType.LPUTF8Str)] string name, [MarshalAs(UnmanagedType.LPUTF8Str)] string value, int overwrite);
 }

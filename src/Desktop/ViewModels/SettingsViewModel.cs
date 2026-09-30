@@ -79,6 +79,26 @@ public sealed class SettingsViewModel : ViewModel
   [NotifySignal]
   public string CacheDirectory => _app.Paths.CacheDirectory;
 
+  [NotifySignal]
+  public string LogFile => Core.Logging.Log.FilePath ?? _app.Paths.LogFile;
+
+  [NotifySignal]
+  public bool OpenConsoleOnLaunch => _app.SettingsModel.OpenConsoleOnLaunch;
+
+  public void SetOpenConsoleOnLaunch(bool value)
+  {
+    _app.SettingsModel.OpenConsoleOnLaunch = value;
+    _app.SaveSettings();
+    Raise(nameof(OpenConsoleOnLaunch));
+  }
+
+  public void OpenLogFolder()
+  {
+    var folder = Path.GetDirectoryName(LogFile)!;
+    Directory.CreateDirectory(folder);
+    DesktopShell.Open(folder);
+  }
+
   public void SetGameDirectory(string folderUrl)
   {
     var path = folderUrl.StartsWith("file:", StringComparison.OrdinalIgnoreCase) ? new Uri(folderUrl).LocalPath : folderUrl;

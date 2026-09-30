@@ -3,7 +3,9 @@ using CINE.LaunchHeim.Core.Catalogs;
 using CINE.LaunchHeim.Core.Catalogs.Nexus;
 using CINE.LaunchHeim.Core.Game;
 using CINE.LaunchHeim.Core.Instances;
+using CINE.LaunchHeim.Core.Logging;
 using CINE.LaunchHeim.Core.Mods;
+using CINE.LaunchHeim.Core.Packs;
 using CINE.LaunchHeim.Core.Storage;
 using CINE.LaunchHeim.Desktop.Hosting;
 using Qml.Net;
@@ -33,6 +35,7 @@ public sealed class AppViewModel : ViewModel
     InstanceStore instances,
     ModService mods,
     CatalogRegistry catalogs,
+    PackService packs,
     GameFolderImporter importer,
     ImageCache images)
   {
@@ -42,6 +45,7 @@ public sealed class AppViewModel : ViewModel
     Instances = instances;
     Mods = mods;
     Catalogs = catalogs;
+    Packs = packs;
     Images = images;
     _importer = importer;
 
@@ -49,6 +53,7 @@ public sealed class AppViewModel : ViewModel
     Browse = new BrowseViewModel(this);
     Settings = new SettingsViewModel(this);
     BrowserPrompt = new BrowserPromptViewModel();
+    DebugConsole = new ConsoleViewModel(this);
 
     _instances = instances.LoadAll().Select(i => new InstanceViewModel(this, i)).ToList();
     _selected = _instances.FirstOrDefault(i => i.Id == SettingsModel.LastInstanceId) ?? _instances.FirstOrDefault();
@@ -60,6 +65,7 @@ public sealed class AppViewModel : ViewModel
   internal InstanceStore Instances { get; }
   internal ModService Mods { get; }
   internal CatalogRegistry Catalogs { get; }
+  internal PackService Packs { get; }
   internal ImageCache Images { get; }
   internal List<InstanceViewModel> InstanceList => _instances;
 
@@ -74,6 +80,14 @@ public sealed class AppViewModel : ViewModel
 
   [NotifySignal]
   public BrowserPromptViewModel BrowserPrompt { get; }
+
+  /// <summary>Not called Console: QML would read <c>console</c> as its logging object.</summary>
+  [NotifySignal]
+  public ConsoleViewModel DebugConsole { get; }
+
+  /// <summary>Some options only mean something on Windows, such as BepInEx's own console window.</summary>
+  [NotifySignal]
+  public bool IsWindows => OperatingSystem.IsWindows();
 
   [NotifySignal]
   public string Version => Core.AppInfo.Version;
@@ -133,6 +147,52 @@ public sealed class AppViewModel : ViewModel
   }
 
   public void OpenUrl(string url) => DesktopShell.Open(url);
+
+  /// <summary>Opens the console on the running instance's log, or the selected one's.</summary>
+  public void OpenConsole()
+  {
+    if ((_instances.FirstOrDefault(i => i.Id == _runningInstanceId) ?? _selected) is { } instance)
+    {
+      DebugConsole.ShowFor(instance);
+    }
+    else
+    {
+      DebugConsole.Show(IsGameRunning ? "unity" : "app");
+    }
+  }
+
+  /// <param name="fileUrl">A file:// URL from the QML file dialog.</param>
+  public void ImportPack(string fileUrl) => _ = ImportPackAsync(LocalPath(fileUrl));
+
+  private async Task ImportPackAsync(string file)
+  {
+    var activity = BeginActivity("Importing " + Path.GetFileName(file));
+    try
+    {
+      var progress = activity.CreateProgress();
+      var report = await Task.Run(() => Packs.ImportAsync(file, progress, CancellationToken.None));
+      var instance = new InstanceViewModel(this, report.Instance);
+      AddInstance(instance);
+      OpenInstance(instance.Id);
+
+      ReportInstall(report.Install, instance.Name, quiet: true);
+      var from = report.FromR2modman ? " from r2modman" : "";
+      Log.Info($"Imported {file}{from} as {instance.Name} ({instance.Directory}): {instance.ModCount} mod(s), {report.ConfigFiles} config file(s).");
+      Toast("success", $"Imported {instance.Name}{from}", $"{instance.ModCount} mod(s) and {report.ConfigFiles} config file(s).");
+    }
+    catch (Exception ex)
+    {
+      Log.Error($"Importing {file} failed", ex);
+      Toast("error", "Import failed", ex.Message);
+    }
+    finally
+    {
+      EndActivity(activity);
+    }
+  }
+
+  internal static string LocalPath(string fileUrl) =>
+    fileUrl.StartsWith("file:", StringComparison.OrdinalIgnoreCase) ? new Uri(fileUrl).LocalPath : fileUrl;
 
   public void CreateInstance(string name, bool installLoader)
   {
@@ -206,11 +266,19 @@ public sealed class AppViewModel : ViewModel
       // Valheim without a logged-in Steam client shows a black window and no error (see SteamClient).
       SteamStatus = "Checking Steam";
       await _steam.EnsureReadyAsync(
-        state => SteamStatus = state == SteamState.NotRunning ? "Starting Steam" : "Waiting for Steam",
+        state =>
+        {
+          SteamStatus = state == SteamState.NotRunning ? "Starting Steam" : "Waiting for Steam";
+          Log.Info(SteamStatus);
+        },
         CancellationToken.None);
       SteamStatus = "";
 
+      LogLaunch(instance, plan);
+      var started = DateTimeOffset.Now;
       using var process = Process.Start(plan.ToStartInfo()) ?? throw new LaunchException("The game did not start.");
+      Log.Info($"Valheim started, process {process.Id}.");
+      DebugConsole.GameStarted(instance);
       RunningInstanceId = instance?.Id ?? "";
       IsGameRunning = true;
       Raise(nameof(RunningName));
@@ -224,9 +292,11 @@ public sealed class AppViewModel : ViewModel
 
       RefreshRunning();
       await process.WaitForExitAsync();
+      Log.Info($"Valheim exited with code {process.ExitCode} after {DateTimeOffset.Now - started:h\\:mm\\:ss}.");
     }
     catch (Exception ex)
     {
+      Log.Error("Starting Valheim failed", ex is LaunchException ? null : ex);
       Toast("error", "Could not start Valheim", ex.Message);
     }
     finally
@@ -236,6 +306,17 @@ public sealed class AppViewModel : ViewModel
       RunningInstanceId = "";
       Raise(nameof(RunningName));
       RefreshRunning();
+    }
+  }
+
+  /// <summary>What the game was started with, so a launch that goes wrong can be reproduced by hand.</summary>
+  private void LogLaunch(InstanceViewModel? instance, LaunchPlan plan)
+  {
+    Log.Info($"Starting {(instance is null ? "vanilla Valheim" : $"{instance.Name} ({instance.Directory})")}");
+    Log.Info($"  {plan.FileName} {string.Join(' ', plan.Arguments)}".TrimEnd());
+    foreach (var (key, value) in plan.Environment.Where(e => e.Value is not null).OrderBy(e => e.Key, StringComparer.Ordinal))
+    {
+      Log.Info($"  {key}={value}");
     }
   }
 
@@ -293,6 +374,8 @@ public sealed class AppViewModel : ViewModel
     {
       Select(_instances.FirstOrDefault());
     }
+
+    DebugConsole.InstanceRemoved(instance);
 
     if (CurrentPage == "instance")
     {
@@ -397,11 +480,8 @@ public sealed class AppViewModel : ViewModel
 
   internal async void Toast(string kind, string title, string message, string actionLabel = "", string actionUrl = "")
   {
-    if (kind == "error")
-    {
-      // Errors also go to stderr, so they end up in the journal when started from the launcher.
-      Console.Error.WriteLine($"LaunchHeim: {title}: {message}");
-    }
+    // Errors also go to stderr, so they end up in the journal when started from the launcher.
+    Log.Write(kind == "error" ? LogLevel.Error : LogLevel.Info, $"{title}: {message}".TrimEnd(' ', ':'));
 
     var toast = new ToastItem(kind, title, message, actionLabel, actionUrl, DismissToast);
     Toasts = [.. _toasts.TakeLast(3), toast];

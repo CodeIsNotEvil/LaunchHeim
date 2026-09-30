@@ -37,7 +37,7 @@ dotnet run --project src/Desktop
 
 # render one page to a PNG and quit, handy for checking QML changes without clicking around
 set -x LAUNCHHEIM_SCREENSHOT /tmp/shot.png
-set -x LAUNCHHEIM_SCREENSHOT_PAGE browse         # library | browse | settings
+set -x LAUNCHHEIM_SCREENSHOT_PAGE browse         # library | instance | browse | settings | console
 dotnet run --project src/Desktop
 ```
 
@@ -48,7 +48,7 @@ not a C# change.
 
 | Project | Holds |
 |---|---|
-| `src/Core` | Everything testable, with no UI: Steam/Valheim discovery (`Game/`), instances, the mod installer and dependency resolution (`Mods/`), the three catalogs (`Catalogs/`), downloads and XDG storage. |
+| `src/Core` | Everything testable, with no UI: Steam/Valheim discovery (`Game/`), instances, the mod installer and dependency resolution (`Mods/`), modpack export and import (`Packs/`), the three catalogs (`Catalogs/`), logging and log following (`Logging/`), downloads and XDG storage. |
 | `src/Desktop` | The Qml.Net host, view models, QML pages and components, the Plasma (or Windows) colour scheme and desktop integration (single instance, `nxm://`). |
 | `packaging/` | The pacman, deb, rpm and Windows builds. See [`packaging/README.md`](packaging/README.md). |
 | `tests/Core.Tests` | xUnit tests for Core. |
@@ -58,8 +58,9 @@ The namespaces sit under `CINE.` (set in `Directory.Build.props`), like every .N
 ## How it works
 
 **Files.** Following the XDG base directory spec: instances in `~/.local/share/LaunchHeim/instances`,
-settings in `~/.config/LaunchHeim/settings.json`, and the Thunderstore index and downloads in
-`~/.cache/LaunchHeim`. Clearing the cache never costs a modpack.
+settings in `~/.config/LaunchHeim/settings.json`, the Thunderstore index and downloads in
+`~/.cache/LaunchHeim`, and LaunchHeim's own log in `~/.local/state/LaunchHeim/launchheim.log`. Clearing
+the cache never costs a modpack.
 
 **Finding the game.** `SteamLibraryLocator` reads Steam's `libraryfolders.vdf` and the Valheim app
 manifest, so libraries on other drives (such as `/mnt/games/SteamLibrary`) and Flatpak Steam are found.
@@ -104,6 +105,33 @@ instance. It copies the game folder's files and never changes them. Plugins with
 `manifest.json` are recognised so they can be updated later. "Install from file" on an instance takes
 a mod downloaded by hand (a Thunderstore zip, an r2modman export or a plain dll). A zip's `manifest.json`
 gives the mod its name and dependencies.
+
+**Modpacks.** An instance exports as an `.r2z` file (instance page → Export) and a pack imports as
+a new instance (Library → Import modpack). The file is an r2modman profile export: a zip with
+`export.r2x` (the Thunderstore mods and their versions, in r2modman's YAML) and the configs under
+`BepInEx/config/`. r2modman and the Thunderstore Mod Manager import it, and LaunchHeim imports theirs.
+LaunchHeim adds `launchheim.json`, which r2modman ignores, for what its format can't hold: Nexus and
+CurseForge mods by id and file id, which mods were only pulled in as dependencies, and the launch
+arguments. Mods are listed, not packed, and downloaded again on import at the exact version, which
+keeps packs small and respects that Nexus and CurseForge files may not be passed on. Only local mods
+travel as files. On import every mod is resolved first and installed in dependency order, so the
+versions the pack pins win over "newest dependency". A version that's gone gets the newest one with
+a warning, and mods a site only hands out through its website (Nexus without Premium, CurseForge
+opt-outs) are listed to install from Browse mods. The pack's configs are copied last, over the mods'
+defaults.
+
+**Console and logs.** The console window (the terminal button on an instance, or in the sidebar while
+the game runs) follows one of three logs live: the instance's BepInEx `LogOutput.log`, Unity's
+`Player.log` (`~/.config/unity3d/IronGate/Valheim`, or `%USERPROFILE%\AppData\LocalLow\IronGate\Valheim`)
+and LaunchHeim's own log. Errors and warnings are coloured and counted, lines can be filtered, and
+the shown lines copied for a bug report. It follows the files rather than piping the game's stdout,
+because a pipe ties the game to the launcher: closing LaunchHeim would leave Valheim writing into a
+pipe nobody reads. A file that got shorter or has a new first line is a new session. LaunchHeim's log
+records every launch (executable, arguments and the Doorstop environment), Steam's state, installs,
+imports and every error toast; it moves to `launchheim.log.1` once it passes 2 MB. On Windows the
+instance's launch options can also switch on BepInEx's own console window (`[Logging.Console]` in
+`BepInEx.cfg`). On Linux that console writes to the game's stdout, which nobody sees, so the option
+is hidden there.
 
 **Single instance.** A second start, usually the browser handing over an `nxm://` link, forwards its
 arguments over a Unix socket in `$XDG_RUNTIME_DIR` and exits.

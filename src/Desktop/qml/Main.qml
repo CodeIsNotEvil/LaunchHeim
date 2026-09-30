@@ -6,6 +6,7 @@ import QtQuick.Layouts 1.15
 import "components"
 import "pages"
 import "dialogs"
+import "windows"
 
 ApplicationWindow {
   id: window
@@ -24,6 +25,9 @@ ApplicationWindow {
   Material.accent: Theme.accent
   Material.primary: Theme.accent
   Material.background: Theme.window
+
+  // The console is a window of its own and would otherwise keep LaunchHeim running on its own.
+  onClosing: Vm.debugConsole.close()
 
   // Kode Mono ships with the app (qml/fonts, SIL OFL 1.1) as static Regular and Bold TTFs. Qt 5 reads
   // neither woff2 nor variable-font weights, so Scripts/kodemono_static.py cuts these out of the
@@ -73,6 +77,7 @@ ApplicationWindow {
   }
 
   BrowserPromptDialog {}
+  ConsoleWindow { id: consoleWindow }
 
   Connections {
     target: App
@@ -84,11 +89,11 @@ ApplicationWindow {
   }
 
   // Development aid: LAUNCHHEIM_SCREENSHOT=/tmp/x.png renders the window once and exits, so the UI
-  // can be checked without a person at the screen.
+  // can be checked without a person at the screen. With the console open, that window is taken.
   Timer {
     running: screenshotPath.length > 0
     interval: screenshotDelay
-    onTriggered: root.grabToImage(function(result) {
+    onTriggered: (consoleWindow.visible ? consoleWindow.screenshotRoot : root).grabToImage(function(result) {
       result.saveToFile(screenshotPath)
       Qt.quit()
     })

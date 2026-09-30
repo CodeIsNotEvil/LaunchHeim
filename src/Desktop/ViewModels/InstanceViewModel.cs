@@ -1,5 +1,7 @@
 using CINE.LaunchHeim.Core.Instances;
+using CINE.LaunchHeim.Core.Logging;
 using CINE.LaunchHeim.Core.Mods;
+using CINE.LaunchHeim.Core.Packs;
 using CINE.LaunchHeim.Desktop.Hosting;
 using Qml.Net;
 
@@ -15,6 +17,7 @@ public sealed class InstanceViewModel : ViewModel
   private List<InstalledModViewModel> _mods = [];
   private List<ConfigFileViewModel> _configFiles = [];
   private bool _isBusy;
+  private bool _bepInExConsole;
   private string _filter = "";
 
   public InstanceViewModel(AppViewModel app, Instance instance)
@@ -112,6 +115,22 @@ public sealed class InstanceViewModel : ViewModel
   [NotifySignal]
   public bool IsRunning => _app.RunningInstanceId == Model.Id;
 
+  /// <summary>BepInEx's own console window, switched in the instance's BepInEx.cfg.</summary>
+  [NotifySignal]
+  public bool BepInExConsole { get => _bepInExConsole; private set => Set(ref _bepInExConsole, value); }
+
+  /// <summary>The file name the export dialog suggests.</summary>
+  [NotifySignal]
+  public string PackFileName
+  {
+    get
+    {
+      var invalid = Path.GetInvalidFileNameChars();
+      var name = new string(Model.Name.Select(c => invalid.Contains(c) ? '_' : c).ToArray()).Trim();
+      return (name.Length == 0 ? "modpack" : name) + PackService.FileExtension;
+    }
+  }
+
   public void Play() => _app.Launch(this);
 
   public void OpenFolder() => DesktopShell.Open(Directory);
@@ -138,6 +157,48 @@ public sealed class InstanceViewModel : ViewModel
 
   public void BrowseMods() => _app.BrowseFor(this);
 
+  public void OpenConsole() => _app.DebugConsole.ShowFor(this);
+
+  public void SetBepInExConsole(bool enabled)
+  {
+    try
+    {
+      BepInExConfig.SetConsoleEnabled(Directory, enabled);
+      Log.Info($"BepInEx console {(enabled ? "on" : "off")} for {Model.Name}.");
+    }
+    catch (IOException ex)
+    {
+      _app.Toast("error", "Could not change BepInEx.cfg", ex.Message);
+    }
+
+    BepInExConsole = BepInExConfig.IsConsoleEnabled(Directory);
+  }
+
+  /// <param name="fileUrl">A file:// URL from the QML save dialog.</param>
+  public void ExportPack(string fileUrl)
+  {
+    var path = AppViewModel.LocalPath(fileUrl);
+    if (!path.EndsWith(PackService.FileExtension, StringComparison.OrdinalIgnoreCase))
+    {
+      path += PackService.FileExtension;
+    }
+
+    RunExclusive("Exporting " + Model.Name, async _ =>
+    {
+      var report = await Task.Run(() => _app.Packs.Export(Model, path));
+      Log.Info($"Exported {Model.Name} to {path}: {report.Mods} mod(s), {report.ConfigFiles} config file(s), {report.LocalMods} local mod(s) packed.");
+
+      var message = $"{report.Mods} mod(s) and {report.ConfigFiles} config file(s) in {Path.GetFileName(path)}.";
+      if (report.NotInR2modman.Count > 0)
+      {
+        // r2modman has no Nexus or CurseForge; only LaunchHeim installs those from the pack.
+        message += $" r2modman will skip {string.Join(", ", report.NotInR2modman)}.";
+      }
+
+      _app.Toast("success", "Modpack exported", message, "Show", Path.GetDirectoryName(path) ?? "");
+    });
+  }
+
   public void Rename(string name)
   {
     if (string.IsNullOrWhiteSpace(name) || name.Trim() == Model.Name)
@@ -148,6 +209,7 @@ public sealed class InstanceViewModel : ViewModel
     Model.Name = name.Trim();
     _app.Instances.Save(Model);
     Raise(nameof(Name));
+    Raise(nameof(PackFileName));
     _app.InstancesChanged();
   }
 
@@ -172,7 +234,7 @@ public sealed class InstanceViewModel : ViewModel
   /// <param name="fileUrl">A file:// URL from the QML file dialog.</param>
   public void InstallFile(string fileUrl)
   {
-    var path = fileUrl.StartsWith("file:", StringComparison.OrdinalIgnoreCase) ? new Uri(fileUrl).LocalPath : fileUrl;
+    var path = AppViewModel.LocalPath(fileUrl);
     RunExclusive("Installing " + Path.GetFileName(path), async progress =>
     {
       var report = await Task.Run(() => _app.Mods.InstallFileAsync(Model, path, progress, CancellationToken.None));
@@ -291,6 +353,7 @@ public sealed class InstanceViewModel : ViewModel
     Mods = mods;
     ApplyUpdates();
     RefreshConfigFiles();
+    BepInExConsole = BepInExConfig.IsConsoleEnabled(Directory);
 
     Raise(nameof(FilteredMods));
     Raise(nameof(ModCount));

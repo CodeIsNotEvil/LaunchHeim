@@ -10,7 +10,7 @@ namespace CINE.LaunchHeim.Core.Storage;
 /// and must not roam with the profile), settings in <c>%APPDATA%</c>.
 /// </para>
 /// </remarks>
-public sealed record AppPaths(string DataDirectory, string ConfigDirectory, string CacheDirectory, string RuntimeDirectory)
+public sealed record AppPaths(string DataDirectory, string ConfigDirectory, string CacheDirectory, string RuntimeDirectory, string StateDirectory)
 {
   public const string AppName = "LaunchHeim";
 
@@ -19,6 +19,7 @@ public sealed record AppPaths(string DataDirectory, string ConfigDirectory, stri
   public string DownloadsDirectory => Path.Combine(CacheDirectory, "downloads");
   public string ThunderstoreIndexFile => Path.Combine(CacheDirectory, "thunderstore-valheim.json.gz");
   public string IpcSocket => Path.Combine(RuntimeDirectory, "launchheim.sock");
+  public string LogFile => Path.Combine(StateDirectory, "launchheim.log");
 
   public static AppPaths FromEnvironment()
   {
@@ -30,7 +31,8 @@ public sealed record AppPaths(string DataDirectory, string ConfigDirectory, stri
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppName),
         Path.Combine(local, "Cache"),
         // %TEMP% is per user, like $XDG_RUNTIME_DIR. Windows 10 1803 and newer support Unix sockets.
-        Path.GetTempPath());
+        Path.GetTempPath(),
+        Path.Combine(local, "Logs"));
     }
 
     var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -52,6 +54,7 @@ public sealed record AppPaths(string DataDirectory, string ConfigDirectory, stri
       Path.Combine(Xdg("XDG_DATA_HOME", ".local/share"), AppName),
       Path.Combine(Xdg("XDG_CONFIG_HOME", ".config"), AppName),
       Path.Combine(Xdg("XDG_CACHE_HOME", ".cache"), AppName),
-      runtime);
+      runtime,
+      Path.Combine(Xdg("XDG_STATE_HOME", ".local/state"), AppName));
   }
 }

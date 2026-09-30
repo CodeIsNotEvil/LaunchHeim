@@ -17,6 +17,9 @@ public sealed class AppSettings
 
   /// <summary>Extra arguments for the vanilla launch, which has no instance to store them on.</summary>
   public string VanillaLaunchArguments { get; set; } = "";
+
+  /// <summary>Opens the console window with the game's log on every launch, for building and debugging modpacks.</summary>
+  public bool OpenConsoleOnLaunch { get; set; }
 }
 
 public sealed class SettingsStore(AppPaths paths)

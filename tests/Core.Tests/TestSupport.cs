@@ -11,7 +11,7 @@ public sealed class TempDirectory : IDisposable
 
   public TempDirectory() => Directory.CreateDirectory(Path);
 
-  public AppPaths AppPaths => new(Combine("data"), Combine("config"), Combine("cache"), Combine("run"));
+  public AppPaths AppPaths => new(Combine("data"), Combine("config"), Combine("cache"), Combine("run"), Combine("state"));
 
   public string Combine(params string[] parts) => System.IO.Path.Combine([Path, .. parts]);
 

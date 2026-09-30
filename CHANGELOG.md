@@ -7,6 +7,23 @@ Format: a `## <version> - <yyyy-mm-dd>` heading per release (the version must ma
 `src/Desktop/LaunchHeim.Desktop.csproj`), then `### Added`, `### Changed` or `### Fixed` with one
 bullet per change.
 
+## 0.3.0 - 2026-09-30
+
+### Added
+- Modpacks: export an instance as an `.r2z` file and share it. Importing one creates a new instance
+  with the same mods at the same versions, the same configs and the same launch options. The files
+  also work with r2modman and the Thunderstore Mod Manager, and their profile exports import into
+  LaunchHeim.
+- A console window that follows the game's logs live while you play: BepInEx's log for the instance,
+  Unity's Player.log and LaunchHeim's own log, with errors and warnings highlighted and counted, a
+  filter, and a button to copy the lines. It can open by itself every time the game starts.
+- LaunchHeim keeps a log of its own, with every launch, install and error, for reporting problems.
+- On Windows, an instance can show BepInEx's own console window next to the game.
+
+### Fixed
+- On Linux, "Install from file" and choosing the game folder in Settings did nothing when LaunchHeim
+  ran with its own copy of Qt (installed with `install.sh`): the file dialog never opened.
+
 ## 0.2.0 - 2026-09-30
 
 ### Added

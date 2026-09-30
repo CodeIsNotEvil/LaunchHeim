@@ -33,6 +33,12 @@ accounts) and CurseForge (API key).
 - Branding: accent `#DE5833` and Kode Mono are fixed (Theme.qml), matching the repo's logos. Logos are SVG
   from `Scripts/text_logo.py`, and raster files are always rendered from the SVG (2026-09-27).
 
+- Modpacks (2026-09-30) are r2modman `.r2z` exports with LaunchHeim's `launchheim.json` beside
+  `export.r2x` ([[0009-launchheim-modpacks-are-r2z]]), so they work in r2modman and theirs import here.
+- The console window follows log files (BepInEx `LogOutput.log`, Unity `Player.log`, LaunchHeim's own
+  `~/.local/state/LaunchHeim/launchheim.log`) instead of piping the game's stdout, so closing LaunchHeim
+  can never block or kill a running game (2026-09-30). Lines reach QML as JSON batches appended to a
+  ListModel; a replaced Qml.Net list would reset the scroll position.
 - Distro packages use the system Qt ([[0005-launchheim-distro-packages-use-system-qt]]). Windows keeps
   the QML UI with a patched QmlNet.dll built in CI ([[0006-launchheim-windows-keeps-qml]]).
 
@@ -69,9 +75,27 @@ accounts) and CurseForge (API key).
 - .NET can't marshal `string[]` as UTF-8 (`LPUTF8Str` isn't allowed as an `ArraySubType`). Pass
   `LPWStr` and take `const QChar*` natively (2026-09-28).
 
+- On Linux `Environment.SetEnvironmentVariable` only changes .NET's managed copy; Qt reads the C
+  environment with getenv and never sees it. So `QT_QPA_PLATFORMTHEME=xdgdesktopportal` was never
+  applied, Qt.labs.platform had no file dialog ("No native FileDialog implementation available ...
+  requires Qt Widgets"), and every file dialog silently did nothing on the bundled runtime.
+  `QtRuntime.SetForQt` also calls libc `setenv` (2026-09-30). `QT_QUICK_CONTROLS_MATERIAL_VARIANT=Dense`
+  in `Program.cs` has the same problem and is still not applied; switching it on would change the
+  look. Qt 5.15.1's portal dialog sends no suggested file name, so the export dialog starts empty.
+- A Unix socket path may be at most 108 characters. Screenshot runs with every XDG folder pointed at
+  Claude's long scratchpad path crash in `SingleInstance.Listen`; keep `XDG_RUNTIME_DIR` short
+  (2026-09-30).
+- `grabToImage` on a window's `contentItem` fails with "item has no QML engine"; grab an item declared
+  in QML instead (the console window has `screenshotRoot`) (2026-09-30).
+
 ## Open
 - A Windows installer (Inno Setup, MSIX or winget), and live theme switching on Windows.
 - Moving Linux to the same patched qmlnet-native build as Windows would drop `signal_fix.cpp`, the
   g++/qt5-base build dependencies and the RPATH patch.
 - Only Thunderstore mods are checked for updates (Nexus and CurseForge would cost one API call per mod).
 - The Desktop project has no tests. The UI is checked with the `LAUNCHHEIM_SCREENSHOT` mode.
+- Modpack follow-ups: publishing a pack to Thunderstore as a modpack package (needs a 256 px icon and a
+  README), and r2modman's profile codes (Thunderstore's legacy profile API).
+- The modpack export/import and console need a check against a real r2modman import and a real
+  Valheim session; only unit tests and screenshots covered them on 2026-09-30.
+- BepInEx's console toggle is Windows-only in the UI and untested on Windows.

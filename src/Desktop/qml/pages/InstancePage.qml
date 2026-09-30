@@ -35,6 +35,17 @@ Item {
       }
 
       Platform.FileDialog {
+        id: exportDialog
+        title: "Export as a modpack"
+        fileMode: Platform.FileDialog.SaveFile
+        defaultSuffix: "r2z"
+        folder: Platform.StandardPaths.writableLocation(Platform.StandardPaths.DocumentsLocation)
+        currentFile: folder + "/" + root.inst.packFileName
+        nameFilters: ["Modpacks (*.r2z)"]
+        onAccepted: root.inst.exportPack(file.toString())
+      }
+
+      Platform.FileDialog {
         id: fileDialog
         title: "Install a mod from a file"
         nameFilters: ["Mod archives and plugins (*.zip *.7z *.rar *.dll)", "All files (*)"]
@@ -106,6 +117,12 @@ Item {
           }
 
           IconButton {
+            iconName: "log"
+            tip: "Console: follow the logs live"
+            onClicked: root.inst.openConsole()
+          }
+
+          IconButton {
             iconName: "more"
             tip: "More"
             onClicked: menu.popup()
@@ -114,10 +131,12 @@ Item {
               id: menu
               MenuItem { text: "Install from file…"; onTriggered: fileDialog.open() }
               MenuItem { text: "Check for updates"; onTriggered: root.inst.checkUpdates() }
+              MenuItem { text: "Export as modpack…"; onTriggered: exportDialog.open() }
               MenuSeparator {}
+              MenuItem { text: "Open console"; onTriggered: root.inst.openConsole() }
               MenuItem { text: "Open instance folder"; onTriggered: root.inst.openFolder() }
               MenuItem { text: "Open config folder"; onTriggered: root.inst.openConfigFolder() }
-              MenuItem { text: "Open BepInEx log"; onTriggered: root.inst.openLog() }
+              MenuItem { text: "Open BepInEx log file"; onTriggered: root.inst.openLog() }
               MenuSeparator {}
               MenuItem { text: "Duplicate"; onTriggered: root.inst.duplicate() }
               MenuItem { text: "Delete…"; onTriggered: deleteDialog.open() }
@@ -177,6 +196,7 @@ Item {
               Item { Layout.fillWidth: true }
 
               LhButton { text: "Install from file"; iconName: "file"; kind: "ghost"; onClicked: fileDialog.open() }
+              LhButton { text: "Export"; iconName: "export"; kind: "ghost"; enabled: root.inst.modCount > 0; onClicked: exportDialog.open() }
               LhButton { text: "Check for updates"; iconName: "refresh"; kind: "ghost"; onClicked: root.inst.checkUpdates() }
               LhButton {
                 visible: root.inst.updateCount > 0
@@ -314,6 +334,45 @@ Item {
                       onAccepted: root.inst.saveLaunchArguments(text)
                     }
                     LhButton { text: "Save"; kind: "primary"; onClicked: root.inst.saveLaunchArguments(argsField.text) }
+                  }
+                }
+              }
+
+              Card {
+                Layout.fillWidth: true
+                implicitHeight: debugColumn.implicitHeight + 40
+
+                ColumnLayout {
+                  id: debugColumn
+                  anchors.fill: parent
+                  anchors.margins: 20
+                  spacing: 10
+
+                  Label { text: "Debugging"; font.bold: true; font.pointSize: Theme.heading }
+                  Label {
+                    text: "The console follows this instance's BepInEx log, Unity's Player.log and LaunchHeim's own log while the game runs, with errors and warnings highlighted."
+                    color: Theme.textMuted
+                    wrapMode: Text.Wrap
+                    Layout.fillWidth: true
+                  }
+
+                  RowLayout {
+                    spacing: 8
+                    LhButton { text: "Open console"; iconName: "log"; onClicked: root.inst.openConsole() }
+                    LhSwitch {
+                      text: "Open it on every launch"
+                      checked: Vm.settings.openConsoleOnLaunch
+                      onToggled: Vm.settings.setOpenConsoleOnLaunch(checked)
+                    }
+                  }
+
+                  // Windows only: on Linux BepInEx's console writes to the game's stdout, which a game
+                  // started from a launcher shows nowhere. LaunchHeim's console covers Linux instead.
+                  LhSwitch {
+                    visible: App.isWindows
+                    text: "Show BepInEx's own console window next to the game"
+                    checked: root.inst.bepInExConsole
+                    onToggled: root.inst.setBepInExConsole(checked)
                   }
                 }
               }
