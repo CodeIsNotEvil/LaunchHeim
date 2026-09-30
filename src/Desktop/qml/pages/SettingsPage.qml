@@ -165,6 +165,7 @@ Item {
           columns: 2
           columnSpacing: 24
           rowSpacing: 6
+          Layout.fillWidth: true
 
           Label { text: "Version"; color: Theme.textMuted }
           Label { text: page.settings.version }
@@ -172,6 +173,24 @@ Item {
           Label { text: page.settings.qtRuntime }
           Label { text: "UI"; color: Theme.textMuted }
           Label { text: "Qt Quick through Qml.Net, colored by " + page.settings.themeSource }
+          Label { text: "License"; color: Theme.textMuted }
+          Label { text: "MIT, Copyright (c) 2026 CodeIsNotEvil" }
+          // LGPL-3.0 section 4: a prominent notice that Qt is used, and Qt's copyright among the notices
+          // the app shows. The other libraries are listed in the notices file.
+          Label { text: "Built with"; color: Theme.textMuted; Layout.alignment: Qt.AlignTop }
+          Label {
+            text: "Qt 5.15, Copyright (c) The Qt Company Ltd. and other contributors, used under the GNU LGPL v3. "
+              + "Also Qml.Net, NetNativeLibLoader (LGPL v3), SharpCompress, Markdig, Newtonsoft.Json, .NET and the Kode Mono font."
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+          }
+        }
+
+        LhButton {
+          text: "Third-party licenses"
+          iconName: "external"
+          kind: "ghost"
+          onClicked: page.settings.openThirdPartyNotices()
         }
       }
     }

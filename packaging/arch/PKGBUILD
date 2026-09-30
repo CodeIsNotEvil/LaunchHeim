@@ -12,7 +12,9 @@ pkgrel=1
 pkgdesc='Valheim mod launcher with separate modded instances (Thunderstore, Nexus Mods, CurseForge)'
 arch=('x86_64')
 url='https://github.com/CodeIsNotEvil/MyMonoRepo/tree/main/Applications/LaunchHeim'
-license=('MIT')
+# LaunchHeim is MIT. It also ships NetNativeLibLoader (LGPL), Markdig (BSD) and Kode Mono (OFL); the
+# other bundled libraries are MIT. THIRD-PARTY-NOTICES.txt has the details.
+license=('MIT' 'LGPL-3.0-or-later' 'BSD-2-Clause' 'OFL-1.1')
 # Qt comes from the system instead of the runtime Qml.Net would otherwise download (see QtRuntime.cs).
 # qt5-svg draws the icons, qt5-wayland lets it run natively on Wayland.
 depends=('dotnet-runtime>=10.0' 'qt5-base' 'qt5-declarative' 'qt5-quickcontrols2' 'qt5-svg' 'qt5-wayland'
@@ -51,4 +53,7 @@ package() {
   "$srcdir/mymonorepo/$_app/packaging/stage.sh" "$srcdir/publish" "$pkgdir" /usr/lib
   # MIT names the copyright holder, so Arch wants the text itself, not just the identifier.
   install -Dm644 "$srcdir/mymonorepo/$_app/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  # The third-party notices and texts ship with the app (the About page opens them from there).
+  ln -s /usr/lib/launchheim/THIRD-PARTY-NOTICES.txt "$pkgdir/usr/share/licenses/$pkgname/THIRD-PARTY-NOTICES.txt"
+  ln -s /usr/lib/launchheim/licenses "$pkgdir/usr/share/licenses/$pkgname/licenses"
 }

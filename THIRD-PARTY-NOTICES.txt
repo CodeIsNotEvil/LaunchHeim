@@ -1,0 +1,141 @@
+LaunchHeim third-party notices
+==============================
+
+LaunchHeim is Copyright (c) 2026 CodeIsNotEvil and licensed under the MIT License (LICENSE).
+It is built on the software listed below. Each part keeps its own license; the full texts are in
+the licenses folder next to this file. Which parts a copy of LaunchHeim contains depends on how it
+was installed:
+
+  Windows zip         everything below
+  .deb package        everything except Qt, Mesa and the Visual C++ runtime (it uses the system Qt
+                      and ships its own .NET runtime)
+  pacman, .rpm        everything except Qt, Mesa, the Visual C++ runtime and the .NET runtime
+  install.sh          like pacman; Qml.Net downloads its own Qt runtime on first start (see Qt)
+
+Source code of LaunchHeim itself: https://github.com/CodeIsNotEvil/MyMonoRepo/tree/main/Applications/LaunchHeim
+
+
+------------------------------------------------------------------------------
+Qt 5.15
+------------------------------------------------------------------------------
+
+LaunchHeim uses the Qt library, version 5.15, for its user interface. Qt is Copyright (C) The Qt
+Company Ltd. and other contributors, and is used here under the GNU Lesser General Public License
+version 3 (licenses/LGPL-3.0.txt), which builds on the GNU General Public License version 3
+(licenses/GPL-3.0.txt). Qt's own site: https://www.qt.io
+
+The Windows zip contains the unmodified Qt 5.15.2 MSVC 2019 64-bit binaries (the Qt5*.dll files
+and the plugin folders next to LaunchHeim.exe). The corresponding source code is available from
+the Qt Project:
+
+  https://download.qt.io/archive/qt/5.15/5.15.2/single/qt-everywhere-src-5.15.2.tar.xz
+
+If that download ever stops working, open an issue at
+https://github.com/CodeIsNotEvil/MyMonoRepo/issues and you will be sent the source.
+
+LaunchHeim links Qt dynamically. To use a modified Qt, build Qt 5.15 with MSVC 2019 for x64 and
+replace the DLLs and plugin folders next to LaunchHeim.exe with yours; nothing in LaunchHeim stops
+this. The Linux packages use the distribution's Qt, which you can replace in the same way.
+
+A copy installed with install.sh (or a development build) downloads a Qt 5.15.1 runtime published by
+the Qml.Net project into ~/.qmlnet-qt-runtimes on first start. That copy comes from Qml.Net, under
+the same LGPL-3.0 terms: https://github.com/qmlnet/qt-runtimes
+
+Qt contains code from other projects, compiled into the Qt DLLs. Their notices and licenses are in
+licenses/Qt-third-party.txt. Two of them ask for this credit:
+
+  This software is based in part on the work of the Independent JPEG Group.
+
+  Portions of this software are copyright (C) 2019 The FreeType Project (www.freetype.org).
+  All rights reserved.
+
+The Windows zip also contains ANGLE (libEGL.dll, libGLESv2.dll, BSD-3-Clause; part of Qt and listed
+in licenses/Qt-third-party.txt) and opengl32sw.dll, a software OpenGL renderer built from Mesa 11.2.2
+and LLVM (MIT and University of Illinois/NCSA, see licenses/Mesa-llvmpipe.txt).
+
+
+------------------------------------------------------------------------------
+Qml.Net 0.11.0
+------------------------------------------------------------------------------
+
+Connects the .NET code to Qt Quick. Copyright (c) 2017 Paul Knopf. MIT License
+(licenses/Qml.Net.txt). https://github.com/qmlnet/qmlnet
+
+Its native part (libQmlNet.so on Linux, QmlNet.dll on Windows) comes from qmlnet-native, the
+native half of the same project, published under the same license. On Windows, QmlNet.dll is
+rebuilt from qmlnet-native commit e2ff96713b659ed295710f4e94cef96b2f7e020a with LaunchHeim's
+packaging/windows/qmlnet-signal-fix.patch applied. On Linux, the RPATH of libQmlNet.so is changed
+to $ORIGIN.
+
+
+------------------------------------------------------------------------------
+NetNativeLibLoader 0.1.1
+------------------------------------------------------------------------------
+
+Loads native libraries for Qml.Net. Copyright (c) 2018 Firwood Software. Licensed under the GNU
+Lesser General Public License version 3 or later (licenses/LGPL-3.0.txt, which builds on
+licenses/GPL-3.0.txt). It ships unmodified as NetNativeLibLoader.dll, and its source code is at:
+
+  https://github.com/pauldotknopf/net-native-lib-loader/tree/v0.1.1
+
+LaunchHeim loads it as a separate assembly, so you can replace NetNativeLibLoader.dll with your own
+build of a compatible version.
+
+
+------------------------------------------------------------------------------
+SharpCompress 1.0.0
+------------------------------------------------------------------------------
+
+Unpacks mod archives. Copyright (c) 2014 Adam Hathcock. MIT License (licenses/SharpCompress.txt).
+https://github.com/adamhathcock/sharpcompress
+
+
+------------------------------------------------------------------------------
+Markdig 1.4.0
+------------------------------------------------------------------------------
+
+Renders mod descriptions. Copyright (c) 2016-2026, Alexandre Mutel. BSD 2-Clause License
+(licenses/Markdig.txt). https://github.com/xoofx/markdig
+
+
+------------------------------------------------------------------------------
+Newtonsoft.Json 13.0.4
+------------------------------------------------------------------------------
+
+Used by Qml.Net. Copyright (c) 2007 James Newton-King. MIT License (licenses/Newtonsoft.Json.txt).
+https://www.newtonsoft.com/json
+
+
+------------------------------------------------------------------------------
+.NET 10 runtime (Windows zip and .deb only)
+------------------------------------------------------------------------------
+
+Copyright (c) .NET Foundation and Contributors. MIT License (licenses/dotnet-runtime.txt). The
+runtime contains third-party code listed in licenses/dotnet-runtime-third-party.txt.
+https://github.com/dotnet/runtime
+
+
+------------------------------------------------------------------------------
+Microsoft Visual C++ runtime (Windows zip only)
+------------------------------------------------------------------------------
+
+msvcp140*.dll, vcruntime140*.dll, concrt140.dll, vccorlib140.dll and vc_redist.x64.exe are
+Copyright (c) Microsoft Corporation. They are not open source; they are redistributed unmodified
+as "Distributable Code" under the Microsoft Visual Studio license terms, which also apply to you:
+https://visualstudio.microsoft.com/license-terms/
+
+
+------------------------------------------------------------------------------
+Kode Mono font
+------------------------------------------------------------------------------
+
+Copyright 2023 The Kode Mono Project Authors (https://github.com/isaozler/kode-mono). SIL Open Font
+License 1.1, included next to the font files as qml/fonts/OFL.txt.
+
+
+------------------------------------------------------------------------------
+Not part of LaunchHeim
+------------------------------------------------------------------------------
+
+BepInEx and the mods you install are downloaded from Thunderstore, Nexus Mods or CurseForge when
+you ask for them, and stay under their authors' licenses. LaunchHeim does not include them.

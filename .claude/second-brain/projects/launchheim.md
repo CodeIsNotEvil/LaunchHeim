@@ -20,6 +20,10 @@ accounts) and CurseForge (API key).
 ## Key ideas
 - MIT-licensed (owner's choice, 2026-09-26), `Applications/LaunchHeim/LICENSE`. Only LaunchHeim, not the
   whole monorepo.
+- Third-party licenses (2026-09-30): `THIRD-PARTY-NOTICES.txt` + `licenses/` ship with every build (the
+  csproj copies them), Settings → About names Qt and its LGPL and opens the file, and the download
+  page links Qt 5.15.2's source next to the Windows zip. Qt's bundled third-party list is generated
+  by `packaging/qt-third-party-notices.py`. The README's "Licenses" section has the checklist.
 - Per-instance BepInEx through Doorstop instead of copying mods into the game folder: switching
   modpacks costs nothing, and the Steam install never has to be verified or repaired.
 - Qml.Net (Qt 5.15) as the UI host. It's unmaintained since 2020, so it needs three workarounds
@@ -33,6 +37,10 @@ accounts) and CurseForge (API key).
   the QML UI with a patched QmlNet.dll built in CI ([[0006-launchheim-windows-keeps-qml]]).
 
 ## Gotchas
+- NetNativeLibLoader, pulled in by Qml.Net, is LGPL-3.0-or-later (Firwood Software), not MIT like
+  Qml.Net. It ships in every build. Check transitive NuGet licenses, not only direct ones (2026-09-30).
+- windeployqt also copies `vc_redist.x64.exe` (about 25 MB) into the Windows zip, although build.ps1
+  copies the CRT DLLs itself. `--no-compiler-runtime` would drop it (2026-09-30, not changed yet).
 - Qml.Net context properties get JS ownership and are garbage-collected, so the view model is a
   QML singleton.
 - Qt 5.15's Material `ComboBox` logs a `foreground` binding loop. Setting `Material.foreground` on the
