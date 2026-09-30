@@ -10,6 +10,12 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!--
+      The release version, for every project: Core reports it (Settings → About, the User-Agent) and
+      Desktop's assembly carries it. It used to sit in the Desktop csproj only, so Core fell back to
+      1.0.0. The launchheim-v* tag must match it, and CHANGELOG.md needs a section for it.
+    -->
+    <Version>0.2.0</Version>
   </PropertyGroup>
 
   <!--

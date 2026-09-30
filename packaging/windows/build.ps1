@@ -62,7 +62,7 @@ if (-not (Test-Path $qmake)) { throw "qmake.exe was not found in $QtDir\bin. Pas
 Enter-MsvcEnvironment
 $env:PATH = "$(Join-Path $QtDir 'bin');$env:PATH"
 
-$version = ([xml](Get-Content (Join-Path $app 'src\Desktop\LaunchHeim.Desktop.csproj'))).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+$version = ([xml](Get-Content (Join-Path $app 'Directory.Build.props'))).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
 Write-Host "LaunchHeim $version for Windows, Qt from $QtDir"
 
 # 1. QmlNet.dll with the signal fix

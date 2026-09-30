@@ -53,5 +53,8 @@ tar -xf %{SOURCE0} -C %{buildroot}
 %{_datadir}/metainfo/io.github.codeisnotevil.LaunchHeim.metainfo.xml
 
 %changelog
+* Wed Sep 30 2026 CodeIsNotEvil <noreply@github.com> - 0.2.0-1
+- Starts Steam before Valheim; ships third-party license notices (see CHANGELOG.md)
+
 * Sat Sep 26 2026 CodeIsNotEvil <noreply@github.com> - 0.1.0-1
 - First package
