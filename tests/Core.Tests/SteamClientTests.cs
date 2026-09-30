@@ -8,20 +8,13 @@ public class SteamClientTests
   private sealed class FakeSteam(params SteamState[] states)
   {
     private int _checks;
-    private SteamState _current;
 
     public int Starts { get; private set; }
 
     public bool CanStart { get; init; } = true;
 
     public SteamClient Client(TimeSpan? timeout = null) => new(
-      () =>
-      {
-        // SteamClient asks for the process first, then for the user, so one check is one state.
-        _current = states[Math.Min(_checks++, states.Length - 1)];
-        return _current != SteamState.NotRunning;
-      },
-      () => _current == SteamState.Ready ? 12345 : 0,
+      () => states[Math.Min(_checks++, states.Length - 1)],
       () =>
       {
         Starts++;
@@ -90,47 +83,44 @@ public class SteamClientTests
     Assert.Contains("not logged in", error.Message);
   }
 
-  [Fact]
-  public void The_active_user_is_read_from_registry_vdf()
-  {
-    const string vdf = """
-      "Registry"
-      {
-        "HKCU"
-        {
-          "Software"
-          {
-            "Valve"
-            {
-              "Steam"
-              {
-                "AutoLoginUser"		"someone"
-                "ActiveProcess"
-                {
-                  "pid"		"4242"
-                  "SteamClientDll"		"/home/someone/.local/share/Steam/ubuntu12_32/steamclient.so"
-                  "ActiveUser"		"123456789"
-                }
-              }
-            }
-          }
-        }
-      }
-      """;
+  // Trimmed from a real connection_log.txt (2026-09-30): one exit, then a new start and login.
+  private const string Log = """
+    [2026-09-30 20:22:33] [Logged On, 4, 7] [U:1:105751808] RecvMsgClientLogOnResponse() : processing complete
+    [2026-09-30 20:23:41] [Logging Off, 4, 7] [U:1:105751808] LogOff()
+    [2026-09-30 20:23:41] [Logged Off, 0, 0] [U:1:105751808] ~CCMInterface()
+    [2026-09-30 20:25:00] Client version: 1788652215
+    [2026-09-30 20:25:00] [Connected, 4, 7] [U:1:105751808] Logging on [U:1:105751808]
+    [2026-09-30 20:25:00] [Logged On, 4, 7] [U:1:105751808] RecvMsgClientLogOnResponse() : processing complete
+    [2026-09-30 20:25:00] CClientJobGetClientUpdateHosts: cached version not expired
 
-    Assert.Equal(123456789, SteamClient.ActiveUserFromRegistry(vdf));
+    """;
+
+  [Fact]
+  public void A_login_after_steam_started_counts()
+  {
+    Assert.True(SteamClient.IsLoggedOn(Log, new DateTime(2026, 9, 30, 20, 24, 58)));
   }
 
   [Fact]
-  public void A_registry_without_an_active_process_means_nobody_is_logged_in()
+  public void A_login_older_than_the_running_steam_is_left_over_from_a_crash()
   {
-    const string vdf = """
-      "Registry"
-      {
-        "HKCU" { "Software" { "Valve" { "Steam" { "AutoLoginUser" "someone" } } } }
-      }
-      """;
+    Assert.False(SteamClient.IsLoggedOn(Log, new DateTime(2026, 9, 30, 20, 30, 0)));
+  }
 
-    Assert.Equal(0, SteamClient.ActiveUserFromRegistry(vdf));
+  [Fact]
+  public void A_log_that_ends_logged_off_means_not_logged_in()
+  {
+    var log = Log[..Log.IndexOf("[2026-09-30 20:25:00] Client", StringComparison.Ordinal)];
+
+    Assert.False(SteamClient.IsLoggedOn(log, new DateTime(2026, 9, 30, 20, 0, 0)));
+  }
+
+  [Fact]
+  public void A_steam_still_connecting_is_not_logged_in()
+  {
+    var log = Log[..Log.LastIndexOf("[2026-09-30 20:25:00] [Logged On", StringComparison.Ordinal)];
+
+    Assert.False(SteamClient.IsLoggedOn(log, new DateTime(2026, 9, 30, 20, 24, 58)));
+    Assert.False(SteamClient.IsLoggedOn("", DateTime.MinValue));
   }
 }

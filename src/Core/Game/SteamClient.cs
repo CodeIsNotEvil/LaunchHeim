@@ -22,16 +22,19 @@ public enum SteamState
 /// logged in.
 /// </para>
 /// <para>
-/// "Logged in" is Steam's own <c>ActiveProcess/ActiveUser</c>: the Windows registry key, and on Linux the
-/// same key in <c>registry.vdf</c>. It is 0 while the client starts or shows the login window, and Steam
-/// resets it on a clean exit. A crash can leave it set, so it only counts while a <c>steam</c> process
-/// runs. The pid Steam records next to it is not used, because Flatpak Steam writes the pid from inside
-/// its sandbox.
+/// Where "logged in" comes from differs per platform. Windows keeps Steam's <c>ActiveProcess/ActiveUser</c>
+/// in the registry: 0 until a user is logged in, reset on a clean exit. Linux Steam used to mirror that
+/// key into <c>registry.vdf</c> but no longer does (checked 2026-09-30, the file only holds
+/// <c>SteamPID</c>), so there the last state in <c>logs/connection_log.txt</c> is used: <c>Logged On</c>
+/// after login, <c>Logging Off</c>/<c>Logged Off</c> on exit. A crash can leave either signal set, so it
+/// only counts while a <c>steam</c> process runs, and on Linux only when it is newer than that process.
+/// The pid Steam records is not used, because Flatpak Steam writes the pid from inside its sandbox.
 /// </para>
 /// </remarks>
-public sealed class SteamClient(Func<bool> isProcessRunning, Func<long> activeUser, Func<bool> start)
+public sealed partial class SteamClient(Func<SteamState> probe, Func<bool> start)
 {
   public const string FlatpakId = "com.valvesoftware.Steam";
+  public const string ConnectionLog = "connection_log.txt";
 
   /// <summary>Long enough to log in or for Steam to update itself first.</summary>
   public TimeSpan Timeout { get; init; } = TimeSpan.FromMinutes(3);
@@ -44,22 +47,14 @@ public sealed class SteamClient(Func<bool> isProcessRunning, Func<long> activeUs
   /// </summary>
   public TimeSpan SettleDelay { get; init; } = TimeSpan.FromSeconds(5);
 
-  public SteamState State()
-  {
-    if (!isProcessRunning())
-    {
-      return SteamState.NotRunning;
-    }
-
-    return activeUser() != 0 ? SteamState.Ready : SteamState.Starting;
-  }
+  public SteamState State() => probe();
 
   /// <summary>Returns once Steam is ready, starting it first when needed.</summary>
   /// <param name="progress">Told about every state change while waiting, never about <see cref="SteamState.Ready"/>.</param>
   /// <exception cref="LaunchException">Steam could not be started or was not ready in time.</exception>
   public async Task EnsureReadyAsync(Action<SteamState>? progress, CancellationToken cancellationToken)
   {
-    var state = State();
+    var state = await Task.Run(State, cancellationToken);
     if (state == SteamState.Ready)
     {
       return;
@@ -75,7 +70,7 @@ public sealed class SteamClient(Func<bool> isProcessRunning, Func<long> activeUs
     while (true)
     {
       await Task.Delay(PollInterval, cancellationToken);
-      var current = State();
+      var current = await Task.Run(State, cancellationToken);
       if (current == SteamState.Ready)
       {
         break;
@@ -102,56 +97,111 @@ public sealed class SteamClient(Func<bool> isProcessRunning, Func<long> activeUs
   {
     if (OperatingSystem.IsWindows())
     {
-      return new SteamClient(IsSteamProcessRunning, WindowsActiveUser, StartWindowsSteam);
+      return new SteamClient(ProbeWindows, StartWindowsSteam);
     }
 
     var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-    string[] registries =
+    string[] logs =
     [
-      Path.Combine(home, ".steam", "registry.vdf"),
-      Path.Combine(home, ".var", "app", FlatpakId, ".steam", "registry.vdf"),
+      Path.Combine(home, ".steam", "steam", "logs", ConnectionLog),
+      Path.Combine(home, ".var", "app", FlatpakId, ".local", "share", "Steam", "logs", ConnectionLog),
     ];
-    return new SteamClient(IsSteamProcessRunning, () => registries.Max(LinuxActiveUser), () => StartLinuxSteam(home));
+    return new SteamClient(() => ProbeLinux(logs), () => StartLinuxSteam(home));
   }
 
-  /// <summary>Reads <c>HKCU/Software/Valve/Steam/ActiveProcess/ActiveUser</c> from a Linux <c>registry.vdf</c>.</summary>
-  public static long ActiveUserFromRegistry(string vdf)
+  /// <summary>
+  /// Whether the last connection state in Steam's <c>connection_log.txt</c> is <c>Logged On</c>, written at
+  /// or after <paramref name="since"/> (local time, like the log).
+  /// </summary>
+  /// <remarks>State lines look like <c>[2026-09-30 20:25:00] [Logged On, 4, 7] [U:1:…] …</c>. Other lines are skipped.</remarks>
+  public static bool IsLoggedOn(string connectionLog, DateTime since)
   {
-    var value = VdfNode.Parse(vdf)["Registry"]?["HKCU"]?["Software"]?["Valve"]?["Steam"]?["ActiveProcess"]?.Value("ActiveUser");
-    return long.TryParse(value, out var user) ? user : 0;
+    var lines = connectionLog.Split('\n');
+    for (var i = lines.Length - 1; i >= 0; i--)
+    {
+      var match = StateLine().Match(lines[i]);
+      if (!match.Success)
+      {
+        continue;
+      }
+
+      var time = DateTime.ParseExact(match.Groups["time"].Value, "yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
+      // The log has whole seconds, the process start time does not.
+      return match.Groups["state"].Value == "Logged On" && time >= since.AddSeconds(-1);
+    }
+
+    return false;
   }
 
-  private static long LinuxActiveUser(string registry)
+  [System.Text.RegularExpressions.GeneratedRegex(@"^\[(?<time>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] \[(?<state>[A-Za-z ]+), ")]
+  private static partial System.Text.RegularExpressions.Regex StateLine();
+
+  private static SteamState ProbeLinux(string[] logs)
+  {
+    if (SteamStartedAt() is not { } startedAt)
+    {
+      return SteamState.NotRunning;
+    }
+
+    return logs.Any(log => IsLoggedOn(ReadTail(log), startedAt)) ? SteamState.Ready : SteamState.Starting;
+  }
+
+  // The log grows to megabytes; the current session's last lines are all that matter.
+  private static string ReadTail(string path)
   {
     try
     {
-      return File.Exists(registry) ? ActiveUserFromRegistry(File.ReadAllText(registry)) : 0;
+      using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+      stream.Seek(Math.Max(0, stream.Length - 64 * 1024), SeekOrigin.Begin);
+      using var reader = new StreamReader(stream);
+      return reader.ReadToEnd();
     }
     catch (IOException)
     {
-      // Steam rewrites the file while we read it. The next poll sees the finished one.
-      return 0;
+      return "";
+    }
+    catch (UnauthorizedAccessException)
+    {
+      return "";
     }
   }
 
-  // The client is "steam" on both systems (steam.exe, ubuntu12_32/steam). On Linux the bootstrap script
-  // has the same name while it unpacks or updates the client, which is fine: ActiveUser is still 0 then.
-  private static bool IsSteamProcessRunning()
+  /// <summary>
+  /// When the oldest running <c>steam</c> process started, or null when none runs. The client is
+  /// <c>steam</c> on both systems (steam.exe, ubuntu12_32/steam), and a login is always newer than it.
+  /// </summary>
+  private static DateTime? SteamStartedAt()
   {
-    var processes = Process.GetProcessesByName("steam");
-    foreach (var process in processes)
+    DateTime? oldest = null;
+    foreach (var process in Process.GetProcessesByName("steam"))
     {
-      process.Dispose();
+      using (process)
+      {
+        try
+        {
+          var started = process.StartTime;
+          oldest = oldest is { } o && o < started ? o : started;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+          // Exited between listing and asking; counts as not running.
+        }
+      }
     }
 
-    return processes.Length > 0;
+    return oldest;
   }
 
   [System.Runtime.Versioning.SupportedOSPlatform("windows")]
-  private static long WindowsActiveUser()
+  private static SteamState ProbeWindows()
   {
+    if (SteamStartedAt() is null)
+    {
+      return SteamState.NotRunning;
+    }
+
     using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Valve\Steam\ActiveProcess");
-    return key?.GetValue("ActiveUser") is int user ? (uint)user : 0;
+    return key?.GetValue("ActiveUser") is int user && user != 0 ? SteamState.Ready : SteamState.Starting;
   }
 
   [System.Runtime.Versioning.SupportedOSPlatform("windows")]
