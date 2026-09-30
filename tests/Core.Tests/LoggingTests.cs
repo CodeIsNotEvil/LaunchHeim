@@ -124,21 +124,25 @@ public class LogFollowerTests : IDisposable
 
 public class UnityPlayerLogTests
 {
+  // Built with Path.Combine like the code, so the Linux layout is also checked on the Windows runner.
   [Fact]
   public void Linux_looks_in_the_config_folder_and_the_flatpak()
   {
     var candidates = UnityPlayerLog.Candidates(GamePlatform.Linux, "/home/v", xdgConfigHome: null);
 
     Assert.Equal(
-      ["/home/v/.config/unity3d/IronGate/Valheim/Player.log", "/home/v/.var/app/com.valvesoftware.Steam/config/unity3d/IronGate/Valheim/Player.log"],
+      [
+        Path.Combine("/home/v", ".config", "unity3d", "IronGate", "Valheim", "Player.log"),
+        Path.Combine("/home/v", ".var", "app", "com.valvesoftware.Steam", "config", "unity3d", "IronGate", "Valheim", "Player.log"),
+      ],
       candidates);
   }
 
   [Fact]
   public void A_relative_xdg_config_home_is_ignored()
   {
-    Assert.StartsWith("/home/v/.config/", UnityPlayerLog.Candidates(GamePlatform.Linux, "/home/v", "relative")[0]);
-    Assert.StartsWith("/xdg/unity3d/", UnityPlayerLog.Candidates(GamePlatform.Linux, "/home/v", "/xdg")[0]);
+    Assert.StartsWith(Path.Combine("/home/v", ".config", "unity3d"), UnityPlayerLog.Candidates(GamePlatform.Linux, "/home/v", "relative")[0]);
+    Assert.StartsWith(Path.Combine("/xdg", "unity3d"), UnityPlayerLog.Candidates(GamePlatform.Linux, "/home/v", "/xdg")[0]);
   }
 
   [Fact]
