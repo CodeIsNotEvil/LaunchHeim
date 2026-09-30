@@ -38,7 +38,7 @@
         <div>
           <h2 id="gt-title">GroceryTracker</h2>
           <!-- if:gt_release -->
-          <p class="version">Version {{ gt_version }} · released {{ gt_date }} · <a href="{{ gt_release_url }}">release notes</a> · MIT license</p>
+          <p class="version">Version {{ gt_version }} · released {{ gt_date }} · <a href="#grocerytracker-changes">what's new</a> · <a href="{{ gt_release_url }}">release notes</a> · MIT license</p>
           <!-- else -->
           <p class="version">No release yet · MIT license</p>
           <!-- end -->
@@ -99,6 +99,12 @@ nano .env        # set POSTGRES_PASSWORD</code></pre></li>
           shows how to make a certificate your devices trust.</p>
       </details>
 
+      <h3 id="grocerytracker-changes">What's new</h3>
+      <!-- Built from Applications/GroceryTracker/CHANGELOG.md by build.py. -->
+      <div class="changelog">
+{{{ gt_changes }}}
+      </div>
+
       <h3>First steps</h3>
       <ol class="steps">
         <li><strong>Manage:</strong> add the people who share the groceries, and your stores and
@@ -122,7 +128,7 @@ nano .env        # set POSTGRES_PASSWORD</code></pre></li>
         <div>
           <h2 id="lh-title">LaunchHeim</h2>
           <!-- if:lh_release -->
-          <p class="version">Version {{ lh_version }} · released {{ lh_date }} · <a href="{{ lh_release_url }}">release notes</a> · MIT license</p>
+          <p class="version">Version {{ lh_version }} · released {{ lh_date }} · <a href="#launchheim-changes">what's new</a> · <a href="{{ lh_release_url }}">release notes</a> · MIT license</p>
           <!-- else -->
           <p class="version">No release yet · MIT license</p>
           <!-- end -->
@@ -193,6 +199,12 @@ sudo apt install ./{{ lh_deb_file }}</code></pre>
           shows how to build it for Arch (<code>makepkg -si</code>), Debian, Fedora and Windows.</p>
       </div>
       <!-- end -->
+
+      <h3 id="launchheim-changes">What's new</h3>
+      <!-- Built from Applications/LaunchHeim/CHANGELOG.md by build.py. -->
+      <div class="changelog">
+{{{ lh_changes }}}
+      </div>
 
       <h3>First steps</h3>
       <ol class="steps">

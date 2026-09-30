@@ -18,7 +18,7 @@ cd "$(dirname "$0")/.."
 engine="${CONTAINER_ENGINE:-podman}"
 formats=("$@")
 [ ${#formats[@]} -gt 0 ] || formats=(deb rpm)
-version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' src/Desktop/LaunchHeim.Desktop.csproj)
+version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
 dist="$PWD/packaging/dist"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT

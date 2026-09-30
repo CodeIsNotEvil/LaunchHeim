@@ -32,7 +32,7 @@ _app=Applications/LaunchHeim
 pkgver() {
   cd mymonorepo
   local version
-  version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$_app/src/Desktop/LaunchHeim.Desktop.csproj")
+  version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$_app/Directory.Build.props")
   printf '%s.r%s.g%s' "$version" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
 }
 

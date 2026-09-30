@@ -8,13 +8,17 @@ What it does:
 - Copies the pages from site/src and fills in {{placeholders}}.
 - Copies the logos and the font from where they already live (Assets/, the apps), so the site never
   holds its own drifting copies.
+- Renders each app's CHANGELOG.md (through Scripts/changelog.py) into a version history, so users see
+  what changed between the version they run and the newest one.
 - Asks the GitHub API for each app's newest release (tags grocerytracker-v* and launchheim-v*) and
   links its files directly. The repository holds several apps, so GitHub's single "latest release"
   link can't be used. Before an app has a release, <!-- if:key --> ... <!-- else --> ... <!-- end -->
   blocks show build instructions instead.
 
-The workflow .github/workflows/site.yml runs this on every change to the site and whenever a release
-is published, so the download links follow new releases without editing the pages.
+The workflow .github/workflows/site.yml runs this on every change to the site or a changelog and
+whenever a release is published, so the download links follow new releases without editing the pages.
+
+Placeholders: {{ key }} is escaped text, {{{ key }}} is HTML that build.py generated itself.
 """
 import argparse
 import html
@@ -30,6 +34,14 @@ from pathlib import Path
 REPO = "CodeIsNotEvil/MyMonoRepo"
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "site" / "src"
+
+sys.path.insert(0, str(ROOT / "Scripts"))
+import changelog  # noqa: E402 - lives in Scripts/, shared with the release workflows
+
+CHANGELOGS = {
+  "gt": ROOT / "Applications/GroceryTracker/CHANGELOG.md",
+  "lh": ROOT / "Applications/LaunchHeim/CHANGELOG.md",
+}
 
 # Files the site shows, taken from their real homes.
 ASSETS = {
@@ -95,10 +107,35 @@ def release_values(release: dict | None, key: str, prefix: str, files: dict[str,
   return values
 
 
+def version_key(version: str) -> tuple[int, ...]:
+  return tuple(int(part) for part in version.split("."))
+
+
+def changelog_html(path: Path, released: str | None) -> str:
+  """Every release in the changelog as a <details> block, newest open.
+
+  A version newer than the newest GitHub release is marked, because the changelog is merged before
+  the release tag is pushed and the page rebuilds in between.
+  """
+  blocks = []
+  for index, release in enumerate(changelog.parse(path)):
+    upcoming = released is not None and version_key(release.version) > version_key(released)
+    tag = ' <span class="tag">not released yet</span>' if upcoming else ""
+    groups = "".join(
+      f"<h4>{html.escape(name)}</h4><ul>" + "".join(f"<li>{changelog.inline_html(b)}</li>" for b in bullets) + "</ul>"
+      for name, bullets in release.groups.items())
+    blocks.append(
+      f'<details{" open" if index == 0 else ""}>'
+      f'<summary><strong>{release.version}</strong> <span class="version">{release.date.day} {release.date:%B %Y}</span>{tag}</summary>'
+      f"{groups}</details>")
+  return "\n".join(blocks)
+
+
 # A block whose body holds no other "if", so nested blocks resolve innermost first, one level per pass.
 _BODY = r"((?:(?!<!-- if:).)*?)"
 CONDITIONAL = re.compile(r"<!-- if:(\w+) -->" + _BODY + r"(?:<!-- else -->" + _BODY + r")?<!-- end -->", re.S)
 PLACEHOLDER = re.compile(r"\{\{\s*(\w+)\s*\}\}")
+RAW_PLACEHOLDER = re.compile(r"\{\{\{\s*(\w+)\s*\}\}\}")
 
 
 def render(text: str, values: dict[str, str]) -> str:
@@ -116,7 +153,14 @@ def render(text: str, values: dict[str, str]) -> str:
       raise SystemExit(f"{{{{{key}}}}} has no value. Wrap it in <!-- if:... --> or add it to build.py.")
     return html.escape(values[key])
 
-  return PLACEHOLDER.sub(fill, text)
+  def fill_raw(match: re.Match) -> str:
+    key = match.group(1)
+    if key not in values:
+      raise SystemExit(f"{{{{{{{key}}}}}}} has no value. Add it to build.py.")
+    return values[key]
+
+  # Raw first, or {{ }} would match inside {{{ }}}.
+  return PLACEHOLDER.sub(fill, RAW_PLACEHOLDER.sub(fill_raw, text))
 
 
 def main() -> None:
@@ -133,6 +177,8 @@ def main() -> None:
     **release_values(newest(releases, "grocerytracker-v"), "gt", "grocerytracker-v", GROCERYTRACKER_FILES),
     **release_values(newest(releases, "launchheim-v"), "lh", "launchheim-v", LAUNCHHEIM_FILES),
   }
+  for key, path in CHANGELOGS.items():
+    values[f"{key}_changes"] = changelog_html(path, values.get(f"{key}_version"))
 
   if args.output.exists():
     shutil.rmtree(args.output)

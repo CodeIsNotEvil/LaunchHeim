@@ -9,7 +9,6 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>LaunchHeim</AssemblyName>
-    <Version>0.1.0</Version>
     <ApplicationIcon Condition="'$(OS)' == 'Windows_NT' or $(RuntimeIdentifier.StartsWith('win'))">packaging\launchheim.ico</ApplicationIcon>
   </PropertyGroup>
 
