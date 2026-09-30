@@ -153,6 +153,12 @@ public sealed class SettingsViewModel : ViewModel
 
   public void OpenDataDirectory() => DesktopShell.Open(_app.Paths.DataDirectory);
 
+  /// <summary>
+  /// Opens THIRD-PARTY-NOTICES.txt, which every build ships next to the app (see the csproj). The LGPL
+  /// wants a prominent notice that Qt is used, and the About page is where a user looks for it.
+  /// </summary>
+  public void OpenThirdPartyNotices() => DesktopShell.Open(Path.Combine(AppContext.BaseDirectory, "THIRD-PARTY-NOTICES.txt"));
+
   public void ClearDownloadCache()
   {
     try
