@@ -87,7 +87,7 @@ Card {
         text: card.instance.isRunning ? "Running" : "Play"
         iconName: "play"
         kind: "primary"
-        enabled: !App.isGameRunning && Vm.settings.gameFound
+        enabled: !App.isGameRunning && App.steamStatus.length === 0 && Vm.settings.gameFound
         onClicked: card.instance.play()
       }
 

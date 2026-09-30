@@ -148,7 +148,7 @@ Item {
                 iconName: "play"
                 kind: "primary"
                 large: true
-                enabled: !App.isGameRunning && Vm.settings.gameFound
+                enabled: !App.isGameRunning && App.steamStatus.length === 0 && Vm.settings.gameFound
                 onClicked: hero.instance.play()
               }
 

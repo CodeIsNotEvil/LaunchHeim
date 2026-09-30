@@ -16,6 +16,7 @@ public sealed class AppViewModel : ViewModel
 {
   private readonly SettingsStore _settingsStore;
   private readonly GameFolderImporter _importer;
+  private readonly SteamClient _steam = SteamClient.ForCurrentUser();
   private readonly Dictionary<string, string> _pendingNexus = new();
   private List<InstanceViewModel> _instances = [];
   private List<ActivityItem> _activities = [];
@@ -24,6 +25,7 @@ public sealed class AppViewModel : ViewModel
   private string _page = "library";
   private string _runningInstanceId = "";
   private bool _isGameRunning;
+  private string _steamStatus = "";
 
   public AppViewModel(
     AppPaths paths,
@@ -101,6 +103,10 @@ public sealed class AppViewModel : ViewModel
 
   [NotifySignal]
   public bool IsGameRunning { get => _isGameRunning; private set => Set(ref _isGameRunning, value); }
+
+  /// <summary>Set while a launch waits for Steam, and shown in the sidebar instead of the game status.</summary>
+  [NotifySignal]
+  public string SteamStatus { get => _steamStatus; private set => Set(ref _steamStatus, value); }
 
   [NotifySignal]
   public string RunningInstanceId { get => _runningInstanceId; private set => Set(ref _runningInstanceId, value); }
@@ -180,6 +186,12 @@ public sealed class AppViewModel : ViewModel
       return;
     }
 
+    if (SteamStatus.Length > 0)
+    {
+      Toast("info", "Waiting for Steam", "Valheim starts as soon as Steam is ready.");
+      return;
+    }
+
     try
     {
       var instanceDirectory = instance is null ? null : Instances.DirectoryOf(instance.Model);
@@ -190,6 +202,13 @@ public sealed class AppViewModel : ViewModel
         instanceDirectory,
         instance?.Model.LaunchArguments ?? SettingsModel.VanillaLaunchArguments,
         GameLauncher.CurrentEnvironment());
+
+      // Valheim without a logged-in Steam client shows a black window and no error (see SteamClient).
+      SteamStatus = "Checking Steam";
+      await _steam.EnsureReadyAsync(
+        state => SteamStatus = state == SteamState.NotRunning ? "Starting Steam" : "Waiting for Steam",
+        CancellationToken.None);
+      SteamStatus = "";
 
       using var process = Process.Start(plan.ToStartInfo()) ?? throw new LaunchException("The game did not start.");
       RunningInstanceId = instance?.Id ?? "";
@@ -212,6 +231,7 @@ public sealed class AppViewModel : ViewModel
     }
     finally
     {
+      SteamStatus = "";
       IsGameRunning = false;
       RunningInstanceId = "";
       Raise(nameof(RunningName));

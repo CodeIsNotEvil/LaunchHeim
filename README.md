@@ -70,6 +70,15 @@ so plugins, configs and logs all come from the instance. The game is started dir
 set rather than through `steam -applaunch`, because Steam launch options can't change per launch. The
 Qt variables LaunchHeim sets on itself are removed from the game's environment.
 
+**Steam first.** Started without a logged-in Steam client, Valheim only shows a black window and never
+an error. So before every launch `SteamClient` checks that a `steam` process runs and that Steam's
+`ActiveProcess/ActiveUser` is set (the registry on Windows, `~/.steam/registry.vdf` or the Flatpak
+copy on Linux). If Steam isn't running, LaunchHeim starts it with `-silent` (`steam` on `PATH`, then
+`flatpak run com.valvesoftware.Steam`, and on Windows the `SteamExe` from the registry). It then waits
+up to three minutes for the login, plus a few seconds for the Steam API to settle, and the sidebar
+shows "Starting Steam" or "Waiting for Steam" meanwhile. After the timeout the launch is cancelled with
+an error.
+
 **Installing mods.** The file layout follows r2modman's BepInEx rules: BepInExPack goes into the
 instance root, and each plugin gets its own `BepInEx/plugins/<Mod>/` folder. Configs go into
 `BepInEx/config/` and an existing config is never overwritten. Every placed file is recorded, so

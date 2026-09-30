@@ -101,7 +101,7 @@ Item {
             iconName: "play"
             kind: "primary"
             large: true
-            enabled: !App.isGameRunning && Vm.settings.gameFound && root.inst.hasLoader
+            enabled: !App.isGameRunning && App.steamStatus.length === 0 && Vm.settings.gameFound && root.inst.hasLoader
             onClicked: root.inst.play()
           }
 

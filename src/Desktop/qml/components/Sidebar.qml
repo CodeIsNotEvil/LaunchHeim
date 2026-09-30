@@ -126,10 +126,13 @@ Rectangle {
     }
 
     Card {
+      id: statusCard
       Layout.fillWidth: true
       Layout.topMargin: 6
       implicitHeight: statusRow.implicitHeight + 20
-      color: App.isGameRunning ? Theme.alpha(Theme.positive, 0.15) : Theme.card
+      // While a launch waits for Steam, the card says so instead of "Valheim ready".
+      readonly property bool waiting: App.steamStatus.length > 0
+      color: App.isGameRunning ? Theme.alpha(Theme.positive, 0.15) : waiting ? Theme.alpha(Theme.accent, 0.15) : Theme.card
 
       RowLayout {
         id: statusRow
@@ -141,10 +144,10 @@ Rectangle {
           width: 10
           height: 10
           radius: 5
-          color: App.isGameRunning ? Theme.positive : Theme.textMuted
+          color: App.isGameRunning ? Theme.positive : statusCard.waiting ? Theme.accent : Theme.textMuted
 
           SequentialAnimation on opacity {
-            running: App.isGameRunning
+            running: App.isGameRunning || statusCard.waiting
             loops: Animation.Infinite
             NumberAnimation { to: 0.3; duration: 800 }
             NumberAnimation { to: 1; duration: 800 }
@@ -156,12 +159,12 @@ Rectangle {
           Layout.fillWidth: true
 
           Label {
-            text: App.isGameRunning ? "Valheim is running" : Vm.settings.gameFound ? "Valheim ready" : "Valheim not found"
+            text: App.isGameRunning ? "Valheim is running" : statusCard.waiting ? App.steamStatus : Vm.settings.gameFound ? "Valheim ready" : "Valheim not found"
             font.bold: true
           }
 
           Label {
-            text: App.isGameRunning ? App.runningName : Vm.settings.gameFound ? "Vanilla, without mods" : "Set the folder in Settings"
+            text: App.isGameRunning ? App.runningName : statusCard.waiting ? "Log in if asked" : Vm.settings.gameFound ? "Vanilla, without mods" : "Set the folder in Settings"
             color: Theme.textMuted
             font.pointSize: Theme.small
             elide: Text.ElideRight
@@ -172,7 +175,7 @@ Rectangle {
         IconButton {
           iconName: "play"
           tip: "Play vanilla Valheim"
-          visible: !App.isGameRunning && Vm.settings.gameFound
+          visible: !App.isGameRunning && !statusCard.waiting && Vm.settings.gameFound
           onClicked: App.launchVanilla()
         }
       }
