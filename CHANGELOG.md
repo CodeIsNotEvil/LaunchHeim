@@ -20,6 +20,10 @@ bullet per change.
 - LaunchHeim keeps a log of its own, with every launch, install and error, for reporting problems.
 - On Windows, an instance can show BepInEx's own console window next to the game.
 
+### Fixed
+- On Linux, "Install from file" and choosing the game folder in Settings did nothing when LaunchHeim
+  ran with its own copy of Qt (installed with `install.sh`): the file dialog never opened.
+
 ## 0.2.0 - 2026-09-30
 
 ### Added

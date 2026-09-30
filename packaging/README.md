@@ -148,8 +148,8 @@ QML imports to packages, and it can't see libraries that are loaded at runtime r
 
 ```fish
 # 1. bump <Version> in Directory.Build.props, add its section to CHANGELOG.md, and merge it
-git tag launchheim-v0.2.0
-git push origin launchheim-v0.2.0
+git tag launchheim-v0.3.0
+git push origin launchheim-v0.3.0
 ```
 
 The tag starts `.github/workflows/launchheim-release.yml`:
@@ -158,7 +158,7 @@ The tag starts `.github/workflows/launchheim-release.yml`:
 2. It builds the Windows zip (through the Windows workflow, smoke test included), plus the Arch
    package, the .deb and the .rpm (`build-packages.sh deb rpm arch` on Ubuntu).
 3. It installs the .deb and .rpm in Debian and Fedora containers.
-4. It publishes all four files as the GitHub release `launchheim-v0.2.0`.
+4. It publishes all four files as the GitHub release `launchheim-v0.3.0`.
 
 The download page picks the new files up by itself. Starting the workflow by hand (*Run workflow*)
 does the same builds and tests as a dry run, without a release.
