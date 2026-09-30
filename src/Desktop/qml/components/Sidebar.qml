@@ -17,9 +17,9 @@ Rectangle {
       Layout.topMargin: 6
       Layout.bottomMargin: 14
 
-      Image {
-        source: Qt.resolvedUrl("../icons/logo.svg")
-        sourceSize: Qt.size(36, 36)
+      GlintLogo {
+        Layout.preferredWidth: 36
+        Layout.preferredHeight: 36
       }
 
       ColumnLayout {
