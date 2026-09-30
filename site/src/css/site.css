@@ -162,6 +162,14 @@ h3 { font-size: 1.1rem; margin: 1.75rem 0 .5rem; }
 
 .downloads { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); margin: 1rem 0; }
 .downloads .button { justify-content: space-between; }
+/* The version history from each CHANGELOG.md: one <details> per release, newest open. */
+.changelog details { border-left: 3px solid var(--border); padding: .1rem 0 .1rem .9rem; margin: .6rem 0; }
+.changelog details[open] { border-left-color: var(--accent); }
+.changelog summary .version { display: inline; margin-left: .4rem; }
+.changelog h4 { margin: .6rem 0 .2rem; font-size: .95rem; }
+.changelog ul { margin: 0 0 .4rem; padding-left: 1.2rem; }
+.changelog .tag { margin-left: .4rem; font-size: .75rem; padding: .05rem .45rem; border-radius: 999px; border: 1px solid var(--accent); color: var(--accent); }
+
 /* License notes under the downloads: required to be there, not meant to compete with them. */
 .fine-print { color: var(--muted); font-size: .85rem; margin: 0 0 1rem; }
 
