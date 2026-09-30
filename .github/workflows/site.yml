@@ -13,10 +13,17 @@ on:
       - Assets/**
       - Applications/GroceryTracker/assets/**
       - Applications/LaunchHeim/src/Desktop/packaging/launchheim.svg
+      # The download page shows every version from the changelogs.
+      - Applications/GroceryTracker/CHANGELOG.md
+      - Applications/LaunchHeim/CHANGELOG.md
+      - Scripts/changelog.py
       - .github/workflows/site.yml
   pull_request:
     paths:
       - site/**
+      - Applications/GroceryTracker/CHANGELOG.md
+      - Applications/LaunchHeim/CHANGELOG.md
+      - Scripts/changelog.py
       - .github/workflows/site.yml
   release:
     types: [published]

@@ -4,7 +4,8 @@
 #   Run workflow (manual)    the same builds and tests as a dry run; the files stay as artifacts
 #   pull request             the same dry run when the packaging or this workflow changes
 #
-# Release:  bump <Version> in src/Desktop/LaunchHeim.Desktop.csproj, merge, then
+# Release:  bump <Version> in Directory.Build.props, add its section to CHANGELOG.md,
+#           merge, then
 #           git tag launchheim-v1.2.3 && git push origin launchheim-v1.2.3
 # The download page (site/) picks the new files up by itself once the release is published.
 name: LaunchHeim release
@@ -26,16 +27,17 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      # The tag names the release; the csproj is what the app reports in Settings → About. They must agree.
-      - name: Tag matches the app version
+      # The tag names the release; Directory.Build.props is what the app reports in Settings → About. They must agree.
+      - name: Tag matches the app version and the changelog
         if: startsWith(github.ref, 'refs/tags/launchheim-v')
         run: |
-          app=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Applications/LaunchHeim/src/Desktop/LaunchHeim.Desktop.csproj)
+          app=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Applications/LaunchHeim/Directory.Build.props)
           tag="${GITHUB_REF_NAME#launchheim-v}"
           if [ "$app" != "$tag" ]; then
-            echo "::error::Tag says $tag but LaunchHeim.Desktop.csproj says $app. Bump <Version> first."
+            echo "::error::Tag says $tag but Directory.Build.props says $app. Bump <Version> first."
             exit 1
           fi
+          python3 Scripts/changelog.py check Applications/LaunchHeim/CHANGELOG.md "$tag"
 
   windows:
     needs: version
@@ -90,6 +92,9 @@ jobs:
       contents: write
       actions: write
     steps:
+      # For the changelog: the notes start with what changed in this version.
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -101,7 +106,11 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           version="${TAG#launchheim-v}"
-          cat > notes.md <<EOF
+          python3 Scripts/changelog.py notes Applications/LaunchHeim/CHANGELOG.md "$version" > notes.md
+          cat >> notes.md <<EOF
+
+          ---
+
           | System | File | Install |
           |---|---|---|
           | Windows 10/11 | \`LaunchHeim-${version}-win-x64.zip\` | unzip anywhere, run \`LaunchHeim.exe\` |
