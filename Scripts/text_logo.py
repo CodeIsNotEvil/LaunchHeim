@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render text as a square SVG logo made of glyph outlines.
 
-The repo's logos (Assets/C-logo.svg, the GroceryTracker GT logo, the LaunchHeim icon) share one
+The repo's logos (Assets/c-logo/C-logo.svg, the GroceryTracker GT logo, the LaunchHeim icon) share one
 look: Kode Mono Bold in the orange #DE5833 on a transparent background. The glyphs are converted
 to paths, not left as <text>. Otherwise every viewer without Kode Mono installed (browsers, icon
 themes, Windows Explorer) would silently substitute another font.
