@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
+using CINE.LaunchHeim.Core.Logging;
 
 namespace CINE.LaunchHeim.Desktop.Hosting;
 
@@ -33,7 +34,7 @@ public static class QmlNetSignalFix
       var library = NativeLibrary.Load(FindQmlNet());
       if (!NativeLibrary.TryGetExport(library, "launchheim_signal_fix", out _))
       {
-        Console.Error.WriteLine("LaunchHeim: QmlNet.dll is the upstream build without the signal fix, so parts of the UI will not update. Build with packaging/windows/build.ps1.");
+        Log.Error("QmlNet.dll is the upstream build without the signal fix, so parts of the UI will not update. Build with packaging/windows/build.ps1.");
       }
 
       return;

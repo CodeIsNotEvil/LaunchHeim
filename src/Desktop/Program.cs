@@ -5,7 +5,9 @@ using CINE.LaunchHeim.Core.Catalogs.Nexus;
 using CINE.LaunchHeim.Core.Catalogs.Thunderstore;
 using CINE.LaunchHeim.Core.Downloads;
 using CINE.LaunchHeim.Core.Instances;
+using CINE.LaunchHeim.Core.Logging;
 using CINE.LaunchHeim.Core.Mods;
+using CINE.LaunchHeim.Core.Packs;
 using CINE.LaunchHeim.Core.Storage;
 using CINE.LaunchHeim.Desktop.Hosting;
 using CINE.LaunchHeim.Desktop.ViewModels;
@@ -48,8 +50,15 @@ public static class Program
       return 0;
     }
 
+    // Opened only by the process that shows the window; a forwarding second start has nothing to say.
+    Log.Open(paths.LogFile);
+    AppDomain.CurrentDomain.UnhandledException += (_, e) => Log.Error("LaunchHeim crashed", e.ExceptionObject as Exception);
+    TaskScheduler.UnobservedTaskException += (_, e) => Log.Error("A background task failed", e.Exception);
+
     QtRuntime.Prepare();
     QmlNetSignalFix.Apply();
+    Log.Info($"LaunchHeim {AppInfo.Version} on {System.Runtime.InteropServices.RuntimeInformation.OSDescription}, .NET {Environment.Version}, {QtRuntime.Description}");
+    Log.Info($"Instances in {paths.InstancesDirectory}, settings in {paths.SettingsFile}");
 
     // Material's dense variant is the desktop-sized one; the default is sized for touch screens.
     Environment.SetEnvironmentVariable("QT_QUICK_CONTROLS_MATERIAL_VARIANT", "Dense");
@@ -75,7 +84,15 @@ public static class Program
     var mods = new ModService(instances, new ModInstaller(), new ModDownloader(http, paths), catalogs, paths);
     CleanTemp(paths);
 
-    viewModel = new AppViewModel(paths, settingsStore, instances, mods, catalogs, new GameFolderImporter(instances), new ImageCache(http, paths));
+    viewModel = new AppViewModel(
+      paths,
+      settingsStore,
+      instances,
+      mods,
+      catalogs,
+      new PackService(instances, mods, paths),
+      new GameFolderImporter(instances),
+      new ImageCache(http, paths));
 
     // A singleton instead of a context property: Qml.Net gives context-property objects JavaScript
     // ownership, so the JS garbage collector deletes the wrapper after a while and `app` turns null.
@@ -93,7 +110,14 @@ public static class Program
     viewModel.WarmUp();
     if (Environment.GetEnvironmentVariable("LAUNCHHEIM_SCREENSHOT_PAGE") is { Length: > 0 } screenshotPage)
     {
-      viewModel.Navigate(screenshotPage);
+      if (screenshotPage == "console")
+      {
+        viewModel.OpenConsole();
+      }
+      else
+      {
+        viewModel.Navigate(screenshotPage);
+      }
     }
 
     if (commandLine.Length > 0)
@@ -103,6 +127,8 @@ public static class Program
 
     var exitCode = app.Exec();
     viewModel.Theme.Dispose();
+    Log.Info("LaunchHeim closed.");
+    Log.Close();
     return exitCode;
   }
 

@@ -17,6 +17,7 @@ QtObject {
   readonly property var browse: App.browse
   readonly property var settings: App.settings
   readonly property var prompt: App.browserPrompt
+  readonly property var debugConsole: App.debugConsole
   readonly property var selected: App.selectedInstance
   readonly property var recent: App.recentInstance
   readonly property var details: browse.details

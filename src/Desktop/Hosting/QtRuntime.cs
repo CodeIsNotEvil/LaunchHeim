@@ -1,6 +1,7 @@
 using System.Formats.Tar;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
+using CINE.LaunchHeim.Core.Logging;
 using Qml.Net.Runtimes;
 
 namespace CINE.LaunchHeim.Desktop.Hosting;
@@ -68,7 +69,9 @@ public static class QtRuntime
 
     if (RuntimeManager.FindSuitableQtRuntime() is null)
     {
+      // On stderr as well, since the window takes a while to appear the first time.
       Console.Error.WriteLine("LaunchHeim: downloading the Qt 5.15 runtime for Qml.Net (about 60 MB, first start only)...");
+      Log.Info("Downloading the Qt 5.15 runtime for Qml.Net.");
     }
 
     RuntimeManager.DiscoverOrDownloadSuitableQtRuntime();

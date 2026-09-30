@@ -2,6 +2,7 @@ import QtQuick 2.15
 import LaunchHeim 1.0
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import Qt.labs.platform 1.1 as Platform
 import "../components"
 import "../dialogs"
 
@@ -11,6 +12,14 @@ Item {
   NewInstanceDialog { id: newDialog }
   ImportDialog { id: importDialog }
   RenameDialog { id: renameDialog }
+  Platform.FileDialog {
+    id: packDialog
+    title: "Import a modpack"
+    folder: Platform.StandardPaths.writableLocation(Platform.StandardPaths.DownloadLocation)
+    nameFilters: ["Modpacks from LaunchHeim or r2modman (*.r2z *.zip)", "All files (*)"]
+    onAccepted: App.importPack(file.toString())
+  }
+
   ConfirmDialog {
     id: deleteDialog
     property var instance: null
@@ -44,6 +53,12 @@ Item {
           iconName: "import"
           visible: Vm.settings.gameFolderHasBepInEx
           onClicked: importDialog.open()
+        }
+
+        LhButton {
+          text: "Import modpack"
+          iconName: "import"
+          onClicked: packDialog.open()
         }
 
         LhButton {
@@ -212,6 +227,7 @@ Item {
         Layout.topMargin: 60
 
         LhButton { text: "New instance"; iconName: "plus"; kind: "primary"; large: true; onClicked: newDialog.open() }
+        LhButton { text: "Import modpack"; iconName: "import"; large: true; onClicked: packDialog.open() }
         LhButton {
           text: "Import game folder"
           iconName: "import"

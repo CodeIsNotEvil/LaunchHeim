@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using CINE.LaunchHeim.Core.Logging;
 
 namespace CINE.LaunchHeim.Desktop.Hosting;
 
@@ -24,7 +25,7 @@ public static class AppIcon
     var file = OperatingSystem.IsWindows() ? "LaunchHeimAppIcon.dll" : "libLaunchHeimAppIcon.so";
     if (!NativeLibrary.TryLoad(Path.Combine(AppContext.BaseDirectory, file), out var library))
     {
-      Console.Error.WriteLine($"LaunchHeim: {file} could not be loaded, so the window has no app icon.");
+      Log.Warning($"{file} could not be loaded, so the window has no app icon.");
       return;
     }
 
@@ -34,7 +35,7 @@ public static class AppIcon
     // The desktop entry's name, which on Wayland is how Plasma finds the icon (Icon=launchheim in it).
     if (setAppIcon(Path.GetFileNameWithoutExtension(NxmHandler.DesktopFileName), icons, icons.Length) == 0)
     {
-      Console.Error.WriteLine("LaunchHeim: none of the icons in packaging/icons could be loaded, so the window has no app icon.");
+      Log.Warning("None of the icons in packaging/icons could be loaded, so the window has no app icon.");
     }
   }
 }

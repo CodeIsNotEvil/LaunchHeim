@@ -157,6 +157,25 @@ Item {
       }
 
       SettingsSection {
+        iconName: "log"
+        title: "Console and logs"
+        description: "The console follows BepInEx's log, Unity's Player.log and LaunchHeim's own log live. LaunchHeim's log records every launch (paths, arguments, Steam) and every error, which helps when reporting a problem."
+        Layout.fillWidth: true
+
+        LhSwitch {
+          text: "Open the console every time the game starts"
+          checked: page.settings.openConsoleOnLaunch
+          onToggled: page.settings.setOpenConsoleOnLaunch(checked)
+        }
+
+        RowLayout {
+          Label { text: page.settings.logFile; font.family: Theme.fontFamily; elide: Text.ElideMiddle; Layout.fillWidth: true }
+          LhButton { text: "Open"; iconName: "folder"; kind: "ghost"; onClicked: page.settings.openLogFolder() }
+          LhButton { text: "Open console"; iconName: "log"; onClicked: Vm.debugConsole.show("app") }
+        }
+      }
+
+      SettingsSection {
         iconName: "info"
         title: "About"
         Layout.fillWidth: true

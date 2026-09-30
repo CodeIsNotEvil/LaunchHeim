@@ -172,6 +172,14 @@ Rectangle {
           }
         }
 
+        // While the game runs, the moment its log matters. Otherwise the instance page has the button.
+        IconButton {
+          iconName: "log"
+          tip: "Console: follow the game's log live"
+          visible: App.isGameRunning
+          onClicked: App.openConsole()
+        }
+
         IconButton {
           iconName: "play"
           tip: "Play vanilla Valheim"
