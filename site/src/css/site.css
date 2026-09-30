@@ -85,21 +85,22 @@ a:hover { text-decoration-thickness: 2px; }
 /* ---------- Logo glint ----------
    The same shine as the animated profile pictures (Assets/c-logo/C-logo-glint-*.gif): a light band
    crosses the logo diagonally, from top-left to bottom-right. It sits on a layer masked to the logo's
-   own shape, so only the logo lights up, never the page behind it. The C in the header glints every
-   few seconds, with the GIF's timing (a 0.8 s sweep, then about 3 s of rest); the app logos glint
-   once when their card is hovered or focused. Nothing moves for people who ask for reduced motion. */
+   own shape, so only the logo lights up, never the page behind it. Every logo glints at the GIF's
+   pace and rhythm: the band moves about one logo-diagonal per second, once every 3.84 s. The logos start at different times,
+   so they don't all flash at once. Nothing moves for people who ask for reduced motion. */
 .glint { position: relative; display: inline-flex; line-height: 0; }
 .glint::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  /* A band perpendicular to the diagonal, in the middle of a 3x3 image; 9% of that image is about a
-     quarter of the logo, like the GIF's band. Moving the image from 100% to 0% carries the band from
-     outside the top-left corner to outside the bottom-right one. */
+  /* A band perpendicular to the diagonal, in the middle of a 2x2 image; 13.5% of that image is about
+     a quarter of the logo, like the GIF's band. Moving the image from 100% to 0% carries the band
+     once across the logo, from its top-left corner to its bottom-right one. The first version used a
+     3x3 image, so the band travelled twice as far and looked far faster than the GIF. */
   background: linear-gradient(135deg,
-    transparent 45.5%, rgb(255 255 255 / .35) 48.3%, rgb(255 255 255 / .85) 50%,
-    rgb(255 255 255 / .35) 51.7%, transparent 54.5%) 100% 100% / 300% 300% no-repeat;
+    transparent 43.25%, rgb(255 255 255 / .35) 47.4%, rgb(255 255 255 / .85) 50%,
+    rgb(255 255 255 / .35) 52.6%, transparent 56.75%) 100% 100% / 200% 200% no-repeat;
   -webkit-mask: center / contain no-repeat;
   mask: center / contain no-repeat;
 }
@@ -110,20 +111,19 @@ a:hover { text-decoration-thickness: 2px; }
 .glint-gt::after { -webkit-mask-image: url("../img/grocerytracker.svg"); mask-image: url("../img/grocerytracker.svg"); }
 .glint-lh::after { -webkit-mask-image: url("../img/launchheim.svg"); mask-image: url("../img/launchheim.svg"); }
 
-@keyframes glint-sweep {
-  from { background-position: 100% 100%; }
-  to { background-position: 0% 0%; }
-}
-/* 3.8 s in all: rest for 3 s, then sweep in the last 0.8 s. */
+/* The GIF's loop is 3.84 s (a 3.04 s first frame, then 20 frames of 40 ms), and its band covers 0.84
+   logo-diagonals in 0.8 s: 1.04 per second. This band travels a full diagonal (it also crosses the
+   empty corners), so it needs 0.96 s for the same pace: the last 25% of the 3.84 s. */
 @keyframes glint-loop {
-  0%, 79% { background-position: 100% 100%; }
+  0%, 75% { background-position: 100% 100%; }
   100% { background-position: 0% 0%; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .glint-c::after { animation: glint-loop 3.8s ease-in-out infinite; }
-  .app-card:hover .glint::after,
-  .app-card:focus-within .glint::after { animation: glint-sweep .8s ease-in-out; }
+  /* Linear like the GIF, whose frames move the band by the same step every 40 ms. */
+  .glint::after { animation: glint-loop 3.84s linear infinite; }
+  .glint-gt::after { animation-delay: 1.25s; }
+  .glint-lh::after { animation-delay: 2.5s; }
 }
 
 .site-header nav { display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
@@ -201,7 +201,8 @@ h3 { font-size: 1.1rem; margin: 1.75rem 0 .5rem; }
 
 .app-section { margin-bottom: 2.5rem; scroll-margin-top: 1rem; }
 .app-section > header { display: flex; align-items: center; gap: 1rem; margin-bottom: .5rem; }
-.app-section > header img { width: 3rem; height: 3rem; flex: none; }
+.app-section > header img { width: 3rem; height: 3rem; }
+.app-section > header .glint { flex: none; }
 .app-section > header h2 { margin: 0; }
 .version { color: var(--muted); font-size: .9rem; margin: 0; }
 
