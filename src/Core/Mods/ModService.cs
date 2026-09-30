@@ -23,6 +23,14 @@ public sealed record InstallReport(
 
 public sealed record RemoveReport(IReadOnlyList<InstalledMod> Removed);
 
+/// <summary>A mod at the exact version a modpack lists.</summary>
+/// <param name="FileId">The version (Thunderstore) or file id (Nexus, CurseForge), or null for the newest.</param>
+/// <param name="AsDependency">Null when the pack doesn't say (r2modman's format); it's then worked out from what needs the mod.</param>
+public sealed record PinnedMod(ModSource Source, string ModId, string? FileId, string Name, bool Enabled = true, bool? AsDependency = null)
+{
+  public string Key => InstalledMod.MakeKey(Source, ModId);
+}
+
 public sealed class CatalogRegistry(ThunderstoreCatalog thunderstore, NexusCatalog nexus, IModCatalog curseForge)
 {
   public ThunderstoreCatalog Thunderstore => thunderstore;
@@ -136,6 +144,142 @@ public sealed class ModService(
       store.Save(instance);
       return new InstallReport(installed, warnings);
     });
+
+  /// <summary>Installs a modpack's mods at the versions it lists, with their enabled state.</summary>
+  /// <remarks>
+  /// <para>
+  /// Every mod is resolved first and installed in dependency order, so a library the pack pins is in
+  /// place before the mods that need it. Otherwise a dependent would pull the newest library first,
+  /// and the pinned one would be skipped as already handled.
+  /// </para>
+  /// <para>
+  /// One mod failing doesn't stop the rest: a pack of fifty mods with one deleted from Nexus is still
+  /// worth importing. A version that's gone gets the newest one instead. Mods the site won't hand to a
+  /// third-party app (Nexus without Premium, CurseForge opt-outs) are named in one warning, to be
+  /// installed from Browse mods.
+  /// </para>
+  /// </remarks>
+  public Task<InstallReport> InstallPinnedAsync(
+    Instance instance,
+    IReadOnlyList<PinnedMod> mods,
+    IProgress<InstallProgress>? progress,
+    CancellationToken cancellationToken) =>
+    WithLockAsync(instance, async () =>
+    {
+      var installed = new List<InstalledMod>();
+      var warnings = new List<string>();
+      var byHand = new List<string>();
+      var tickets = new List<(PinnedMod Pin, DirectDownload Ticket)>();
+
+      foreach (var pin in mods.DistinctBy(m => m.Key, StringComparer.OrdinalIgnoreCase))
+      {
+        progress?.Report(new InstallProgress(pin.Name, "Looking up", null));
+        try
+        {
+          switch (await ResolvePinnedAsync(pin, warnings, cancellationToken))
+          {
+            case DirectDownload direct:
+              tickets.Add((pin, direct));
+              break;
+            case BrowserRequired:
+              byHand.Add(pin.Name);
+              break;
+          }
+        }
+        catch (Exception ex) when (ex is CatalogException or HttpRequestException)
+        {
+          warnings.Add($"{pin.Name} could not be found: {ex.Message}");
+        }
+      }
+
+      var visited = new HashSet<string>();
+      foreach (var (pin, ticket) in DependencyOrder(tickets))
+      {
+        try
+        {
+          await InstallRecursiveAsync(instance, ticket, pin.AsDependency ?? false, installed, warnings, visited, progress, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+          warnings.Add($"{pin.Name} could not be installed: {ex.Message}");
+        }
+      }
+
+      var directory = store.DirectoryOf(instance);
+      foreach (var pin in mods)
+      {
+        if (instance.FindMod(pin.Key) is not { } mod)
+        {
+          continue;
+        }
+
+        mod.InstalledAsDependency = !mod.IsLoader && (pin.AsDependency ?? instance.Dependents(mod.Key).Any());
+        installer.SetEnabled(directory, mod, pin.Enabled);
+      }
+
+      if (byHand.Count > 0)
+      {
+        warnings.Add($"Install {string.Join(", ", byHand)} from Browse mods: the site only hands {(byHand.Count == 1 ? "it" : "them")} out through its website.");
+      }
+
+      await EnsureLoaderAsync(instance, installed, warnings, progress, cancellationToken);
+      store.Save(instance);
+      return new InstallReport(installed, warnings);
+    });
+
+  private async Task<DownloadTicket> ResolvePinnedAsync(PinnedMod pin, List<string> warnings, CancellationToken cancellationToken)
+  {
+    var catalog = catalogs[pin.Source];
+    if (pin.FileId is null)
+    {
+      return await catalog.ResolveDownloadAsync(pin.ModId, null, cancellationToken);
+    }
+
+    try
+    {
+      return await catalog.ResolveDownloadAsync(pin.ModId, pin.FileId, cancellationToken);
+    }
+    catch (CatalogException)
+    {
+      // Authors delete old versions now and then. The newest is closer to the pack than nothing.
+      var newest = await catalog.ResolveDownloadAsync(pin.ModId, null, cancellationToken);
+      warnings.Add($"{pin.Name} {pin.FileId} is no longer available, so the newest version was installed.");
+      return newest;
+    }
+  }
+
+  /// <summary>BepInEx first, then every mod after the mods it needs. A cycle is broken where it's entered.</summary>
+  internal static List<(PinnedMod Pin, DirectDownload Ticket)> DependencyOrder(IReadOnlyList<(PinnedMod Pin, DirectDownload Ticket)> tickets)
+  {
+    var byKey = tickets.ToDictionary(t => t.Pin.Key, StringComparer.OrdinalIgnoreCase);
+    var done = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var ordered = new List<(PinnedMod, DirectDownload)>();
+
+    void Visit((PinnedMod Pin, DirectDownload Ticket) item)
+    {
+      if (!done.Add(item.Pin.Key))
+      {
+        return;
+      }
+
+      foreach (var dependency in item.Ticket.Dependencies)
+      {
+        if (byKey.TryGetValue(InstalledMod.MakeKey(dependency.Source, dependency.ModId), out var needed))
+        {
+          Visit(needed);
+        }
+      }
+
+      ordered.Add(item);
+    }
+
+    foreach (var item in tickets.OrderByDescending(t => t.Pin.Source == ModSource.Thunderstore && t.Pin.ModId.Equals(ThunderstoreCatalog.LoaderFullName, StringComparison.OrdinalIgnoreCase)))
+    {
+      Visit(item);
+    }
+
+    return ordered;
+  }
 
   /// <summary>
   /// Removes the mod and any dependencies that were only pulled in for it, the way a package manager
