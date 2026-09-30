@@ -7,7 +7,8 @@ namespace CINE.LaunchHeim.Core.Logging;
 /// <param name="Restarted">The file was replaced (a new game session): earlier lines no longer belong to it.</param>
 public sealed record LogChunk(IReadOnlyList<LogLine> Lines, bool Restarted);
 
-public sealed record LogLine(string Text, LogLevel Level);
+/// <param name="Continues">A stack trace or message line belonging to the entry above, rather than an entry of its own.</param>
+public sealed record LogLine(string Text, LogLevel Level, bool Continues = false);
 
 /// <summary>Follows a log file as it grows, like <c>tail -F</c>.</summary>
 /// <remarks>
@@ -106,7 +107,11 @@ public sealed class LogFollower(string path, long maxInitialBytes = LogFollower.
       var lines = text.Split('\n')
         .SkipLast(1)
         .Select(line => line.TrimEnd('\r'))
-        .Select(line => new LogLine(line, _classifier.Classify(line)))
+        .Select(line =>
+        {
+          var level = _classifier.Classify(line);
+          return new LogLine(line, level, _classifier.Continued);
+        })
         .ToList();
       return new LogChunk(lines, restarted);
     }
@@ -136,6 +141,9 @@ public sealed partial class LogClassifier
 
   internal bool IsFresh { get; private set; } = true;
 
+  /// <summary>Whether the line just classified took its level from the entry above.</summary>
+  public bool Continued { get; private set; }
+
   public void Reset()
   {
     _last = LogLevel.Info;
@@ -145,6 +153,7 @@ public sealed partial class LogClassifier
   public LogLevel Classify(string line)
   {
     IsFresh = false;
+    Continued = false;
     var prefix = Prefix().Match(line);
     if (prefix.Success)
     {
@@ -162,7 +171,13 @@ public sealed partial class LogClassifier
       return _last = LogLevel.Info;
     }
 
-    return Exception().IsMatch(line) ? _last = LogLevel.Error : _last;
+    if (Exception().IsMatch(line))
+    {
+      return _last = LogLevel.Error;
+    }
+
+    Continued = true;
+    return _last;
   }
 
   [GeneratedRegex(@"^\[(Fatal|Error|Warning|Message|Info|Debug)\s*:", RegexOptions.IgnoreCase)]

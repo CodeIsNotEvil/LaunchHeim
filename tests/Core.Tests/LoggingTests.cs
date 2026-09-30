@@ -102,6 +102,16 @@ public class LogFollowerTests : IDisposable
   }
 
   [Fact]
+  public void Stack_trace_lines_continue_their_entry()
+  {
+    File.WriteAllText(LogFile, "[Error  : Unity Log] NullReferenceException\nStack trace:\n  at Player.Update ()\n[Info   :   BepInEx] next\n");
+
+    var continues = new LogFollower(LogFile).Read().Lines.Select(l => l.Continues).ToList();
+
+    Assert.Equal([false, true, true, false], continues);
+  }
+
+  [Fact]
   public void LaunchHeims_own_lines_classify_like_bepinex_ones()
   {
     var classifier = new LogClassifier();
