@@ -7,7 +7,8 @@ or vanilla. On Linux the game folder is never modified. On Windows it gets Doors
 (see [Windows](#windows)).
 
 .NET 10 with a Qt Quick (QML) front end hosted through [Qml.Net](https://github.com/qmlnet/qmlnet).
-MIT-licensed, see [`LICENSE`](LICENSE).
+MIT-licensed, see [`LICENSE`](LICENSE). It bundles third-party software, including Qt under the LGPL v3;
+see [Licenses](#licenses).
 
 ## Install
 
@@ -172,3 +173,26 @@ Building needs Visual Studio 2022 with C++, Qt 5.15.2 `msvc2019_64`, the .NET 10
 `packaging\windows\build.ps1 -QtDir C:\Qt\5.15.2\msvc2019_64` (add `-Smoke` to take screenshots). The
 GitHub workflow `.github/workflows/launchheim-windows.yml` runs the same script on every change and
 keeps the zip as an artifact. It also runs the Core tests on Windows.
+
+## Licenses
+
+LaunchHeim is MIT. What it's built on keeps its own license, and every build carries the notices:
+[`THIRD-PARTY-NOTICES.txt`](THIRD-PARTY-NOTICES.txt) and the full texts in [`licenses/`](licenses)
+are copied next to the app by the csproj, so the Windows zip, the three Linux packages and
+`install.sh` all contain them. Settings → About shows the Qt notice and opens the file.
+
+Two parts are **LGPL-3.0**, which is what drives most of this: Qt (only the Windows zip ships it) and
+NetNativeLibLoader, a Qml.Net dependency that every build ships. The LGPL asks for a prominent notice,
+the LGPL and GPL texts, directions to the source, and that users can swap in their own build. Both
+are separate DLLs, so the last point holds as long as nothing merges or trims them (no single-file
+or trimmed publish). The rest is MIT or BSD (notices only), plus the Microsoft Visual C++ runtime on
+Windows, which is redistributable but not open source.
+
+When a dependency changes:
+- **NuGet package added or upgraded.** Update its section in `THIRD-PARTY-NOTICES.txt` and its text in
+  `licenses/`, and check transitive packages (`dotnet list src/Desktop package --include-transitive`).
+  That's how NetNativeLibLoader's LGPL turned up.
+- **Qt version or shipped Qt modules changed** (`packaging/windows/build.ps1`). Run
+  `packaging/qt-third-party-notices.py`, which regenerates `licenses/Qt-third-party.txt` from Qt's own
+  `qt_attribution.json` files, and update the version and source link in the notices and on the
+  download page (`site/src/download.html`).
