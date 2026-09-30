@@ -112,7 +112,7 @@ Invoke-Checked cl.exe @('/nologo', '/LD', '/MD', '/O2', '/EHsc', '/permissive-',
   "/Fo$(Join-Path $appIconBuild 'app_icon.obj')", "/Fe$(Join-Path $appIconBuild 'LaunchHeimAppIcon.dll')",
   '/link', "/LIBPATH:$(Join-Path $QtDir 'lib')", 'Qt5Gui.lib', 'Qt5Core.lib')
 Copy-Item (Join-Path $appIconBuild 'LaunchHeimAppIcon.dll') $package
-Copy-Item (Join-Path $app 'LICENSE') (Join-Path $package 'LICENSE.txt')
+# LICENSE.txt, THIRD-PARTY-NOTICES.txt and licenses\ come from the publish (see the csproj).
 
 # 3. Qt and the Visual C++ runtime next to LaunchHeim.exe
 Invoke-Checked (Join-Path $QtDir 'bin\windeployqt.exe') @('--release', '--no-translations', '--no-system-d3d-compiler',
