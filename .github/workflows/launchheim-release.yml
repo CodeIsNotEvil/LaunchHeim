@@ -114,9 +114,20 @@ jobs:
           | System | File | Install |
           |---|---|---|
           | Windows 10/11 | \`LaunchHeim-${version}-win-x64.zip\` | unzip anywhere, run \`LaunchHeim.exe\` |
-          | Arch, CachyOS | \`launchheim-git-*.pkg.tar.zst\` | \`sudo pacman -U <file>\` |
+          | Arch, CachyOS | \`launchheim-git-*.pkg.tar.zst\` | download it, then \`sudo pacman -U ./<file>\` |
           | Debian 13, Ubuntu 24.04+ | \`launchheim_${version}-1_amd64.deb\` | \`sudo apt install ./<file>\` |
           | Fedora, RHEL 9/10 (EPEL) | \`launchheim-${version}-1.x86_64.rpm\` | \`sudo dnf install ./<file>\` |
+
+          The packages aren't signed, so \`pacman -U <url>\` fails looking for a \`.sig\`; install the downloaded file.
+          Check a download with \`sha256sum -c --ignore-missing\` and these lines:
+
+          \`\`\`
+          EOF
+          # The same digests GitHub stores per asset; the download page shows them too.
+          (cd artifacts && sha256sum LaunchHeim-win-x64/*.zip LaunchHeim-linux/*.pkg.tar.zst \
+            LaunchHeim-linux/*.deb LaunchHeim-linux/*.rpm) | sed 's|  .*/|  |' >> notes.md
+          cat >> notes.md <<EOF
+          \`\`\`
 
           Getting started: https://codeisnotevil.github.io/MyMonoRepo/download.html#launchheim
           EOF
