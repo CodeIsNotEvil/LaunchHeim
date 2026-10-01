@@ -58,6 +58,12 @@ accounts) and CurseForge (API key).
   build overwrites it with `$ORIGIN`, and Fedora's rpmbuild refuses the unpatched file (2026-09-26).
 - `grabToImage` (the screenshot mode) waits forever while the Plasma session is locked, because nothing
   renders frames. Use `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software` (2026-09-26).
+- A control stretches its `contentItem` to the available width, so a `Row` contentItem with
+  `anchors.centerIn` still lays out from x = 0. Give the control padding instead (2026-10-02).
+- A `RowLayout` can't shrink below its fixed-width children added together, and it pushes its parent
+  wider instead. Put shrinkable parts in a `fillWidth` item with `Layout.minimumWidth: 0` (2026-10-02).
+- A dev run while the installed app is open just forwards to it over the IPC socket. Set
+  `XDG_RUNTIME_DIR` to a short private directory (sockets are capped at 108 chars) (2026-10-02).
 - GitHub's Windows runners check out with `core.autocrlf=true`, so `.patch` files need `eol=lf`
   (`.gitattributes`) or `git apply` fails.
 - The window and taskbar showed placeholder icons on both systems (2026-09-28). Windows: Qt only
