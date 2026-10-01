@@ -77,11 +77,27 @@ Card {
         spacing: 14
         Layout.fillWidth: true
 
-        Stat { iconName: "download"; text: card.mod.downloadsText }
-        Stat { iconName: "star"; text: card.mod.likesText }
-        Stat { iconName: "clock"; text: card.mod.updatedText }
+        // A RowLayout can't shrink below the sum of its fixed-width children, so on a card just
+        // over the grid's 440 px column threshold the stats pushed the Install button (and the
+        // whole column, titles included) past the card's edge. The stats now share the leftover
+        // width instead, and any that would run under the button are hidden rather than clipped.
+        // Opacity rather than visible, because hiding one would move the next and feed back into x.
+        Item {
+          id: stats
+          implicitWidth: statsRow.implicitWidth
+          implicitHeight: statsRow.implicitHeight
+          Layout.fillWidth: true
+          Layout.minimumWidth: 0
 
-        Item { Layout.fillWidth: true }
+          Row {
+            id: statsRow
+            spacing: 14
+
+            Stat { iconName: "download"; text: card.mod.downloadsText; opacity: x + width <= stats.width ? 1 : 0 }
+            Stat { iconName: "star"; text: card.mod.likesText; opacity: x + width <= stats.width ? 1 : 0 }
+            Stat { iconName: "clock"; text: card.mod.updatedText; opacity: x + width <= stats.width ? 1 : 0 }
+          }
+        }
 
         Badge {
           visible: card.mod.isInstalled && !card.mod.hasUpdate

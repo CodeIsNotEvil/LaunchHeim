@@ -29,7 +29,12 @@ Rectangle {
         readonly property bool active: switcher.current === modelData
 
         implicitHeight: 30
-        implicitWidth: segmentRow.implicitWidth + 26
+        implicitWidth: segmentRow.implicitWidth + leftPadding + rightPadding
+        // Padding rather than centring the Row: the control stretches its contentItem to the
+        // available width, and a stretched Row still lays out from x = 0, which put the dot flush
+        // against the highlight's left edge and left all the spare space on the right.
+        leftPadding: 13
+        rightPadding: 13
         hoverEnabled: true
         onClicked: switcher.selected(modelData)
 
@@ -43,7 +48,6 @@ Rectangle {
         contentItem: Row {
           id: segmentRow
           spacing: 8
-          anchors.centerIn: parent
 
           Rectangle {
             width: 8
