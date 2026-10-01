@@ -20,11 +20,31 @@ Otherwise its launcher entry in `~/.local/share/applications` hides the packaged
 
 ## Arch Linux / CachyOS (pacman)
 
-`arch/PKGBUILD` builds `launchheim-git` from this repository. It's a `-git` package because LaunchHeim
-has no tagged releases. The version is the app version plus the commit (`0.1.0.r47.g315cedb`), so
-pacman sees every new commit as an upgrade.
+`arch/PKGBUILD` builds `launchheim-git` from this repository. It's a `-git` package because it builds
+whatever commit it's given, not only release tags. The version is the app version plus the commit
+(`0.1.0.r47.g315cedb`), so pacman sees every new commit as an upgrade. The releases ship the same
+package, built at the tag.
 
-### Install
+### Install from a release
+
+Each `launchheim-v*` release has the built package. The
+[download page](https://codeisnotevil.github.io/MyMonoRepo/download.html#launchheim) shows these
+commands with the current file name and its SHA-256 filled in:
+
+```fish
+curl -LO https://github.com/CodeIsNotEvil/MyMonoRepo/releases/download/launchheim-v0.3.0/launchheim-git-0.3.0.r106.g81bca63-1-x86_64.pkg.tar.zst
+echo "<sha256>  launchheim-git-0.3.0.r106.g81bca63-1-x86_64.pkg.tar.zst" | sha256sum -c
+sudo pacman -U ./launchheim-git-0.3.0.r106.g81bca63-1-x86_64.pkg.tar.zst
+```
+
+Download it first. `sudo pacman -U <url>` fails with a 404 on `<file>.sig`: for a package it downloads
+itself, pacman applies `RemoteFileSigLevel`, which defaults to `Required`, and the release packages
+aren't signed. A local file falls under `LocalFileSigLevel = Optional` instead, so the checksum is
+what vouches for it. Don't pass the `release-assets.githubusercontent.com` link GitHub redirects to
+either: pacman names the file after the whole query string and fails with "File name too long".
+To update, do the same with the newer release.
+
+### Build and install
 
 ```fish
 cd Applications/LaunchHeim/packaging/arch
@@ -51,6 +71,7 @@ nothing to register by hand.
 
 | Task | Command |
 |---|---|
+| Upgrade to a new release | download, check and `sudo pacman -U ./<file>` as above |
 | Upgrade after new commits | `makepkg -si` again in `packaging/arch` (it pulls, rebuilds and upgrades) |
 | Show what's installed | `pacman -Qi launchheim-git` |
 | List its files | `pacman -Ql launchheim-git` |
@@ -163,8 +184,10 @@ The tag starts `.github/workflows/launchheim-release.yml`:
 The download page picks the new files up by itself. Starting the workflow by hand (*Run workflow*)
 does the same builds and tests as a dry run, without a release.
 
-The released Arch package is `launchheim-git` built at the tagged commit, so `pacman -U <url>`
-installs exactly that release.
+The released Arch package is `launchheim-git` built at the tagged commit, so installing it installs
+exactly that release. It isn't signed, so it has to be downloaded before `pacman -U` (see
+[Install from a release](#install-from-a-release)). The release notes and the download page list the
+SHA-256 of every file; the page takes them from the `digest` GitHub stores for each release asset.
 
 ## Why the packages look like this
 

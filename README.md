@@ -14,7 +14,7 @@ see [Licenses](#licenses).
 
 | System | How |
 |---|---|
-| Arch, CachyOS | `makepkg -si` in `packaging/arch` (pacman package `launchheim-git`) |
+| Arch, CachyOS | the release package (download it, then `sudo pacman -U ./<file>`), or `makepkg -si` in `packaging/arch` (pacman package `launchheim-git`) |
 | Debian 13, Ubuntu 24.04+ | `sudo apt install ./launchheim_*_amd64.deb` from `packaging/build-packages.sh` |
 | Fedora, RHEL 9/10 | `sudo dnf install ./launchheim-*.x86_64.rpm` (RHEL 10 needs EPEL) |
 | Any Linux, per user | `./install.sh` (and `./install.sh --uninstall`) |
