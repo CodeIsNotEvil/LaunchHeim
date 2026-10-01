@@ -11,8 +11,8 @@ What it does:
 - Renders each app's CHANGELOG.md (through Scripts/changelog.py) into a version history, so users see
   what changed between the version they run and the newest one.
 - Asks the GitHub API for each app's newest release (tags grocerytracker-v* and launchheim-v*) and
-  links its files directly. The repository holds several apps, so GitHub's single "latest release"
-  link can't be used. Before an app has a release, <!-- if:key --> ... <!-- else --> ... <!-- end -->
+  links its files directly, with the SHA-256 GitHub computed for each. The repository holds several
+  apps, so GitHub's single "latest release" link can't be used. Before an app has a release, <!-- if:key --> ... <!-- else --> ... <!-- end -->
   blocks show build instructions instead.
 
 The workflow .github/workflows/site.yml runs this on every change to the site or a changelog and
@@ -104,6 +104,11 @@ def release_values(release: dict | None, key: str, prefix: str, files: dict[str,
       values[f"{key}_{name}_url"] = asset["browser_download_url"]
       values[f"{key}_{name}_file"] = asset["name"]
       values[f"{key}_{name}_size"] = f"{asset['size'] / 1_000_000:.1f} MB"
+      # GitHub hashes every uploaded file itself ("sha256:<hex>"), so the page can show checksums
+      # without the release having to ship a SHA256SUMS file. Older assets may lack the field.
+      algorithm, _, digest = (asset.get("digest") or "").partition(":")
+      if algorithm == "sha256" and digest:
+        values[f"{key}_{name}_sha256"] = digest
   return values
 
 

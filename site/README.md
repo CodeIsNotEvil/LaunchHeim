@@ -19,8 +19,8 @@ site/build.py --releases-json sample.json       # preview the download page with
 
 `build.py` fills in `{{ placeholders }}` and `<!-- if:key --> … <!-- else --> … <!-- end -->` blocks
 (which can nest), copies the logos and the font from their real homes (`Assets/`, the apps), and asks
-the GitHub API for each app's newest release. Download links therefore follow releases without editing
-the pages. Before an app's first release, its section shows build instructions instead.
+the GitHub API for each app's newest release, including the SHA-256 GitHub stores for every file
+(`digest`). Download links and checksums therefore follow releases without editing the pages. Before an app's first release, its section shows build instructions instead.
 
 `.github/workflows/site.yml` builds it on pull requests and deploys it from `main`, after every
 release (the release workflows start it, because releases made by a workflow trigger nothing on
