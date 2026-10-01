@@ -64,132 +64,53 @@
 
       <!-- if:gt_release -->
       <h3>Install</h3>
-      <ol class="steps">
-        <li>Make a folder for it and download the two setup files:
-<pre><code>mkdir grocerytracker &amp;&amp; cd grocerytracker
-curl -LO {{ gt_compose_url }}
-curl -LO {{ gt_env_url }}</code></pre></li>
-        <li>Create your settings and choose a database password:
-<pre><code>cp env.example .env
-nano .env        # set POSTGRES_PASSWORD</code></pre></li>
-        <li>Start it. The first start downloads the images:
-<pre><code>podman compose up -d        # or: docker compose up -d</code></pre></li>
-        <li>Open <code>http://&lt;your-machine&gt;:8080</code> on any device in your home.</li>
-      </ol>
-
-      <h3>Update</h3>
-<pre><code>podman compose pull &amp;&amp; podman compose up -d</code></pre>
-      <p>Your data stays in its own volume, and database changes are applied automatically when the
-        new version starts. To stay on one version until you choose to update, set
-        <code>GROCERYTRACKER_VERSION={{ gt_version }}</code> in <code>.env</code>.</p>
-      <!-- else -->
-      <div class="note">
-        <p>The first release with prebuilt containers is on its way. Until then you can build it
-          from source with the <a href="{{ repo_url }}/tree/main/Applications/GroceryTracker#deploying-to-the-raspberry-pi">Raspberry Pi guide</a>.</p>
-      </div>
-      <!-- end -->
-
-      <details>
-        <summary>Install it on your phone (HTTPS)</summary>
-        <p>Browsers only let you install GroceryTracker as an app, and use it offline, over HTTPS.
-          Put a certificate named <code>grocerytracker.crt</code> with its key
-          <code>grocerytracker.key</code> in a <code>certs</code> folder next to
-          <code>compose.yaml</code>. It is then served on port 8443. The
-          <a href="{{ repo_url }}/blob/main/Applications/GroceryTracker/deploy/https.md">HTTPS guide</a>
-          shows how to make a certificate your devices trust.</p>
-      </details>
-
-      <h3 id="grocerytracker-changes">What's new</h3>
-      <!-- Built from Applications/GroceryTracker/CHANGELOG.md by build.py. -->
-      <div class="changelog">
-{{{ gt_changes }}}
-      </div>
-
-      <h3>First steps</h3>
-      <ol class="steps">
-        <li><strong>Manage:</strong> add the people who share the groceries, and your stores and
-          categories.</li>
-        <li><strong>Trips → Add trip:</strong> record a shopping trip with its total and who paid.
-          Line items are optional and split the total across categories.</li>
-        <li><strong>Dashboard:</strong> see your spending for this month, 3, 6 or 12 months, and per
-          category and store.</li>
-        <li><strong>Balance:</strong> see who owes whom, and record a transfer when you settle up.</li>
-        <li>Coming from a spreadsheet? <strong>Manage → Import bookings from CSV</strong> brings in your
-          history. Importing the same file again never creates duplicates.</li>
-      </ol>
-      <p>Everything works offline and syncs when the server is reachable again. More in the
-        <a href="{{ repo_url }}/tree/main/Applications/GroceryTracker#readme">GroceryTracker README</a>.</p>
-    </section>
-
-    <!-- ================= LaunchHeim ================= -->
-    <section class="app-section card" id="launchheim" aria-labelledby="lh-title">
-      <header>
-        <span class="glint glint-lh"><img src="img/launchheim.svg" alt="" width="48" height="48"></span>
-        <div>
-          <h2 id="lh-title">LaunchHeim</h2>
-          <!-- if:lh_release -->
-          <p class="version">Version {{ lh_version }} · released {{ lh_date }} · <a href="#launchheim-changes">what's new</a> · <a href="{{ lh_release_url }}">release notes</a> · MIT license</p>
-          <!-- else -->
-          <p class="version">No release yet · MIT license</p>
-          <!-- end -->
-        </div>
-      </header>
-
-      <p>A Valheim mod launcher. Each instance is its own modpack with its own BepInEx, mods and
-        configs, and the game install stays vanilla. You need Valheim on Steam.</p>
-
-      <!-- if:lh_release -->
-      <div class="downloads">
-        <!-- if:lh_windows_url -->
-        <a class="button primary" href="{{ lh_windows_url }}">Windows 10/11 <small>.zip · {{ lh_windows_size }}</small></a>
-        <!-- end -->
-        <!-- if:lh_arch_url -->
-        <a class="button" href="{{ lh_arch_url }}">Arch, CachyOS <small>pacman · {{ lh_arch_size }}</small></a>
-        <!-- end -->
-        <!-- if:lh_deb_url -->
-        <a class="button" href="{{ lh_deb_url }}">Debian, Ubuntu <small>.deb · {{ lh_deb_size }}</small></a>
-        <!-- end -->
-        <!-- if:lh_rpm_url -->
-        <a class="button" href="{{ lh_rpm_url }}">Fedora, RHEL <small>.rpm · {{ lh_rpm_size }}</small></a>
-        <!-- end -->
-      </div>
-      <!-- LGPL-3.0: the Windows zip ships Qt, so where to get its source has to sit next to the download. -->
-      <p class="fine-print">LaunchHeim is MIT licensed and built on open-source software, including Qt 5.15
-        under the GNU LGPL v3. Every download contains <code>THIRD-PARTY-NOTICES.txt</code> and the
-        license texts (<a href="{{ repo_url }}/blob/main/Applications/LaunchHeim/THIRD-PARTY-NOTICES.txt">read them online</a>).
-        The Qt in the Windows zip is the unmodified Qt 5.15.2; its source is at
-        <a href="https://download.qt.io/archive/qt/5.15/5.15.2/single/">download.qt.io</a>.</p>
-
-      <h3>Install</h3>
       <!-- if:lh_windows_url -->
       <details open>
         <summary>Windows 10 and 11</summary>
         <p>Unzip it anywhere, for example into <code>%LOCALAPPDATA%\Programs</code>, and start
           <code>LaunchHeim.exe</code>. Nothing else is needed. To update, replace the folder; your
           instances are kept in <code>%LOCALAPPDATA%\LaunchHeim</code>.</p>
+        <!-- if:lh_windows_sha256 -->
+        <p>To check the download, run this in PowerShell in the folder you saved it to. It prints
+          <code>True</code> when the file is intact.</p>
+<pre><code>(Get-FileHash .\{{ lh_windows_file }}).Hash -eq "{{ lh_windows_sha256 }}"</code></pre>
+        <!-- end -->
       </details>
       <!-- end -->
       <!-- if:lh_arch_url -->
       <details>
         <summary>Arch Linux, CachyOS</summary>
-<pre><code>sudo pacman -U {{ lh_arch_url }}</code></pre>
-        <p>Qt 5 and .NET come from the official repositories. To build it yourself instead, run
-          <code>makepkg -si</code> in <code>Applications/LaunchHeim/packaging/arch</code>.</p>
+        <!-- pacman -U <url> wants a .sig next to a downloaded package (RemoteFileSigLevel defaults to
+             Required) and fails with a 404 because the release has none. A local file only needs
+             LocalFileSigLevel, which is Optional, so download first and check the hash instead. -->
+<pre><code>curl -LO {{ lh_arch_url }}
+<!-- if:lh_arch_sha256 -->echo "{{ lh_arch_sha256 }}  {{ lh_arch_file }}" | sha256sum -c
+<!-- end -->sudo pacman -U ./{{ lh_arch_file }}</code></pre>
+        <p>The package isn't signed, so pacman won't install it straight from the link; download it
+          first. <code>sha256sum -c</code> prints <code>OK</code> when the file matches the release.
+          Qt 5 and .NET come from the official repositories.</p>
+        <p>To update, run the same commands for the new version. <code>pacman -Syu</code> doesn't
+          see new releases, because LaunchHeim isn't in a repository. To build it yourself instead,
+          run <code>makepkg -si</code> in <code>Applications/LaunchHeim/packaging/arch</code>.</p>
       </details>
       <!-- end -->
       <!-- if:lh_deb_url -->
       <details>
         <summary>Debian 13, Ubuntu 24.04 and newer</summary>
 <pre><code>curl -LO {{ lh_deb_url }}
-sudo apt install ./{{ lh_deb_file }}</code></pre>
+<!-- if:lh_deb_sha256 -->echo "{{ lh_deb_sha256 }}  {{ lh_deb_file }}" | sha256sum -c
+<!-- end -->sudo apt install ./{{ lh_deb_file }}</code></pre>
+        <p>To update, run the same commands for the new version.</p>
       </details>
       <!-- end -->
       <!-- if:lh_rpm_url -->
       <details>
         <summary>Fedora, RHEL 9 and 10</summary>
-<pre><code>sudo dnf install {{ lh_rpm_url }}</code></pre>
+<pre><code>curl -LO {{ lh_rpm_url }}
+<!-- if:lh_rpm_sha256 -->echo "{{ lh_rpm_sha256 }}  {{ lh_rpm_file }}" | sha256sum -c
+<!-- end -->sudo dnf install ./{{ lh_rpm_file }}</code></pre>
         <p>On RHEL 10 and its rebuilds, enable EPEL first (<code>sudo dnf install epel-release</code>),
-          which still has Qt 5.</p>
+          which still has Qt 5. To update, run the same commands for the new version.</p>
       </details>
       <!-- end -->
       <!-- else -->
