@@ -66,6 +66,9 @@ accounts) and CurseForge (API key).
   `anchors.centerIn` still lays out from x = 0. Give the control padding instead (2026-10-02).
 - A `RowLayout` can't shrink below its fixed-width children added together, and it pushes its parent
   wider instead. Put shrinkable parts in a `fillWidth` item with `Layout.minimumWidth: 0` (2026-10-02).
+- QML's `Image` caches by URL, so a file replaced under the same name keeps showing the old picture
+  until a restart. Give each new picture a new file name, as the Play page's `PlayImageStore` does
+  (2026-10-04).
 - A dev run while the installed app is open just forwards to it over the IPC socket. Set
   `XDG_RUNTIME_DIR` to a short private directory (sockets are capped at 108 chars) (2026-10-02).
 - GitHub's Windows runners check out with `core.autocrlf=true`, so `.patch` files need `eol=lf`
