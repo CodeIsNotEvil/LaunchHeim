@@ -41,6 +41,7 @@ public sealed class PlayViewModel : ViewModel
   private string _gameCharacter = "";
   private bool _isLoading;
   private bool _loaded;
+  private bool _isQueryingServers;
 
   public PlayViewModel(AppViewModel app)
   {
@@ -105,6 +106,7 @@ public sealed class PlayViewModel : ViewModel
       Servers = servers.Select(s => DestinationViewModel.ForServer(this, s)).ToList();
       Worlds = worlds.Select(w => DestinationViewModel.ForWorld(this, w)).ToList();
       _loaded = true;
+      RefreshServerStatus();
     }
     catch (Exception ex)
     {
@@ -118,6 +120,29 @@ public sealed class PlayViewModel : ViewModel
       Raise(nameof(WorldCount));
       Raise(nameof(CharacterCount));
       Raise(nameof(CharacterNames));
+    }
+  }
+
+  /// <summary>
+  /// Asks every server who is on it (<see cref="ServerQuery"/>). The page calls it every 30 seconds while
+  /// it is shown. The servers are asked at the same time, each row updating when its answer arrives.
+  /// </summary>
+  public async void RefreshServerStatus()
+  {
+    // A round takes at most the timeout, so a slow one is never overlapped by the next.
+    if (_isQueryingServers || _servers.Count == 0)
+    {
+      return;
+    }
+
+    _isQueryingServers = true;
+    try
+    {
+      await Task.WhenAll(_servers.Select(s => s.QueryStatusAsync()));
+    }
+    finally
+    {
+      _isQueryingServers = false;
     }
   }
 
@@ -235,6 +260,8 @@ public sealed class DestinationViewModel : ViewModel
   internal const string WorldKind = "world";
 
   private readonly PlayViewModel _play;
+  private ServerStatus? _status;
+  private bool _statusKnown;
 
   private DestinationViewModel(PlayViewModel play, string key, string kind, string name, string address, string detail)
   {
@@ -284,6 +311,27 @@ public sealed class DestinationViewModel : ViewModel
 
   [NotifySignal]
   public bool IsRecent { get; private init; }
+
+  /// <summary>
+  /// A server's players as of the last query: "2/10 online", "Offline" when it didn't answer, and empty
+  /// before the first answer and for worlds.
+  /// </summary>
+  [NotifySignal]
+  public string StatusText => !_statusKnown ? "" : _status is { } s ? $"{s.Players}/{s.MaxPlayers} online" : "Offline";
+
+  [NotifySignal]
+  public bool IsOnline => _status is not null;
+
+  /// <summary>The tooltip on the status: who is playing, or why that isn't known.</summary>
+  [NotifySignal]
+  public string StatusTip => _status switch
+  {
+    null => "The server didn't answer. It may be off, or its query port (the game port + 1) may be closed.",
+    { Players: 0 } => "Nobody is playing right now.",
+    { PlayerNames.Count: > 0 } s => string.Join("\n", s.PlayerNames),
+    { Players: 1 } => "1 player. Valheim servers don't share player names.",
+    var s => $"{s.Players} players. Valheim servers don't share player names.",
+  };
 
   /// <summary>A file:// URL of the picture chosen for it, or empty to show the server or world icon.</summary>
   [NotifySignal]
@@ -362,6 +410,15 @@ public sealed class DestinationViewModel : ViewModel
     Raise(nameof(CharacterIndex));
     Raise(nameof(SetupIndex));
     Raise(nameof(Password));
+  }
+
+  internal async Task QueryStatusAsync()
+  {
+    _status = await ServerQuery.QueryAsync(Address, ServerQuery.DefaultTimeout);
+    _statusKnown = true;
+    Raise(nameof(StatusText));
+    Raise(nameof(IsOnline));
+    Raise(nameof(StatusTip));
   }
 
   internal void RaiseImage()

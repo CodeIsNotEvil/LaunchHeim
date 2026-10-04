@@ -16,6 +16,8 @@ bullet per change.
 - Joining a server opens Valheim at the character selection with your character already picked, so
   Start takes you in. A world opens with its character and world selected in the menus.
 - Give every server and world its own picture: click its icon on the Play page and choose an image.
+- See how many players are on each server, updated every 30 seconds while the Play page is open.
+  Valheim servers don't share player names, so only the number is shown.
 - The sidebar shows which server or world you are playing.
 
 ## 0.3.0 - 2026-09-30

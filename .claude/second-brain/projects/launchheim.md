@@ -69,6 +69,11 @@ accounts) and CurseForge (API key).
 - QML's `Image` caches by URL, so a file replaced under the same name keeps showing the old picture
   until a restart. Give each new picture a new file name, as the Play page's `PlayImageStore` does
   (2026-10-04).
+- Valheim's dedicated server answers A2S on the game port + 1, but A2S_PLAYER lists every player with
+  an empty name, so only the count is known (2026-10-04, checked on a live server).
+- The Windows workflow checks out with `core.autocrlf=true`, which also changes the line ends inside C#
+  raw string literals in tests. Normalize fixtures with `ReplaceLineEndings("\n")`, and build expected
+  paths with `Path.Combine`, even for the Linux code path (2026-10-04).
 - A dev run while the installed app is open just forwards to it over the IPC socket. Set
   `XDG_RUNTIME_DIR` to a short private directory (sockets are capped at 108 chars) (2026-10-02).
 - GitHub's Windows runners check out with `core.autocrlf=true`, so `.patch` files need `eol=lf`

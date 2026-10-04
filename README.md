@@ -95,6 +95,12 @@ a row's tile sets a picture for it (PNG, JPEG, WebP, GIF or BMP), which is copie
 `play-images/` in the data folder and named in `settings.json` (`playImages`); each copy gets a new
 random name because QML's `Image` caches by URL and would keep showing a replaced picture.
 
+**Players online.** Each server row shows how many players are on it ("2/10 online", or "Offline" when
+it doesn't answer), asked with Steam's server query (A2S, `Core/Saves/ServerQuery`) on the query port,
+the game port + 1. The servers are asked when the page loads and every 30 seconds while it is shown.
+Player names aren't available: Valheim's server lists its players to Steam with empty names (checked
+against a live server), so the hover tooltip only shows names a server shares some other way.
+
 What a launch can do there is up to the game. A server is joined with `+connect host:port`, the
 argument Steam's "Join game" uses, and `-password` answers the password prompt. Valheim then opens
 at the character selection, and Start joins. Before the start LaunchHeim sets the game's PlayerPrefs

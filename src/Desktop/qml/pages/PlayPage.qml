@@ -23,6 +23,15 @@ Item {
     onAccepted: destination.setImage(file.toString())
   }
 
+  // Player counts change while the page is open. StackLayout hides the pages that aren't shown, so the
+  // servers are only asked while someone can see the answer.
+  Timer {
+    interval: 30000
+    repeat: true
+    running: page.visible && Vm.play.serverCount > 0
+    onTriggered: Vm.play.refreshServerStatus()
+  }
+
   function choose(destination) {
     playDialog.destination = destination
     playDialog.open()

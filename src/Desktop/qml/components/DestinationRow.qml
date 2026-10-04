@@ -113,6 +113,22 @@ Rectangle {
 
         Badge { visible: row.destination.isFavorite; text: "Favorite"; tint: Theme.accent }
         Badge { visible: row.destination.isRecent; text: "Recent"; tint: Theme.textMuted }
+
+        // Who is on the server, as of the last query; the names (where a server shares them) on hover.
+        Badge {
+          visible: row.destination.statusText.length > 0
+          text: row.destination.statusText
+          tint: row.destination.isOnline ? Theme.positive : Theme.textMuted
+
+          MouseArea {
+            id: statusMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            ToolTip.visible: containsMouse
+            ToolTip.text: row.destination.statusTip
+            ToolTip.delay: 300
+          }
+        }
         Item { Layout.fillWidth: true }
       }
 
