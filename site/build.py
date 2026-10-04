@@ -168,6 +168,26 @@ def render(text: str, values: dict[str, str]) -> str:
   return PLACEHOLDER.sub(fill, RAW_PLACEHOLDER.sub(fill_raw, text))
 
 
+ANCHOR_LINK = re.compile(r'href="#([^"]+)"')
+ELEMENT_ID = re.compile(r'\bid="([^"]+)"')
+
+
+def check(name: str, page: str) -> None:
+  """Fails the build on a page that lost part of itself.
+
+  A deleted stretch of template can leave the <!-- if --> markers balanced and still render. That
+  happened to download.html on 2026-10-01: GroceryTracker's install steps and LaunchHeim's header were
+  cut out, and the page went live mixing the two apps. Every in-page link still needs its target, and
+  every section its end, so such a cut stops here.
+  """
+  ids = set(ELEMENT_ID.findall(page))
+  missing = sorted(set(ANCHOR_LINK.findall(page)) - ids)
+  if missing:
+    raise SystemExit(f"{name}: links to #{', #'.join(missing)}, which the page doesn't have.")
+  if page.count("<section") != page.count("</section>"):
+    raise SystemExit(f"{name}: {page.count('<section')} <section> but {page.count('</section>')} </section>.")
+
+
 def main() -> None:
   parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
   parser.add_argument("output", nargs="?", type=Path, default=ROOT / "site" / "_site")
@@ -193,7 +213,9 @@ def main() -> None:
       continue
     target.parent.mkdir(parents=True, exist_ok=True)
     if path.suffix == ".html":
-      target.write_text(render(path.read_text(encoding="utf-8"), values), encoding="utf-8")
+      page = render(path.read_text(encoding="utf-8"), values)
+      check(path.name, page)
+      target.write_text(page, encoding="utf-8")
     else:
       shutil.copy2(path, target)
   for name, source in ASSETS.items():

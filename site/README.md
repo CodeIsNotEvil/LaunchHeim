@@ -22,6 +22,10 @@ site/build.py --releases-json sample.json       # preview the download page with
 the GitHub API for each app's newest release, including the SHA-256 GitHub stores for every file
 (`digest`). Download links and checksums therefore follow releases without editing the pages. Before an app's first release, its section shows build instructions instead.
 
+The build fails when a rendered page links to an `#anchor` it doesn't have, or opens more `<section>`s
+than it closes. Balanced `if`/`end` markers alone didn't catch a template that lost a stretch in the
+middle (2026-10-01), and the download page went live mixing the two apps.
+
 `.github/workflows/site.yml` builds it on pull requests and deploys it from `main`, after every
 release (the release workflows start it, because releases made by a workflow trigger nothing on
 their own) and on demand.
