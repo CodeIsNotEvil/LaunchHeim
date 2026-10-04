@@ -57,7 +57,7 @@ ApplicationWindow {
       }
 
       StackLayout {
-        currentIndex: ["library", "instance", "browse", "settings"].indexOf(App.currentPage)
+        currentIndex: ["library", "instance", "browse", "settings", "play"].indexOf(App.currentPage)
         Layout.fillWidth: true
         Layout.fillHeight: true
 
@@ -65,6 +65,7 @@ ApplicationWindow {
         InstancePage {}
         BrowsePage {}
         SettingsPage {}
+        PlayPage {}
       }
     }
 

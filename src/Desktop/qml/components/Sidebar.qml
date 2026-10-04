@@ -39,6 +39,14 @@ Rectangle {
     }
 
     NavButton {
+      text: "Play"
+      iconName: "play"
+      active: App.currentPage === "play"
+      Layout.fillWidth: true
+      onClicked: App.navigate("play")
+    }
+
+    NavButton {
       text: "Browse mods"
       iconName: "browse"
       active: App.currentPage === "browse"
