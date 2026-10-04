@@ -33,6 +33,25 @@ public sealed class AppSettings
   /// first launch there.
   /// </summary>
   public Dictionary<string, string> PlayImages { get; set; } = [];
+
+  /// <summary>What was started last, which the sidebar's Play button starts again. Null before the first launch.</summary>
+  public LastPlay? LastPlay { get; set; }
+}
+
+/// <summary>The last launch: a server or world from the Play page, an instance, or vanilla.</summary>
+public sealed class LastPlay
+{
+  /// <summary>
+  /// The server or world's key in <see cref="AppSettings.PlayChoices"/>, whose choice (character, setup,
+  /// password) is played again. Null when the game was started without one.
+  /// </summary>
+  public string? DestinationKey { get; set; }
+
+  /// <summary>The server or world's name, for the sidebar, which shouldn't have to read Valheim's lists.</summary>
+  public string? DestinationName { get; set; }
+
+  /// <summary>The instance played without a destination, or null for vanilla.</summary>
+  public string? InstanceId { get; set; }
 }
 
 /// <summary>The character and setup a server or world was last played with.</summary>

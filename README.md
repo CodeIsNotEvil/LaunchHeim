@@ -95,6 +95,12 @@ a row's tile sets a picture for it (PNG, JPEG, WebP, GIF or BMP), which is copie
 `play-images/` in the data folder and named in `settings.json` (`playImages`); each copy gets a new
 random name because QML's `Image` caches by URL and would keep showing a replaced picture.
 
+**Play again from the sidebar.** The Play button on the sidebar's status card starts whatever was
+started last (`lastPlay` in `settings.json`): a server or world with its remembered character, setup
+and password, an instance, or vanilla before anything was played. The card names it, destination
+first because it elides the end. If the server or world is gone from Valheim's lists, or its character
+or instance is, the button opens the Play page instead.
+
 **Players online.** Each server row shows how many players are on it ("2/10 online", or "Offline" when
 it doesn't answer), asked with Steam's server query (A2S, `Core/Saves/ServerQuery`) on the query port,
 the game port + 1. The servers are asked when the page loads and every 30 seconds while it is shown.

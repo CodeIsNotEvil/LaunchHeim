@@ -172,7 +172,7 @@ Rectangle {
           }
 
           Label {
-            text: App.isGameRunning ? App.runningName : statusCard.waiting ? "Log in if asked" : Vm.settings.gameFound ? "Vanilla, without mods" : "Set the folder in Settings"
+            text: App.isGameRunning ? App.runningName : statusCard.waiting ? "Log in if asked" : Vm.settings.gameFound ? App.lastPlayName : "Set the folder in Settings"
             color: Theme.textMuted
             font.pointSize: Theme.small
             elide: Text.ElideRight
@@ -188,11 +188,13 @@ Rectangle {
           onClicked: App.openConsole()
         }
 
+        // Starts again what was played last: a server or world with its character and setup, an
+        // instance, or vanilla before anything was played.
         IconButton {
           iconName: "play"
-          tip: "Play vanilla Valheim"
+          tip: "Play " + App.lastPlayName
           visible: !App.isGameRunning && !statusCard.waiting && Vm.settings.gameFound
-          onClicked: App.launchVanilla()
+          onClicked: App.playLast()
         }
       }
     }

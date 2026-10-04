@@ -20,6 +20,10 @@ bullet per change.
   Valheim servers don't share player names, so only the number is shown.
 - The sidebar shows which server or world you are playing.
 
+### Changed
+- The Play button in the sidebar starts what you played last, including a server or world with its
+  character and setup, instead of always starting vanilla Valheim.
+
 ## 0.3.0 - 2026-09-30
 
 ### Added

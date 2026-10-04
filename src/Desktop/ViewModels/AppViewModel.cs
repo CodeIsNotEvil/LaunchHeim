@@ -131,14 +131,58 @@ public sealed class AppViewModel : ViewModel
   [NotifySignal]
   public string RunningInstanceId { get => _runningInstanceId; private set => Set(ref _runningInstanceId, value); }
 
-  /// <summary>The setup that runs, and the server or world it was started for: "Survival · Walheim".</summary>
+  /// <summary>
+  /// The server or world the game was started for, and the setup: "Walheim · Survival". The destination
+  /// comes first because the sidebar is narrow and elides the end.
+  /// </summary>
   [NotifySignal]
   public string RunningName
   {
     get
     {
       var setup = _instances.FirstOrDefault(i => i.Id == _runningInstanceId)?.Name ?? (IsGameRunning ? PlayViewModel.VanillaName : "");
-      return _runningDestination.Length > 0 && setup.Length > 0 ? $"{setup} · {_runningDestination}" : setup;
+      return _runningDestination.Length > 0 && setup.Length > 0 ? $"{_runningDestination} · {setup}" : setup;
+    }
+  }
+
+  /// <summary>
+  /// What the sidebar's Play button starts: the server or world played last ("Shitbox · Survival", in the
+  /// order of <see cref="RunningName"/>), else the instance played last, else vanilla.
+  /// </summary>
+  [NotifySignal]
+  public string LastPlayName
+  {
+    get
+    {
+      if (SettingsModel.LastPlay is not { } last)
+      {
+        return PlayViewModel.VanillaName;
+      }
+
+      if (last.DestinationKey is { } key && SettingsModel.PlayChoices.GetValueOrDefault(key) is { } choice)
+      {
+        var setup = choice.InstanceId is null ? PlayViewModel.VanillaName : _instances.FirstOrDefault(i => i.Id == choice.InstanceId)?.Name;
+        return setup is null ? last.DestinationName ?? "" : $"{last.DestinationName} · {setup}";
+      }
+
+      return LastInstance?.Name ?? PlayViewModel.VanillaName;
+    }
+  }
+
+  // An instance deleted since is forgotten rather than an error: the button falls back to vanilla, and says so.
+  private InstanceViewModel? LastInstance =>
+    SettingsModel.LastPlay?.InstanceId is { } id ? _instances.FirstOrDefault(i => i.Id == id) : null;
+
+  /// <summary>Starts what was played last again, see <see cref="LastPlayName"/>.</summary>
+  public void PlayLast()
+  {
+    if (SettingsModel.LastPlay?.DestinationKey is { } key)
+    {
+      _ = Play.PlayAgainAsync(key);
+    }
+    else
+    {
+      StartGame(LastInstance);
     }
   }
 
@@ -252,8 +296,6 @@ public sealed class AppViewModel : ViewModel
     }
   }
 
-  public void LaunchVanilla() => StartGame(null);
-
   internal void Launch(InstanceViewModel instance) => StartGame(instance);
 
   /// <param name="instance">The instance to play, or null for vanilla.</param>
@@ -310,6 +352,16 @@ public sealed class AppViewModel : ViewModel
       _runningDestination = direct?.Name ?? "";
       IsGameRunning = true;
       Raise(nameof(RunningName));
+
+      // Only once the game is up, so a launch that failed isn't what the sidebar offers next.
+      SettingsModel.LastPlay = new LastPlay
+      {
+        DestinationKey = direct?.Key,
+        DestinationName = direct?.Name,
+        InstanceId = direct is null ? instance?.Id : null,
+      };
+      SaveSettings();
+      Raise(nameof(LastPlayName));
 
       if (instance is not null)
       {
@@ -560,6 +612,7 @@ public sealed class AppViewModel : ViewModel
   {
     Raise(nameof(InstanceCount));
     Raise(nameof(RecentInstance));
+    Raise(nameof(LastPlayName));
     Browse.InstancesChanged();
     Play.InstancesChanged();
   }

@@ -7,10 +7,11 @@ using Qml.Net;
 namespace CINE.LaunchHeim.Desktop.ViewModels;
 
 /// <summary>What a launch should open in the game: a server to join, or a character and world to select.</summary>
+/// <param name="Key">The server or world's key in <see cref="AppSettings.PlayChoices"/>, to play it again from the sidebar.</param>
 /// <param name="Name">The server or world, for the log and the sidebar.</param>
 /// <param name="Arguments">Command-line arguments for the game, see <see cref="GameLauncher.JoinArguments"/>.</param>
 /// <param name="Prefs">PlayerPrefs to set first, see <see cref="ValheimPrefs"/>.</param>
-internal sealed record DirectPlay(string Name, IReadOnlyList<string> Arguments, IReadOnlyDictionary<string, string> Prefs);
+internal sealed record DirectPlay(string Key, string Name, IReadOnlyList<string> Arguments, IReadOnlyDictionary<string, string> Prefs);
 
 /// <summary>
 /// The Play page: the servers and worlds Valheim knows, each started with the character and setup
@@ -89,7 +90,9 @@ public sealed class PlayViewModel : ViewModel
   internal string GameCharacter => _gameCharacter;
 
   /// <summary>Reads the lists again. Cheap, but it runs off the UI thread because Steam may sit on a slow drive.</summary>
-  public async void Refresh()
+  public void Refresh() => _ = RefreshAsync();
+
+  private async Task RefreshAsync()
   {
     if (IsLoading)
     {
@@ -144,6 +147,35 @@ public sealed class PlayViewModel : ViewModel
     {
       _isQueryingServers = false;
     }
+  }
+
+  /// <summary>Plays a server or world again with its remembered choice, for the sidebar's Play button.</summary>
+  /// <remarks>
+  /// The lists are read first when the Play page hasn't been opened yet, because the server's address and
+  /// the character's file come from them. When the server or world is gone from Valheim's lists, or its
+  /// character or instance is, the Play page opens on it instead of guessing.
+  /// </remarks>
+  internal async Task PlayAgainAsync(string key)
+  {
+    if (!_loaded)
+    {
+      await RefreshAsync();
+    }
+
+    var destination = _servers.Concat(_worlds).FirstOrDefault(d => d.Key == key);
+    if (destination is { HasChoice: true })
+    {
+      destination.Play();
+      return;
+    }
+
+    _app.Navigate("play");
+    _app.Toast(
+      "info",
+      destination is null ? "Not in Valheim's lists anymore" : "Choose again",
+      destination is null
+        ? "The server or world played last is gone from Valheim's lists."
+        : $"{destination.ChoiceText}. Pick the character and setup for {destination.Name}.");
   }
 
   /// <summary>After the game closes its lists may have changed (a new recent server, a saved world).</summary>
@@ -218,7 +250,7 @@ public sealed class PlayViewModel : ViewModel
     }
 
     var arguments = isServer ? GameLauncher.JoinArguments(destination.Address, password) : [];
-    _app.Launch(instance, new DirectPlay(destination.Name, arguments, prefs));
+    _app.Launch(instance, new DirectPlay(destination.Key, destination.Name, arguments, prefs));
   }
 
   internal void SetImage(DestinationViewModel destination, string file)
