@@ -4,12 +4,14 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
 // A server or world on the Play page. Play starts it with what was played there last time; without
-// that (or with the pencil) the page opens the dialog to choose.
+// that (or with the pencil) the page opens the dialog to choose. The tile on the left shows the picture
+// chosen for it, and clicking the tile picks another one.
 Rectangle {
   id: row
 
   property var destination
   signal chooseRequested()
+  signal imageRequested()
 
   readonly property bool canPlay: !App.isGameRunning && App.steamStatus.length === 0 && Vm.settings.gameFound
 
@@ -35,11 +37,57 @@ Rectangle {
       height: 42
       radius: Theme.smallRadius
       color: Theme.accentSoft
+      clip: true
 
       Icon {
         anchors.centerIn: parent
+        visible: picture.status !== Image.Ready
         iconName: row.destination.kind === "server" ? "link" : "rune"
         color: Theme.accent
+      }
+
+      Image {
+        id: picture
+        anchors.fill: parent
+        source: row.destination.imageSource
+        visible: status === Image.Ready
+        fillMode: Image.PreserveAspectCrop
+        asynchronous: true
+        smooth: true
+        mipmap: true
+        sourceSize: Qt.size(width * 2, height * 2)
+      }
+
+      // A pencil over the tile on hover, so it reads as something to click and not just decoration.
+      Rectangle {
+        anchors.fill: parent
+        visible: tileMouse.containsMouse
+        color: Qt.rgba(0, 0, 0, 0.45)
+
+        Icon {
+          anchors.centerIn: parent
+          iconName: "edit"
+          size: 16
+          color: "white"
+        }
+      }
+
+      MouseArea {
+        id: tileMouse
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        ToolTip.visible: containsMouse
+        ToolTip.text: "Change the picture"
+        ToolTip.delay: 500
+        // Without a picture there is nothing to remove, so go straight to the file dialog.
+        onClicked: row.destination.hasImage ? pictureMenu.popup() : row.imageRequested()
+      }
+
+      Menu {
+        id: pictureMenu
+        MenuItem { text: "Choose another picture…"; onTriggered: row.imageRequested() }
+        MenuItem { text: "Use the default icon"; onTriggered: row.destination.removeImage() }
       }
     }
 

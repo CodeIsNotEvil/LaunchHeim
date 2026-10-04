@@ -2,6 +2,7 @@ import QtQuick 2.15
 import LaunchHeim 1.0
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import Qt.labs.platform 1.1 as Platform
 import "../components"
 import "../dialogs"
 
@@ -12,9 +13,24 @@ Item {
 
   PlayDialog { id: playDialog }
 
+  // One dialog for every row; it remembers which server or world asked.
+  Platform.FileDialog {
+    id: imageDialog
+    property var destination: null
+    title: destination ? "Choose a picture for " + destination.name : ""
+    folder: Platform.StandardPaths.writableLocation(Platform.StandardPaths.PicturesLocation)
+    nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif *.bmp)"]
+    onAccepted: destination.setImage(file.toString())
+  }
+
   function choose(destination) {
     playDialog.destination = destination
     playDialog.open()
+  }
+
+  function chooseImage(destination) {
+    imageDialog.destination = destination
+    imageDialog.open()
   }
 
   Flickable {
@@ -93,6 +109,7 @@ Item {
               destination: modelData
               Layout.fillWidth: true
               onChooseRequested: page.choose(modelData)
+              onImageRequested: page.chooseImage(modelData)
             }
           }
         }
@@ -130,6 +147,7 @@ Item {
               destination: modelData
               Layout.fillWidth: true
               onChooseRequested: page.choose(modelData)
+              onImageRequested: page.chooseImage(modelData)
             }
           }
         }

@@ -19,7 +19,8 @@ internal sealed record DirectPlay(string Name, IReadOnlyList<string> Arguments, 
 /// <remarks>
 /// <para>
 /// Valheim stays the owner of saves and servers. LaunchHeim only reads its lists (<see cref="ValheimSaves"/>)
-/// and remembers its own choices per server or world in the settings (<see cref="AppSettings.PlayChoices"/>).
+/// and remembers its own choices per server or world in the settings (<see cref="AppSettings.PlayChoices"/>),
+/// along with a picture the user may pick for each (<see cref="AppSettings.PlayImages"/>).
 /// </para>
 /// <para>
 /// How direct a launch can be is up to the game. A server is joined with <c>+connect</c>, which opens the
@@ -45,9 +46,11 @@ public sealed class PlayViewModel : ViewModel
   {
     _app = app;
     Saves = ValheimSaves.ForCurrentUser(SteamLibraryLocator.ForCurrentUser().SteamRoots);
+    Images = new PlayImageStore(app.Paths);
   }
 
   internal ValheimSaves Saves { get; }
+  internal PlayImageStore Images { get; }
   internal IReadOnlyList<ValheimCharacter> CharacterList => _characters;
   internal AppViewModel App => _app;
 
@@ -192,6 +195,37 @@ public sealed class PlayViewModel : ViewModel
     var arguments = isServer ? GameLauncher.JoinArguments(destination.Address, password) : [];
     _app.Launch(instance, new DirectPlay(destination.Name, arguments, prefs));
   }
+
+  internal void SetImage(DestinationViewModel destination, string file)
+  {
+    string name;
+    try
+    {
+      name = Images.Import(file);
+    }
+    catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+    {
+      Log.Error($"Setting the picture for {destination.Name} failed", ex);
+      _app.Toast("error", "Could not use that picture", ex.Message);
+      return;
+    }
+
+    // The old copy goes only once the new one is in place, so a failed pick keeps the old picture.
+    Images.Delete(_app.SettingsModel.PlayImages.GetValueOrDefault(destination.Key));
+    _app.SettingsModel.PlayImages[destination.Key] = name;
+    _app.SaveSettings();
+    destination.RaiseImage();
+  }
+
+  internal void RemoveImage(DestinationViewModel destination)
+  {
+    if (_app.SettingsModel.PlayImages.Remove(destination.Key, out var name))
+    {
+      Images.Delete(name);
+      _app.SaveSettings();
+      destination.RaiseImage();
+    }
+  }
 }
 
 /// <summary>One server or world on the Play page, with what it was last played with.</summary>
@@ -251,6 +285,14 @@ public sealed class DestinationViewModel : ViewModel
   [NotifySignal]
   public bool IsRecent { get; private init; }
 
+  /// <summary>A file:// URL of the picture chosen for it, or empty to show the server or world icon.</summary>
+  [NotifySignal]
+  public string ImageSource =>
+    _play.Images.PathOf(_play.App.SettingsModel.PlayImages.GetValueOrDefault(Key)) is { } path ? new Uri(path).AbsoluteUri : "";
+
+  [NotifySignal]
+  public bool HasImage => ImageSource.Length > 0;
+
   private PlayChoice? Choice => _play.App.SettingsModel.PlayChoices.GetValueOrDefault(Key);
 
   private int ChoiceCharacterIndex => Choice is { } choice ? IndexOfCharacter(choice.Character) : -1;
@@ -307,6 +349,12 @@ public sealed class DestinationViewModel : ViewModel
   public void PlayWith(int characterIndex, int setupIndex, string password) =>
     _play.Launch(this, characterIndex, setupIndex, password ?? "");
 
+  /// <summary>Uses the image file the user picked (a file:// URL from the dialog) as its picture.</summary>
+  public void SetImage(string fileUrl) => _play.SetImage(this, AppViewModel.LocalPath(fileUrl));
+
+  /// <summary>Goes back to the server or world icon.</summary>
+  public void RemoveImage() => _play.RemoveImage(this);
+
   internal void RaiseChoice()
   {
     Raise(nameof(HasChoice));
@@ -314,6 +362,12 @@ public sealed class DestinationViewModel : ViewModel
     Raise(nameof(CharacterIndex));
     Raise(nameof(SetupIndex));
     Raise(nameof(Password));
+  }
+
+  internal void RaiseImage()
+  {
+    Raise(nameof(ImageSource));
+    Raise(nameof(HasImage));
   }
 
   private int IndexOfCharacter(string fileName)

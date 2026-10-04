@@ -26,6 +26,13 @@ public sealed class AppSettings
   /// <c>ValheimWorld.Key</c>, so the next launch there needs no choices.
   /// </summary>
   public Dictionary<string, PlayChoice> PlayChoices { get; set; } = [];
+
+  /// <summary>
+  /// The picture shown for a server or world, keyed like <see cref="PlayChoices"/>, as a file name in
+  /// <see cref="PlayImageStore"/>. Kept apart from the choices because a picture can be set before the
+  /// first launch there.
+  /// </summary>
+  public Dictionary<string, string> PlayImages { get; set; } = [];
 }
 
 /// <summary>The character and setup a server or world was last played with.</summary>
