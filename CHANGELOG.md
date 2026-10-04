@@ -7,6 +7,17 @@ Format: a `## <version> - <yyyy-mm-dd>` heading per release (the version must ma
 `src/Desktop/LaunchHeim.Desktop.csproj`), then `### Added`, `### Changed` or `### Fixed` with one
 bullet per change.
 
+## 0.4.0 - 2026-10-04
+
+### Added
+- A Play page with the servers from Valheim's Favorites and Recent lists and your worlds. Pick a
+  character and a setup (vanilla or one of your instances) once, and the next time one click on Play
+  starts it again with the same choice, and a server's password.
+- Joining a server opens Valheim at the character selection with your character already picked, so
+  Start takes you in. A world opens with its character and world selected in the menus.
+- Give every server and world its own picture: click its icon on the Play page and choose an image.
+- The sidebar shows which server or world you are playing.
+
 ## 0.3.0 - 2026-09-30
 
 ### Added
