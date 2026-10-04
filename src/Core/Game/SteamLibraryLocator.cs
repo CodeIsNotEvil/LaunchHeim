@@ -22,6 +22,9 @@ public sealed class SteamLibraryLocator(IEnumerable<string> steamRoots, GamePlat
   public static string ExecutableFor(GamePlatform platform) =>
     platform == GamePlatform.Windows ? "valheim.exe" : "valheim.x86_64";
 
+  /// <summary>The Steam folders searched, which also hold each account's cloud saves (<c>userdata</c>).</summary>
+  public IEnumerable<string> SteamRoots => steamRoots;
+
   public static SteamLibraryLocator ForCurrentUser()
   {
     if (OperatingSystem.IsWindows())

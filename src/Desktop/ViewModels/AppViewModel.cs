@@ -6,6 +6,7 @@ using CINE.LaunchHeim.Core.Instances;
 using CINE.LaunchHeim.Core.Logging;
 using CINE.LaunchHeim.Core.Mods;
 using CINE.LaunchHeim.Core.Packs;
+using CINE.LaunchHeim.Core.Saves;
 using CINE.LaunchHeim.Core.Storage;
 using CINE.LaunchHeim.Desktop.Hosting;
 using Qml.Net;
@@ -26,6 +27,7 @@ public sealed class AppViewModel : ViewModel
   private InstanceViewModel? _selected;
   private string _page = "library";
   private string _runningInstanceId = "";
+  private string _runningDestination = "";
   private bool _isGameRunning;
   private string _steamStatus = "";
 
@@ -54,6 +56,7 @@ public sealed class AppViewModel : ViewModel
     Settings = new SettingsViewModel(this);
     BrowserPrompt = new BrowserPromptViewModel();
     DebugConsole = new ConsoleViewModel(this);
+    Play = new PlayViewModel(this);
 
     _instances = instances.LoadAll().Select(i => new InstanceViewModel(this, i)).ToList();
     _selected = _instances.FirstOrDefault(i => i.Id == SettingsModel.LastInstanceId) ?? _instances.FirstOrDefault();
@@ -81,6 +84,9 @@ public sealed class AppViewModel : ViewModel
   [NotifySignal]
   public BrowserPromptViewModel BrowserPrompt { get; }
 
+  [NotifySignal]
+  public PlayViewModel Play { get; }
+
   /// <summary>Not called Console: QML would read <c>console</c> as its logging object.</summary>
   [NotifySignal]
   public ConsoleViewModel DebugConsole { get; }
@@ -92,7 +98,7 @@ public sealed class AppViewModel : ViewModel
   [NotifySignal]
   public string Version => Core.AppInfo.Version;
 
-  /// <summary>library, instance, browse or settings.</summary>
+  /// <summary>library, play, instance, browse or settings.</summary>
   [NotifySignal]
   public string CurrentPage { get => _page; private set => Set(ref _page, value); }
 
@@ -125,8 +131,60 @@ public sealed class AppViewModel : ViewModel
   [NotifySignal]
   public string RunningInstanceId { get => _runningInstanceId; private set => Set(ref _runningInstanceId, value); }
 
+  /// <summary>
+  /// The server or world the game was started for, and the setup: "Walheim · Survival". The destination
+  /// comes first because the sidebar is narrow and elides the end.
+  /// </summary>
   [NotifySignal]
-  public string RunningName => _instances.FirstOrDefault(i => i.Id == _runningInstanceId)?.Name ?? (IsGameRunning ? "Vanilla Valheim" : "");
+  public string RunningName
+  {
+    get
+    {
+      var setup = _instances.FirstOrDefault(i => i.Id == _runningInstanceId)?.Name ?? (IsGameRunning ? PlayViewModel.VanillaName : "");
+      return _runningDestination.Length > 0 && setup.Length > 0 ? $"{_runningDestination} · {setup}" : setup;
+    }
+  }
+
+  /// <summary>
+  /// What the sidebar's Play button starts: the server or world played last ("Shitbox · Survival", in the
+  /// order of <see cref="RunningName"/>), else the instance played last, else vanilla.
+  /// </summary>
+  [NotifySignal]
+  public string LastPlayName
+  {
+    get
+    {
+      if (SettingsModel.LastPlay is not { } last)
+      {
+        return PlayViewModel.VanillaName;
+      }
+
+      if (last.DestinationKey is { } key && SettingsModel.PlayChoices.GetValueOrDefault(key) is { } choice)
+      {
+        var setup = choice.InstanceId is null ? PlayViewModel.VanillaName : _instances.FirstOrDefault(i => i.Id == choice.InstanceId)?.Name;
+        return setup is null ? last.DestinationName ?? "" : $"{last.DestinationName} · {setup}";
+      }
+
+      return LastInstance?.Name ?? PlayViewModel.VanillaName;
+    }
+  }
+
+  // An instance deleted since is forgotten rather than an error: the button falls back to vanilla, and says so.
+  private InstanceViewModel? LastInstance =>
+    SettingsModel.LastPlay?.InstanceId is { } id ? _instances.FirstOrDefault(i => i.Id == id) : null;
+
+  /// <summary>Starts what was played last again, see <see cref="LastPlayName"/>.</summary>
+  public void PlayLast()
+  {
+    if (SettingsModel.LastPlay?.DestinationKey is { } key)
+    {
+      _ = Play.PlayAgainAsync(key);
+    }
+    else
+    {
+      StartGame(LastInstance);
+    }
+  }
 
   public void Navigate(string page)
   {
@@ -134,6 +192,10 @@ public sealed class AppViewModel : ViewModel
     if (page == "browse")
     {
       Browse.EnsureLoaded();
+    }
+    else if (page == "play")
+    {
+      Play.Refresh();
     }
   }
 
@@ -234,11 +296,12 @@ public sealed class AppViewModel : ViewModel
     }
   }
 
-  public void LaunchVanilla() => StartGame(null);
-
   internal void Launch(InstanceViewModel instance) => StartGame(instance);
 
-  private async void StartGame(InstanceViewModel? instance)
+  /// <param name="instance">The instance to play, or null for vanilla.</param>
+  internal void Launch(InstanceViewModel? instance, DirectPlay direct) => StartGame(instance, direct);
+
+  private async void StartGame(InstanceViewModel? instance, DirectPlay? direct = null)
   {
     if (IsGameRunning)
     {
@@ -261,7 +324,8 @@ public sealed class AppViewModel : ViewModel
         Settings.GameDirectory,
         instanceDirectory,
         instance?.Model.LaunchArguments ?? SettingsModel.VanillaLaunchArguments,
-        GameLauncher.CurrentEnvironment());
+        GameLauncher.CurrentEnvironment(),
+        joinArguments: direct?.Arguments);
 
       // Valheim without a logged-in Steam client shows a black window and no error (see SteamClient).
       SteamStatus = "Checking Steam";
@@ -274,14 +338,30 @@ public sealed class AppViewModel : ViewModel
         CancellationToken.None);
       SteamStatus = "";
 
-      LogLaunch(instance, plan);
+      if (direct is not null)
+      {
+        SelectInGame(direct);
+      }
+
+      LogLaunch(instance, plan, direct);
       var started = DateTimeOffset.Now;
       using var process = Process.Start(plan.ToStartInfo()) ?? throw new LaunchException("The game did not start.");
       Log.Info($"Valheim started, process {process.Id}.");
       DebugConsole.GameStarted(instance);
       RunningInstanceId = instance?.Id ?? "";
+      _runningDestination = direct?.Name ?? "";
       IsGameRunning = true;
       Raise(nameof(RunningName));
+
+      // Only once the game is up, so a launch that failed isn't what the sidebar offers next.
+      SettingsModel.LastPlay = new LastPlay
+      {
+        DestinationKey = direct?.Key,
+        DestinationName = direct?.Name,
+        InstanceId = direct is null ? instance?.Id : null,
+      };
+      SaveSettings();
+      Raise(nameof(LastPlayName));
 
       if (instance is not null)
       {
@@ -304,16 +384,45 @@ public sealed class AppViewModel : ViewModel
       SteamStatus = "";
       IsGameRunning = false;
       RunningInstanceId = "";
+      _runningDestination = "";
       Raise(nameof(RunningName));
       RefreshRunning();
+      Play.RefreshIfLoaded();
+    }
+  }
+
+  /// <summary>Sets the character and world Valheim's menus start on (see <see cref="PlayViewModel"/>).</summary>
+  /// <remarks>
+  /// Written right before the start, because Unity reads PlayerPrefs once when the game starts and
+  /// writes all of them back when it quits. A failure only costs the preselection, so the game still starts.
+  /// </remarks>
+  private void SelectInGame(DirectPlay direct)
+  {
+    try
+    {
+      var prefs = UnityPrefs.ForValheim(Play.Saves.DataDirectory);
+      foreach (var (key, value) in direct.Prefs)
+      {
+        prefs.SetString(key, value);
+      }
+    }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+    {
+      Log.Error("Setting Valheim's selected character failed", ex);
+      Toast("error", "Could not preselect the character", ex.Message);
     }
   }
 
   /// <summary>What the game was started with, so a launch that goes wrong can be reproduced by hand.</summary>
-  private void LogLaunch(InstanceViewModel? instance, LaunchPlan plan)
+  private void LogLaunch(InstanceViewModel? instance, LaunchPlan plan, DirectPlay? direct)
   {
-    Log.Info($"Starting {(instance is null ? "vanilla Valheim" : $"{instance.Name} ({instance.Directory})")}");
-    Log.Info($"  {plan.FileName} {string.Join(' ', plan.Arguments)}".TrimEnd());
+    Log.Info($"Starting {(instance is null ? "vanilla Valheim" : $"{instance.Name} ({instance.Directory})")}{(direct is null ? "" : $" for {direct.Name}")}");
+    foreach (var (key, value) in direct?.Prefs ?? new Dictionary<string, string>())
+    {
+      Log.Info($"  PlayerPrefs {key} = {value}");
+    }
+
+    Log.Info($"  {plan.FileName} {string.Join(' ', GameLauncher.Redact(plan.Arguments))}".TrimEnd());
     foreach (var (key, value) in plan.Environment.Where(e => e.Value is not null).OrderBy(e => e.Key, StringComparer.Ordinal))
     {
       Log.Info($"  {key}={value}");
@@ -503,7 +612,9 @@ public sealed class AppViewModel : ViewModel
   {
     Raise(nameof(InstanceCount));
     Raise(nameof(RecentInstance));
+    Raise(nameof(LastPlayName));
     Browse.InstancesChanged();
+    Play.InstancesChanged();
   }
 
   internal void InstallStateChanged(InstanceViewModel instance)

@@ -168,6 +168,30 @@ public class GameLauncherTests : IDisposable
     Assert.Throws<LaunchException>(() => GameLauncher.Plan(game, empty, "", NoEnvironment, GamePlatform.Windows));
   }
 
+  [Fact]
+  public void Joining_a_server_comes_after_the_launch_arguments()
+  {
+    var join = GameLauncher.JoinArguments("10.0.0.1:2456", "hunter22");
+
+    var linux = GameLauncher.Plan(_game, _instance, "-console", NoEnvironment, GamePlatform.Linux, join);
+    var (game, instance) = WindowsSetup();
+    GameLauncher.PrepareGameFolder(game, instance, GamePlatform.Windows);
+    var windows = GameLauncher.Plan(game, instance, "-console", NoEnvironment, GamePlatform.Windows, join);
+
+    Assert.Equal(["-console", "+connect", "10.0.0.1:2456", "-password", "hunter22"], linux.Arguments);
+    Assert.Equal(["-console", "+connect", "10.0.0.1:2456", "-password", "hunter22"], windows.Arguments.TakeLast(5));
+  }
+
+  [Fact]
+  public void A_server_without_a_password_gets_no_password_argument() =>
+    Assert.Equal(["+connect", "10.0.0.1:2456"], GameLauncher.JoinArguments("10.0.0.1:2456", ""));
+
+  [Fact]
+  public void Passwords_are_hidden_from_the_log() =>
+    Assert.Equal(
+      ["-console", "+connect", "10.0.0.1:2456", "-password", "***"],
+      GameLauncher.Redact(["-console", "+connect", "10.0.0.1:2456", "-password", "hunter22"]));
+
   private (string Game, string Instance) WindowsSetup()
   {
     var game = _temp.Tree("ValheimWindows", "valheim.exe");

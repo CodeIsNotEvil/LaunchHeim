@@ -76,7 +76,8 @@ public static class GameLauncher
     string? instanceDirectory,
     string extraArguments,
     IReadOnlyDictionary<string, string?> currentEnvironment,
-    GamePlatform? platform = null)
+    GamePlatform? platform = null,
+    IReadOnlyList<string>? joinArguments = null)
   {
     var target = platform ?? GamePlatforms.Current;
     var executable = Path.Combine(gameDirectory, SteamLibraryLocator.ExecutableFor(target));
@@ -100,6 +101,7 @@ public static class GameLauncher
     {
       var arguments = WindowsDoorstopArguments(gameDirectory, instanceDirectory);
       arguments.AddRange(SplitArguments(extraArguments));
+      arguments.AddRange(joinArguments ?? []);
       return new LaunchPlan(executable, gameDirectory, arguments, environment);
     }
 
@@ -114,7 +116,34 @@ public static class GameLauncher
       AddDoorstop(environment, instanceDirectory, currentEnvironment);
     }
 
-    return new LaunchPlan(executable, gameDirectory, SplitArguments(extraArguments), environment);
+    return new LaunchPlan(executable, gameDirectory, [.. SplitArguments(extraArguments), .. joinArguments ?? []], environment);
+  }
+
+  /// <summary>Makes Valheim join a dedicated server as soon as its menu is up.</summary>
+  /// <remarks>
+  /// <para>
+  /// <c>+connect</c> is what Steam's "Join game" passes (<c>FejdStartup.HandleStartupJoin</c>). The game
+  /// skips the main menu and opens the character selection, and its Start button joins the server.
+  /// <c>-password</c> answers the server's password prompt (<c>ZNet.RPC_ClientHandshake</c>).
+  /// </para>
+  /// <para>
+  /// Valheim also knows <c>-joinserverwithcharacter</c>, which would skip the character selection too.
+  /// It runs in <c>Awake</c> before Steam is initialised and only finds characters kept off the cloud,
+  /// so it is not used.
+  /// </para>
+  /// </remarks>
+  public static IReadOnlyList<string> JoinArguments(string address, string? password) =>
+    string.IsNullOrEmpty(password) ? ["+connect", address] : ["+connect", address, "-password", password];
+
+  /// <summary>The arguments as they may be logged: a server password is replaced with stars.</summary>
+  public static IEnumerable<string> Redact(IEnumerable<string> arguments)
+  {
+    var hideNext = false;
+    foreach (var argument in arguments)
+    {
+      yield return hideNext ? "***" : argument;
+      hideNext = argument == "-password";
+    }
   }
 
   // Doorstop 4 reads these before the game does, and Valheim ignores them.
