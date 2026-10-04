@@ -1,3 +1,5 @@
+using CINE.LaunchHeim.Core.Saves;
+
 namespace CINE.LaunchHeim.Core.Game;
 
 /// <summary>Where Unity writes Valheim's <c>Player.log</c>: the game's own output, crashes included.</summary>
@@ -15,20 +17,8 @@ public static class UnityPlayerLog
   /// LaunchHeim starts the game outside any sandbox, so it writes to the normal config folder. Started
   /// from Flatpak Steam it writes inside the Flatpak's folder instead, so that one is checked as well.
   /// </remarks>
-  public static IReadOnlyList<string> Candidates(GamePlatform platform, string home, string? xdgConfigHome)
-  {
-    if (platform == GamePlatform.Windows)
-    {
-      return [Path.Combine(home, "AppData", "LocalLow", "IronGate", "Valheim", FileName)];
-    }
-
-    var config = !string.IsNullOrEmpty(xdgConfigHome) && Path.IsPathRooted(xdgConfigHome) ? xdgConfigHome : Path.Combine(home, ".config");
-    return
-    [
-      Path.Combine(config, "unity3d", "IronGate", "Valheim", FileName),
-      Path.Combine(home, ".var", "app", SteamClient.FlatpakId, "config", "unity3d", "IronGate", "Valheim", FileName),
-    ];
-  }
+  public static IReadOnlyList<string> Candidates(GamePlatform platform, string home, string? xdgConfigHome) =>
+    ValheimSaves.DataDirectories(platform, home, xdgConfigHome).Select(d => Path.Combine(d, FileName)).ToList();
 
   /// <summary>The candidate written last, or the usual location when the game has never run.</summary>
   public static string Find() => Find(Candidates(

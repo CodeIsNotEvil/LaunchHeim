@@ -20,6 +20,30 @@ public sealed class AppSettings
 
   /// <summary>Opens the console window with the game's log on every launch, for building and debugging modpacks.</summary>
   public bool OpenConsoleOnLaunch { get; set; }
+
+  /// <summary>
+  /// What was played on each server or world last time, keyed by <c>ValheimServer.Key</c> or
+  /// <c>ValheimWorld.Key</c>, so the next launch there needs no choices.
+  /// </summary>
+  public Dictionary<string, PlayChoice> PlayChoices { get; set; } = [];
+}
+
+/// <summary>The character and setup a server or world was last played with.</summary>
+public sealed class PlayChoice
+{
+  /// <summary>The character's file name without <c>.fch</c>, which is how Valheim selects it.</summary>
+  public string Character { get; set; } = "";
+
+  /// <summary>The instance it was played with, or null for vanilla Valheim.</summary>
+  public string? InstanceId { get; set; }
+
+  /// <summary>
+  /// A server's password, passed with <c>-password</c>. It sits in this file next to the API keys, which
+  /// is why the file is only readable by its owner.
+  /// </summary>
+  public string? Password { get; set; }
+
+  public DateTimeOffset LastPlayedAt { get; set; }
 }
 
 public sealed class SettingsStore(AppPaths paths)
