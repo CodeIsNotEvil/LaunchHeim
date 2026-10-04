@@ -1,7 +1,7 @@
 ---
 tags: [project, dotnet, qml, gaming]
 created: 2026-09-26
-updated: 2026-10-02
+updated: 2026-10-04
 status: active
 ---
 # LaunchHeim
@@ -39,6 +39,10 @@ accounts) and CurseForge (API key).
   `~/.local/state/LaunchHeim/launchheim.log`) instead of piping the game's stdout, so closing LaunchHeim
   can never block or kill a running game (2026-09-30). Lines reach QML as JSON batches appended to a
   ListModel; a replaced Qml.Net list would reset the scroll position.
+- Direct play (2026-10-04): the Play page lists Valheim's own servers and worlds and starts one with a
+  remembered character and setup, through `+connect` and the game's PlayerPrefs
+  ([[0010-launchheim-direct-play-uses-the-games-own-options]]). The README's "Servers and worlds" has
+  the file locations and formats.
 - Distro packages use the system Qt ([[0005-launchheim-distro-packages-use-system-qt]]). Windows keeps
   the QML UI with a patched QmlNet.dll built in CI ([[0006-launchheim-windows-keeps-qml]]).
 
@@ -94,7 +98,26 @@ accounts) and CurseForge (API key).
 - `grabToImage` on a window's `contentItem` fails with "item has no QML engine"; grab an item declared
   in QML instead (the console window has `screenshotRoot`) (2026-09-30).
 
+- Valheim's save and server formats are best read in the game itself: `ilspycmd` (a dotnet tool,
+  install it into a scratch folder) on `valheim_Data/Managed/assembly_valheim.dll` and
+  `assembly_utils.dll`. `FejdStartup` has the command-line options, `SaveSystem`/`SaveCollection` the
+  save rules, `LocalServerList` the server list layout, `PlatformPrefs` the prefs (plain Unity
+  PlayerPrefs on Steam) (2026-10-04).
+- Current Valheim saves a world as a folder `<Name>/_main.<n>.fwl2` plus chunk files, next to older
+  `<Name>.fwl`/`.db` pairs. A same-named folder in `worlds_local` that only holds `cacheMinimap*` files
+  is a minimap cache, not a world (2026-10-04).
+- A Qt Quick `Popup` (every `LhDialog`) always renders in the window's overlay, whatever its `parent`,
+  and neither the overlay nor the root item can be grabbed ("item has no QML engine"). The screenshot
+  mode never shows dialogs. To check one, grab an item declared inside the dialog in QML for a one-off
+  run (2026-10-04).
+- Current Steam's `config/loginusers.vdf` no longer marks `MostRecent`; the newest `Timestamp` is the
+  account that logged in last (2026-10-04).
+
 ## Open
+- Direct play hasn't been tried in a real game yet (2026-10-04): joining with `+connect` and a saved
+  password, the preselected character and world, and the Windows registry prefs. A helper plugin
+  could make world launches fully direct for modded instances
+  ([[0010-launchheim-direct-play-uses-the-games-own-options]]).
 - A Windows installer (Inno Setup, MSIX or winget), and live theme switching on Windows.
 - Moving Linux to the same patched qmlnet-native build as Windows would drop `signal_fix.cpp`, the
   g++/qt5-base build dependencies and the RPATH patch.

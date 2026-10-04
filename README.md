@@ -3,7 +3,7 @@
 A Valheim mod launcher for Linux (built on CachyOS with KDE Plasma 6) and Windows. It manages
 **instances**: self-contained modded setups, each with its own BepInEx, plugins and configs. It finds
 and installs mods from Thunderstore, Nexus Mods and CurseForge, and starts Valheim with one of them,
-or vanilla. On Linux the game folder is never modified. On Windows it gets Doorstop's `winhttp.dll`
+or vanilla, optionally straight into one of your servers or worlds. On Linux the game folder is never modified. On Windows it gets Doorstop's `winhttp.dll`
 (see [Windows](#windows)).
 
 .NET 10 with a Qt Quick (QML) front end hosted through [Qml.Net](https://github.com/qmlnet/qmlnet).
@@ -37,7 +37,7 @@ dotnet run --project src/Desktop
 
 # render one page to a PNG and quit, handy for checking QML changes without clicking around
 set -x LAUNCHHEIM_SCREENSHOT /tmp/shot.png
-set -x LAUNCHHEIM_SCREENSHOT_PAGE browse         # library | instance | browse | settings | console
+set -x LAUNCHHEIM_SCREENSHOT_PAGE browse         # library | play | instance | browse | settings | console
 dotnet run --project src/Desktop
 ```
 
@@ -48,7 +48,7 @@ not a C# change.
 
 | Project | Holds |
 |---|---|
-| `src/Core` | Everything testable, with no UI: Steam/Valheim discovery (`Game/`), instances, the mod installer and dependency resolution (`Mods/`), modpack export and import (`Packs/`), the three catalogs (`Catalogs/`), logging and log following (`Logging/`), downloads and XDG storage. |
+| `src/Core` | Everything testable, with no UI: Steam/Valheim discovery (`Game/`), Valheim's own characters, worlds, servers and prefs (`Saves/`), instances, the mod installer and dependency resolution (`Mods/`), modpack export and import (`Packs/`), the three catalogs (`Catalogs/`), logging and log following (`Logging/`), downloads and XDG storage. |
 | `src/Desktop` | The Qml.Net host, view models, QML pages and components, the Plasma (or Windows) colour scheme and desktop integration (single instance, `nxm://`). |
 | `packaging/` | The pacman, deb, rpm and Windows builds. See [`packaging/README.md`](packaging/README.md). |
 | `tests/Core.Tests` | xUnit tests for Core. |
@@ -81,6 +81,27 @@ writes that key to `registry.vdf`, so there the last state in `logs/connection_l
 up to three minutes for the login, plus a few seconds for the Steam API to settle, and the sidebar
 shows "Starting Steam" or "Waiting for Steam" meanwhile. After the timeout the launch is cancelled with
 an error.
+
+**Servers and worlds.** The Play page lists what Valheim manages itself, read with the game's own
+rules (`Core/Saves`, taken from `SaveSystem` and `LocalServerList` in `assembly_valheim.dll`):
+characters and worlds from Steam Cloud (`userdata/<account>/892970/remote` of the Steam account that
+logged in last), the local folders (`characters_local`, `worlds_local`) and the pre-cloud ones, both
+world formats (`<Name>.fwl` and the newer `<Name>/_main.<n>.fwl2` folders), and the dedicated
+servers from the game's Favorites and Recent lists. Backups and Steam-friend or crossplay entries,
+which have no address, are left out. Nothing there is ever changed. For each server or world the
+user picks a character and a setup (vanilla or an instance), and LaunchHeim remembers both, plus a
+server's password, in `settings.json` (`playChoices`), so the next Play needs no choices.
+
+What a launch can do there is up to the game. A server is joined with `+connect host:port`, the
+argument Steam's "Join game" uses, and `-password` answers the password prompt. Valheim then opens
+at the character selection, and Start joins. Before the start LaunchHeim sets the game's PlayerPrefs
+`profile` (and `world` for a world), which its menus select: the `prefs` XML file in the game's data
+folder on Linux (strings in base64, edited as text so nothing else changes) and
+`HKCU\Software\IronGate\Valheim` on Windows (`<key>_h<djb2 hash>`, binary UTF-8). Valheim can't
+load a world from the command line, so a world opens with its character and world selected and the
+player clicks Start. The password never reaches LaunchHeim's log. Valheim's
+`-joinserverwithcharacter` would skip the character selection too, but it runs before Steam is up and
+only sees characters kept off the cloud, so it isn't used.
 
 **Installing mods.** The file layout follows r2modman's BepInEx rules: BepInExPack goes into the
 instance root, and each plugin gets its own `BepInEx/plugins/<Mod>/` folder. Configs go into
