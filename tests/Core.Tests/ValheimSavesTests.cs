@@ -232,10 +232,16 @@ public class ValheimSavesTests : IDisposable
   [Fact]
   public void The_data_folder_follows_xdg_config_home_and_flatpak()
   {
+    // Path.Combine, like the code: the Windows build runs these tests too, with backslashes.
     Assert.Equal(
-      ["/cfg/unity3d/IronGate/Valheim", "/home/u/.var/app/com.valvesoftware.Steam/config/unity3d/IronGate/Valheim"],
+      [
+        Path.Combine("/cfg", "unity3d", "IronGate", "Valheim"),
+        Path.Combine("/home/u", ".var", "app", "com.valvesoftware.Steam", "config", "unity3d", "IronGate", "Valheim"),
+      ],
       ValheimSaves.DataDirectories(GamePlatform.Linux, "/home/u", "/cfg"));
-    Assert.Equal("/home/u/.config/unity3d/IronGate/Valheim", ValheimSaves.DataDirectories(GamePlatform.Linux, "/home/u", null)[0]);
+    Assert.Equal(
+      Path.Combine("/home/u", ".config", "unity3d", "IronGate", "Valheim"),
+      ValheimSaves.DataDirectories(GamePlatform.Linux, "/home/u", null)[0]);
   }
 }
 
@@ -245,14 +251,16 @@ public class UnityPrefsTests : IDisposable
 
   public void Dispose() => _temp.Dispose();
 
-  private const string Prefs = """
+  // Unity writes the file with LF. A Windows checkout (core.autocrlf) turns the line ends inside these
+  // raw strings into CRLF, so they are normalized rather than trusted.
+  private static readonly string Prefs = """
     <unity_prefs version_major="1" version_minor="1">
     	<pref name="SwapTriggers" type="int">0</pref>
     	<pref name="profile" type="string">bHVrYXo=</pref>
     	<pref name="MasterVolume" type="float">0.068551</pref>
     </unity_prefs>
 
-    """;
+    """.ReplaceLineEndings("\n");
 
   [Fact]
   public void Strings_are_read_from_base64()
@@ -316,7 +324,7 @@ public class UnityPrefsTests : IDisposable
       	<pref name="profile" type="string">b2xhZg==</pref>
       </unity_prefs>
 
-      """, File.ReadAllText(file));
+      """.ReplaceLineEndings("\n"), File.ReadAllText(file));
   }
 
   [Theory]
