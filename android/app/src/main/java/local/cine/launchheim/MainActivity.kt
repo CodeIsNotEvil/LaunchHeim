@@ -53,6 +53,8 @@ import local.cine.launchheim.ui.InstancesScreen
 import local.cine.launchheim.ui.LicensesScreen
 import local.cine.launchheim.ui.MainViewModel
 import local.cine.launchheim.ui.ModScreen
+import local.cine.launchheim.ui.RemoteModScreen
+import local.cine.launchheim.packs.ModSource
 import local.cine.launchheim.ui.ServersScreen
 import local.cine.launchheim.ui.ServersViewModel
 import local.cine.launchheim.ui.SettingsScreen
@@ -152,14 +154,30 @@ private fun App(pendingUri: MutableStateFlow<Uri?>) {
             entry.arguments?.getString("id").orEmpty(),
             onBack = { nav.popBackStack() },
             onBrowse = { id -> nav.switchTo("browse?target=$id") },
-            onMod = { nav.navigate("mod/$it") },
+            onOpenList = { copy -> nav.navigate("instance/$copy") { popUpTo("instances") } },
+            onMod = { mod ->
+              when (mod.source) {
+                ModSource.Thunderstore -> nav.navigate("mod/${mod.id}")
+                ModSource.Nexus, ModSource.CurseForge -> nav.navigate("remote/${mod.source.name}/${mod.id}")
+                ModSource.Local -> Unit
+              }
+            },
           )
         }
         composable("browse?target={target}", listOf(navArgument("target") { type = NavType.StringType; nullable = true })) { entry ->
-          BrowseScreen(browse, entry.arguments?.getString("target"), onMod = { nav.navigate("mod/$it") })
+          BrowseScreen(
+            browse,
+            entry.arguments?.getString("target"),
+            onMod = { nav.navigate("mod/$it") },
+            onRemoteMod = { source, id -> nav.navigate("remote/${source.name}/$id") },
+          )
         }
         composable("mod/{name}", listOf(navArgument("name") { type = NavType.StringType })) { entry ->
           ModScreen(browse, entry.arguments?.getString("name").orEmpty(), onBack = { nav.popBackStack() }, onMod = { nav.navigate("mod/$it") })
+        }
+        composable("remote/{source}/{id}", listOf(navArgument("source") { type = NavType.StringType }, navArgument("id") { type = NavType.StringType })) { entry ->
+          val source = runCatching { ModSource.valueOf(entry.arguments?.getString("source").orEmpty()) }.getOrDefault(ModSource.Nexus)
+          RemoteModScreen(browse, source, entry.arguments?.getString("id").orEmpty(), onBack = { nav.popBackStack() })
         }
         composable("servers") { ServersScreen(servers) }
         composable("settings") { SettingsScreen(main, onLicenses = { nav.navigate("licenses") }) }

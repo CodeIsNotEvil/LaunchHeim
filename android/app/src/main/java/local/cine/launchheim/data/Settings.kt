@@ -16,6 +16,8 @@ data class Settings(
   /** Visible to LaunchHeim and LocalSend while the app is open. */
   val localSendEnabled: Boolean = true,
   val showNsfw: Boolean = false,
+  /** For browsing CurseForge, which answers nothing without one. Only in the app's private storage. */
+  val curseForgeApiKey: String = "",
 )
 
 class SettingsStore(private val file: File, defaultFingerprint: () -> String) {

@@ -75,6 +75,29 @@ class ModListEditor(private val lookup: (String) -> ThunderstorePackage?) {
     return Result(withLoader, added.distinctBy { it.key.lowercase() }, warnings)
   }
 
+  /**
+   * Adds a Nexus or CurseForge mod at a file, and the dependencies given that the list doesn't have
+   * yet. Those sites have no dependency strings to resolve here; the caller looks them up (CurseForge)
+   * or there are none (Nexus, where LaunchHeim can't know them either).
+   */
+  fun addFile(manifest: PackManifest, mod: PackMod, dependencies: List<PackMod> = emptyList()): Result {
+    val mods = manifest.mods.toMutableList()
+    val added = mutableListOf<PackMod>()
+    for (dependency in dependencies) {
+      if (mods.none { it.key.equals(dependency.key, true) }) {
+        mods += dependency.copy(installedAsDependency = true)
+        added += dependency
+      }
+    }
+    val index = mods.indexOfFirst { it.key.equals(mod.key, true) }
+    val picked = mod.copy(installedAsDependency = false, enabled = mods.getOrNull(index)?.enabled ?: mod.enabled)
+    if (index >= 0) mods[index] = picked else mods += picked
+    added += picked
+
+    val warnings = mutableListOf<String>()
+    return Result(ensureLoader(manifest.copy(mods = mods), added, warnings), added, warnings)
+  }
+
   /** Moves a Thunderstore mod to its newest version, pulling in new dependencies like [add]. */
   fun update(manifest: PackManifest, key: String): Result {
     val mod = manifest.find(key) ?: return Result(manifest, emptyList(), emptyList())

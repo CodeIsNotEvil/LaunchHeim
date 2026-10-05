@@ -108,7 +108,10 @@ class ThunderstoreIndex(private val http: OkHttpClient, private val cacheFile: F
         val packages = download()
         saveCache(packages)
         use(packages, now)
-      } catch (e: IOException) {
+      } catch (e: Exception) {
+        // Not only IOException: a connection that drops mid-chunk (a train tunnel) ends in a
+        // SerializationException from the half-read JSON. Cancellation must still cancel.
+        if (e is kotlinx.coroutines.CancellationException) throw e
         if (!cacheFile.exists()) throw CatalogException("Could not download the Thunderstore package list. Check your connection.", e)
         // Offline: an old list is far more useful than none.
         if (!isLoaded) loadCache()

@@ -58,7 +58,7 @@ import local.cine.launchheim.ui.theme.Positive
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InstanceScreen(vm: MainViewModel, id: String, onBack: () -> Unit, onBrowse: (String) -> Unit, onMod: (String) -> Unit) {
+fun InstanceScreen(vm: MainViewModel, id: String, onBack: () -> Unit, onBrowse: (String) -> Unit, onMod: (PackMod) -> Unit, onOpenList: (String) -> Unit) {
   val instances by vm.instances.collectAsState()
   val instance = instances.firstOrNull { it.id == id }
   val updates by vm.updates.collectAsState()
@@ -71,6 +71,7 @@ fun InstanceScreen(vm: MainViewModel, id: String, onBack: () -> Unit, onBrowse: 
   var menu by remember { mutableStateOf(false) }
   var renaming by remember { mutableStateOf(false) }
   var deleting by remember { mutableStateOf(false) }
+  var duplicating by remember { mutableStateOf(false) }
   var picking by remember { mutableStateOf(false) }
   var removing by remember { mutableStateOf<PackMod?>(null) }
 
@@ -108,6 +109,7 @@ fun InstanceScreen(vm: MainViewModel, id: String, onBack: () -> Unit, onBrowse: 
               }
             })
             DropdownMenuItem(text = { Text("Rename…") }, onClick = { menu = false; renaming = true })
+            DropdownMenuItem(text = { Text("Duplicate as a new list…") }, onClick = { menu = false; duplicating = true })
             DropdownMenuItem(text = { Text("Delete…") }, leadingIcon = { Icon(Icons.Default.Delete, null) }, onClick = { menu = false; deleting = true })
           }
         },
@@ -153,7 +155,7 @@ fun InstanceScreen(vm: MainViewModel, id: String, onBack: () -> Unit, onBrowse: 
           onToggle = { vm.setEnabled(id, mod.key, it) },
           onUpdate = { vm.update(id, mod.key) },
           onRemove = { removing = mod },
-          onOpen = { if (mod.source == ModSource.Thunderstore) onMod(mod.id) },
+          onOpen = { onMod(mod) },
         )
       }
     }
@@ -171,6 +173,17 @@ fun InstanceScreen(vm: MainViewModel, id: String, onBack: () -> Unit, onBrowse: 
   }
   if (renaming) {
     FieldsDialog("Rename", listOf("Name" to instance.name), "Rename", onConfirm = { vm.rename(id, it[0]) }, onDismiss = { renaming = false })
+  }
+  if (duplicating) {
+    // For a new instance on the PC with this list as its start: the copy isn't linked to the original's
+    // instance, so LaunchHeim imports it instead of offering to update that one.
+    FieldsDialog(
+      "Duplicate as a new list",
+      listOf("Name" to instance.name + " (copy)"),
+      "Duplicate",
+      onConfirm = { vm.duplicate(id, it[0])?.let(onOpenList) },
+      onDismiss = { duplicating = false },
+    )
   }
   if (deleting) {
     ConfirmDialog(

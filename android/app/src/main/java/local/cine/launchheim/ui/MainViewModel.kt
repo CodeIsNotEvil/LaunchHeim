@@ -82,6 +82,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
   fun delete(id: String) = container.instances.delete(id)
 
+  /**
+   * A copy that LaunchHeim imports as a new instance rather than an update of the original: without the
+   * desktop instance's id. The configs it came with go along.
+   */
+  fun duplicate(id: String, name: String): String? {
+    val source = container.instances.get(id) ?: return null
+    val copy = PhoneInstance(
+      id = container.instances.newId(),
+      manifest = source.manifest.copy(name = name.trim().ifBlank { source.name + " (copy)" }, instanceId = null),
+      changedSinceSync = true,
+      configFiles = source.configFiles,
+    )
+    container.instances.packFile(source.id).takeIf { it.exists() }?.let { pack ->
+      pack.copyTo(container.instances.packFile(copy.id).apply { parentFile?.mkdirs() }, overwrite = true)
+    }
+    container.instances.save(copy)
+    return copy.id
+  }
+
   fun remove(id: String, key: String) {
     var removed = 0
     container.instances.edit(id) { manifest -> ModListEditor.remove(manifest, key).also { removed = it.second.size }.first }

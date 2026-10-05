@@ -38,6 +38,7 @@ fun SettingsScreen(vm: MainViewModel, onLicenses: () -> Unit) {
   val indexUpdated by vm.indexUpdated.collectAsState()
   val indexBusy by vm.indexBusy.collectAsState()
   var renaming by remember { mutableStateOf(false) }
+  var editingKey by remember { mutableStateOf(false) }
 
   Scaffold(topBar = { TopAppBar(title = { Text("Settings") }) }) { padding ->
     Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
@@ -80,6 +81,16 @@ fun SettingsScreen(vm: MainViewModel, onLicenses: () -> Unit) {
         trailingContent = { Switch(checked = settings.showNsfw, onCheckedChange = { on -> vm.updateSettings { it.copy(showNsfw = on) } }) },
       )
       ListItem(
+        headlineContent = { Text("CurseForge API key") },
+        supportingContent = {
+          Text(
+            if (settings.curseForgeApiKey.isBlank()) "Not set. CurseForge answers no app without one; create a free key at console.curseforge.com."
+            else "Set. Nexus Mods needs none for browsing.",
+          )
+        },
+        modifier = Modifier.clickable { editingKey = true },
+      )
+      ListItem(
         headlineContent = { Text("Thunderstore list") },
         supportingContent = { Text(if (indexBusy) "Downloading…" else "Updated ${Format.ago(indexUpdated)}. Refreshed every six hours.") },
         trailingContent = { TextButton(onClick = vm::refreshIndex, enabled = !indexBusy) { Text("Refresh") } },
@@ -100,6 +111,16 @@ fun SettingsScreen(vm: MainViewModel, onLicenses: () -> Unit) {
     }
   }
 
+  if (editingKey) {
+    FieldsDialog(
+      "CurseForge API key",
+      listOf("Key from console.curseforge.com" to settings.curseForgeApiKey),
+      "Save",
+      onConfirm = { values -> vm.updateSettings { it.copy(curseForgeApiKey = values[0].trim()) } },
+      onDismiss = { editingKey = false },
+      isValid = { true },
+    )
+  }
   if (renaming) {
     FieldsDialog(
       "Device name",

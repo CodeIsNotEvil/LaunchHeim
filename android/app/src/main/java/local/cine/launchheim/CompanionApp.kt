@@ -47,6 +47,8 @@ class Container(context: Context) {
   val instances = InstanceStore(File(context.filesDir, "instances"))
   val servers = ServerStore(File(context.filesDir, "servers.json"))
   val index = ThunderstoreIndex(http, File(context.cacheDir, "thunderstore-valheim.json.gz"))
+  val nexus = local.cine.launchheim.catalogs.NexusCatalog(http)
+  val curseForge = local.cine.launchheim.catalogs.CurseForgeCatalog(http) { settings.settings.value.curseForgeApiKey }
   val sync = SyncService(instances, servers, File(context.cacheDir, "shared"), version)
 
   /** Short notices for the snackbar, from any screen or from a transfer that just finished. */

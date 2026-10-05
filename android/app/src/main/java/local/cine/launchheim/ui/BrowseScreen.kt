@@ -1,6 +1,8 @@
 package local.cine.launchheim.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,11 +50,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import local.cine.launchheim.packs.ModSource
+import local.cine.launchheim.packs.PackMod
 import local.cine.launchheim.thunderstore.ModSort
 import local.cine.launchheim.thunderstore.ThunderstorePackage
 
 @Composable
-fun BrowseScreen(vm: BrowseViewModel, targetId: String?, onMod: (String) -> Unit) {
+fun BrowseScreen(vm: BrowseViewModel, targetId: String?, onMod: (String) -> Unit, onRemoteMod: (ModSource, String) -> Unit) {
   LaunchedEffect(targetId) { vm.setTarget(targetId) }
   val state by vm.state.collectAsState()
   val query by vm.query.collectAsState()
@@ -61,8 +66,10 @@ fun BrowseScreen(vm: BrowseViewModel, targetId: String?, onMod: (String) -> Unit
   val instances by vm.instances.collectAsState()
   val inTarget by vm.targetKeys.collectAsState()
   val addedNames = remember(inTarget) { inTarget.map { it.substringAfter(':') }.toSet() }
+  val source by vm.source.collectAsState()
+  val remote by vm.remote.collectAsState()
   val list = rememberLazyListState()
-  LaunchedEffect(query, sort) { list.scrollToItem(0) }
+  LaunchedEffect(query, sort, source) { list.scrollToItem(0) }
 
   Scaffold(
     topBar = {
@@ -71,13 +78,18 @@ fun BrowseScreen(vm: BrowseViewModel, targetId: String?, onMod: (String) -> Unit
         OutlinedTextField(
           value = query,
           onValueChange = { vm.query.value = it },
-          placeholder = { Text("Search Thunderstore") },
+          placeholder = { Text("Search ${source.label}") },
           leadingIcon = { Icon(Icons.Default.Search, null) },
           trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { vm.query.value = "" }) { Icon(Icons.Default.Clear, "Clear") } },
           singleLine = true,
           modifier = Modifier.fillMaxWidth(),
         )
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+          Modifier.horizontalScroll(rememberScrollState()),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+          SourceChip(source) { vm.source.value = it }
           TargetChip(target?.name, instances.map { it.id to it.name }, vm::setTarget)
           SortChip(sort) { vm.sort.value = it }
         }
@@ -85,6 +97,10 @@ fun BrowseScreen(vm: BrowseViewModel, targetId: String?, onMod: (String) -> Unit
     },
   ) { padding ->
     Box(Modifier.fillMaxSize().padding(padding)) {
+      if (source != ModSource.Thunderstore) {
+        RemoteResults(vm, remote, target?.name, inTarget, list, onRemoteMod)
+        return@Box
+      }
       when (val s = state) {
         BrowseViewModel.IndexState.Loading -> Column(Modifier.align(Alignment.Center).padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
           CircularProgressIndicator()
@@ -170,3 +186,85 @@ private fun SortChip(sort: ModSort, onPick: (ModSort) -> Unit) {
     }
   }
 }
+
+/** Nexus or CurseForge results, a page at a time as the list is scrolled. */
+@Composable
+private fun RemoteResults(
+  vm: BrowseViewModel,
+  remote: BrowseViewModel.RemoteState,
+  targetName: String?,
+  /** Lower-cased mod keys of the target list. */
+  added: Set<String>,
+  list: androidx.compose.foundation.lazy.LazyListState,
+  onOpen: (ModSource, String) -> Unit,
+) {
+  val nearEnd by remember { derivedStateOf { list.layoutInfo.visibleItemsInfo.lastOrNull()?.index?.let { it >= list.layoutInfo.totalItemsCount - 5 } == true } }
+  LaunchedEffect(nearEnd, remote.items.size) { if (nearEnd) vm.loadRemote() }
+
+  if (remote.error != null && remote.items.isEmpty()) {
+    EmptyState(Icons.Default.CloudOff, "Nothing to show", remote.error, Modifier.padding(top = 32.dp)) {
+      Button(onClick = { vm.loadRemote(reset = true) }) { Text("Try again") }
+    }
+    return
+  }
+
+  LazyColumn(state = list, contentPadding = PaddingValues(bottom = 24.dp)) {
+    item {
+      Text(
+        "${remote.total} mods" + (targetName?.let { " · adding to $it" } ?: " · create a mod list to add them"),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+      )
+    }
+    items(remote.items, key = { it.source.name + it.id }) { mod ->
+      Row(
+        Modifier.fillMaxWidth().clickable { onOpen(mod.source, mod.id) }.padding(horizontal = 16.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        ModIcon(mod.icon, 48.dp)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+          Text(mod.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+          Text(mod.summary, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+          Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(mod.author, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+            Stat(Icons.Default.Download, Format.count(mod.downloads))
+            Stat(Icons.Default.ThumbUp, Format.count(mod.likes))
+          }
+        }
+        val inList = PackMod.makeKey(mod.source, mod.id).lowercase() in added
+        FilledTonalIconButton(onClick = { vm.addRemote(mod) }, enabled = targetName != null && !inList) {
+          Icon(if (inList) Icons.Default.Check else Icons.Default.Add, if (inList) "In the list" else "Add ${mod.name}")
+        }
+      }
+    }
+    if (remote.loading) {
+      item { Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(24.dp)) } }
+    } else if (remote.error != null) {
+      item { Text(remote.error, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp)) }
+    }
+  }
+}
+
+@Composable
+private fun SourceChip(source: ModSource, onPick: (ModSource) -> Unit) {
+  var open by remember { mutableStateOf(false) }
+  Box {
+    AssistChip(onClick = { open = true }, label = { Text(source.label) })
+    DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+      listOf(ModSource.Thunderstore, ModSource.Nexus, ModSource.CurseForge).forEach { option ->
+        DropdownMenuItem(text = { Text(option.label) }, onClick = { open = false; onPick(option) })
+      }
+    }
+  }
+}
+
+/** The site's name as people write it. */
+val ModSource.label: String
+  get() = when (this) {
+    ModSource.Thunderstore -> "Thunderstore"
+    ModSource.Nexus -> "Nexus Mods"
+    ModSource.CurseForge -> "CurseForge"
+    ModSource.Local -> "Local"
+  }
