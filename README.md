@@ -34,6 +34,7 @@ It needs `dotnet`, `g++` and the Qt 5 headers from `qt5-base`. See [Qt runtime](
 dotnet build
 dotnet test                                     # Core tests (xUnit); the UI has none
 dotnet run --project src/Desktop
+cd android && ./gradlew :app:testDebugUnitTest :app:assembleDebug   # the Android app, see android/README.md
 
 # render one page to a PNG and quit, handy for checking QML changes without clicking around
 set -x LAUNCHHEIM_SCREENSHOT /tmp/shot.png
@@ -51,6 +52,7 @@ not a C# change.
 | `src/Core` | Everything testable, with no UI: Steam/Valheim discovery (`Game/`), Valheim's own characters, worlds, servers and prefs (`Saves/`), instances, the mod installer and dependency resolution (`Mods/`), modpack export and import (`Packs/`), the three catalogs (`Catalogs/`), logging and log following (`Logging/`), downloads and XDG storage. |
 | `src/Desktop` | The Qml.Net host, view models, QML pages and components, the Plasma (or Windows) colour scheme and desktop integration (single instance, `nxm://`). |
 | `packaging/` | The pacman, deb, rpm and Windows builds. See [`packaging/README.md`](packaging/README.md). |
+| `android/` | LaunchHeim Companion, the Android app (Kotlin, Compose). See [`android/README.md`](android/README.md). |
 | `tests/Core.Tests` | xUnit tests for Core. |
 
 The namespaces sit under `CINE.` (set in `Directory.Build.props`), like every .NET app in the repo.
@@ -155,6 +157,19 @@ versions the pack pins win over "newest dependency". A version that's gone gets 
 a warning, and mods a site only hands out through its website (Nexus without Premium, CurseForge
 opt-outs) are listed to install from Browse mods. The pack's configs are copied last, over the mods'
 defaults.
+
+**Phone sync.** [LaunchHeim Companion](android/README.md), the Android app, keeps mod lists on the
+phone, browses Thunderstore and shows who's online on the servers. LaunchHeim talks to it with the
+LocalSend protocol (`Core/LocalSend`): Library → Send to phone (or an instance's Send to phone) finds
+devices on the LAN and sends the chosen instances as `.r2z` packs plus Valheim's server list as
+`launchheim-servers.json`. Receiving is off until Settings → Phone sync switches it on, since it opens
+a port (53317, or the next free one when the LocalSend app has it). Every transfer is accepted in a
+dialog, and only `.r2z` files are taken. A pack carries the id of the instance it was exported from
+(`launchheim.json` `instanceId`), so one that comes back edited is compared with that instance and the
+changes are shown: Update instance removes, installs (at the pack's versions) and switches mods, and
+leaves configs and launch options alone. Any other pack is imported as a new instance. The HTTP server
+is a small one on `TcpListener`, because `HttpListener` needs administrator rights on Windows for
+anything but localhost.
 
 **Console and logs.** The console window (the terminal button on an instance, or in the sidebar while
 the game runs) follows one of three logs live: the instance's BepInEx `LogOutput.log`, Unity's

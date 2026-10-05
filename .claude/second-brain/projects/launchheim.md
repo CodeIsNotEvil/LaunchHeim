@@ -1,7 +1,7 @@
 ---
 tags: [project, dotnet, qml, gaming]
 created: 2026-09-26
-updated: 2026-10-04
+updated: 2026-10-05
 status: active
 ---
 # LaunchHeim
@@ -43,6 +43,10 @@ accounts) and CurseForge (API key).
   remembered character and setup, through `+connect` and the game's PlayerPrefs
   ([[0010-launchheim-direct-play-uses-the-games-own-options]]). The README's "Servers and worlds" has
   the file locations and formats.
+- LaunchHeim Companion (2026-10-05): the Android app in `Applications/LaunchHeim/android/` (Kotlin,
+  Compose). It edits mod lists, browses Thunderstore and shows player counts; packs and the server list
+  travel over LocalSend, and a returning pack updates its instance after a confirmation
+  ([[0011-launchheim-companion-syncs-packs-over-localsend]]). Its README has the SDK setup.
 - Distro packages use the system Qt ([[0005-launchheim-distro-packages-use-system-qt]]). Windows keeps
   the QML UI with a patched QmlNet.dll built in CI ([[0006-launchheim-windows-keeps-qml]]).
 
@@ -121,7 +125,22 @@ accounts) and CurseForge (API key).
 - Current Steam's `config/loginusers.vdf` no longer marks `MostRecent`; the newest `Timestamp` is the
   account that logged in last (2026-10-04).
 
+- The Android SDK lives in `~/.local/share/android-sdk` on the owner's machine (cmdline-tools,
+  platforms 36 and 37, an `lh-test` AVD). OkHttp 5.5 needs compileSdk 37; AGP 9 compiles Kotlin itself
+  and takes the Kotlin version from the Compose compiler plugin declared in the root build (2026-10-05).
+- The emulator sits behind NAT, so LocalSend discovery can't reach it. `adb forward tcp:53630 tcp:53317`
+  makes its server reachable from the PC, and the host is `10.0.2.2` from inside, which is how the
+  transfer, the accept dialog and A2S were checked there (2026-10-05).
+- `pkill -f <pattern>` matches the shell running it when the pattern is part of the same command line,
+  and kills that command (2026-10-05).
+
 ## Open
+- LaunchHeim Companion (2026-10-05): not yet tried between a real phone and the desktop on the same
+  Wi-Fi (multicast discovery, the /24 fallback, Android 14+ background behaviour). Checked on an
+  emulator through adb forwarding and with C#↔Kotlin tests on localhost. Also open: a release key and
+  the APK in the `launchheim-v*` release and on the download page; Nexus and CurseForge browsing on the
+  phone; adding a device by address when discovery fails; Android 17's local network permission
+  before targetSdk 37.
 - Direct play hasn't been tried in a real game yet (2026-10-04): joining with `+connect` and a saved
   password, the preselected character and world, and the Windows registry prefs. A helper plugin
   could make world launches fully direct for modded instances
