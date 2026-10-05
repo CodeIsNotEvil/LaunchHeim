@@ -16,12 +16,6 @@
       1.0.0. The launchheim-v* tag must match it, and CHANGELOG.md needs a section for it.
     -->
     <Version>0.4.0</Version>
-    <!--
-      The Android companion's versionCode for this version: major * 10000 + minor * 100 + patch. It's
-      written out because F-Droid finds new releases by reading it from this file with a regex and can't
-      work it out from <Version>. android/app/build.gradle.kts refuses to build when the two disagree.
-    -->
-    <AndroidVersionCode>400</AndroidVersionCode>
   </PropertyGroup>
 
   <!--

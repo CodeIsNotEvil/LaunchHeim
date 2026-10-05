@@ -1,5 +1,0 @@
-First release of LaunchHeim Companion:
-• Mod lists from LaunchHeim on the phone: add, remove, update and switch off mods, with dependencies
-• Browse Thunderstore, Nexus Mods and CurseForge (with an API key)
-• Servers from your PC with how many players are online
-• Sync with LaunchHeim over your Wi-Fi (LocalSend protocol), no account

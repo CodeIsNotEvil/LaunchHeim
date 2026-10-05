@@ -6,31 +6,21 @@ plugins {
 
 // The companion ships with LaunchHeim and carries its version, so a launchheim-v* tag describes both.
 // It's read from the desktop app's Directory.Build.props, the one place the release version is set.
-val launchHeimProps: String = rootDir.resolve("../Directory.Build.props").readText()
+val launchHeimVersion: String = Regex("<Version>([^<]+)</Version>")
+  .find(rootDir.resolve("../Directory.Build.props").readText())
+  ?.groupValues?.get(1)
+  ?: error("No <Version> in ../Directory.Build.props")
 
-fun launchHeimProperty(name: String): String =
-  Regex("<$name>([^<]+)</$name>").find(launchHeimProps)?.groupValues?.get(1)?.trim()
-    ?: error("No <$name> in ../Directory.Build.props")
-
-val launchHeimVersion: String = launchHeimProperty("Version")
-
-// 0.4.0 -> 400, 1.12.3 -> 11203. Android only needs it to grow with every release; F-Droid reads it
-// from <AndroidVersionCode>, so a bump of <Version> without it stops here instead of on F-Droid.
+// 0.4.0 -> 400, 1.12.3 -> 11203. Android only needs it to grow with every release.
 val launchHeimVersionCode: Int = launchHeimVersion.split('.').map(String::toInt)
   .let { (major, minor, patch) -> major * 10_000 + minor * 100 + patch }
-  .also { expected ->
-    val written = launchHeimProperty("AndroidVersionCode").toInt()
-    check(written == expected) { "<AndroidVersionCode> is $written, but <Version> $launchHeimVersion needs $expected. Update Directory.Build.props." }
-  }
 
 android {
   namespace = "local.cine.launchheim"
   compileSdk = 37
 
   defaultConfig {
-    // The same reverse-domain id as the desktop app's AppStream metadata (io.github.codeisnotevil.LaunchHeim),
-    // from the GitHub Pages domain the owner controls, which is what F-Droid expects of a package name.
-    applicationId = "io.github.codeisnotevil.launchheim"
+    applicationId = "local.cine.launchheim"
     // Android 8: adaptive icons, java.time and NIO without desugaring. Practically every phone in use.
     minSdk = 26
     // 36, not 37: Android 17 asks apps targeting it for a local network permission, which LocalSend
@@ -40,20 +30,28 @@ android {
     versionCode = launchHeimVersionCode
   }
 
+  // A release key from the environment (the CI secrets, see README "Releases"). Android only installs an
+  // update signed with the same key as the installed app, so every published APK must use this one.
+  val releaseKeystore = System.getenv("LAUNCHHEIM_KEYSTORE")?.let(::file)?.takeIf { it.exists() }
+  signingConfigs {
+    if (releaseKeystore != null) {
+      create("release") {
+        storeFile = releaseKeystore
+        storePassword = System.getenv("LAUNCHHEIM_KEYSTORE_PASSWORD")
+        keyAlias = System.getenv("LAUNCHHEIM_KEY_ALIAS")
+        keyPassword = System.getenv("LAUNCHHEIM_KEY_PASSWORD")
+      }
+    }
+  }
+
   buildTypes {
     release {
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      // Unsigned: F-Droid builds the release from source and signs it with its own key.
+      // Without a release key, the debug key: fine for trying a build, not for publishing one.
+      signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
     }
-  }
-
-  // AGP otherwise puts a dependency list into the APK, encrypted with a key only Google can read.
-  // F-Droid refuses APKs carrying that blob.
-  dependenciesInfo {
-    includeInApk = false
-    includeInBundle = false
   }
 
   buildFeatures {
@@ -70,12 +68,8 @@ android {
   }
 }
 
-// Bytecode for Java 17, built with whatever JDK runs Gradle (17 or newer). A toolchain would demand a JDK
-// 17 install exactly, which F-Droid's build server or a machine with only 21 may not have.
 kotlin {
-  compilerOptions {
-    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-  }
+  jvmToolchain(17)
 }
 
 dependencies {

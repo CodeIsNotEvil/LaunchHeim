@@ -131,11 +131,6 @@ accounts) and CurseForge (API key).
 - A list from the phone lacks the dependencies LaunchHeim pulled in itself (a Nexus mod's
   requirements); `PackService.Compare` first removed them as "dropped". It now keeps a dependency
   while a mod the pack keeps needs it (2026-10-05).
-- F-Droid (2026-10-05): it finds versions by regex in the tagged source and can't run Gradle, so the
-  computed versionCode is also written in `Directory.Build.props` (`<AndroidVersionCode>`, checked by
-  the build). It reads fastlane metadata only under the build's subdir (`android/app/fastlane`), and
-  fdroiddata's CI rejects recipes `fdroid rewritemeta` would change, comments included. Categories are
-  the new fine-grained list (`Game Helper`), not the old `Games`.
 - The emulator sits behind NAT, so LocalSend discovery can't reach it. `adb forward tcp:53630 tcp:53317`
   makes its server reachable from the PC, and the host is `10.0.2.2` from inside, which is how the
   transfer, the accept dialog and A2S were checked there (2026-10-05).
@@ -146,9 +141,10 @@ accounts) and CurseForge (API key).
 - LaunchHeim Companion (2026-10-05): not yet tried between a real phone and the desktop on the same
   Wi-Fi (multicast discovery, the /24 fallback, Android 14+ background behaviour). Checked on an
   emulator through adb forwarding and with C#↔Kotlin tests on localhost. CurseForge on the phone is
-  only covered by parsing tests (no key on the test machine). Also open: the fdroiddata merge request
-  after the first tag with the companion (recipe in `android/fdroid/`), adding a device by address when
-  discovery fails, and Android 17's local network permission before targetSdk 37.
+  only covered by parsing tests (no key on the test machine). Also open: the release key secrets (a
+  tag fails without them since 2026-10-05), registering with Google's developer verification before
+  it's enforced globally in 2027, IzzyOnDroid, adding a device by address when discovery fails, and
+  Android 17's local network permission before targetSdk 37.
 - Direct play hasn't been tried in a real game yet (2026-10-04): joining with `+connect` and a saved
   password, the preselected character and world, and the Windows registry prefs. A helper plugin
   could make world launches fully direct for modded instances
