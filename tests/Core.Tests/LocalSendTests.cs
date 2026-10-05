@@ -17,6 +17,10 @@ public sealed class LocalSendTests : IDisposable
     _temp.Dispose();
   }
 
+  /// <param name="port">
+  /// 0 everywhere: fixed ports fail now and then on Windows, which reserves port ranges at boot (see
+  /// MiniHttpServer.Start).
+  /// </param>
   private LocalSendNode Node(string alias, int port, Func<FileDto, bool>? accepts = null)
   {
     var node = new LocalSendNode(
@@ -36,8 +40,8 @@ public sealed class LocalSendTests : IDisposable
   [Fact]
   public async Task A_file_the_receiver_accepts_arrives_whole()
   {
-    var receiver = Node("pc", 53510);
-    var sender = Node("phone", 53520);
+    var receiver = Node("pc", 0);
+    var sender = Node("phone", 0);
     var pack = _temp.Combine("Survival.r2z");
     File.WriteAllBytes(pack, Enumerable.Range(0, 300_000).Select(i => (byte)(i % 251)).ToArray());
 
@@ -57,8 +61,8 @@ public sealed class LocalSendTests : IDisposable
   [Fact]
   public async Task A_declined_offer_is_reported()
   {
-    var receiver = Node("pc", 53530);
-    var sender = Node("phone", 53540);
+    var receiver = Node("pc", 0);
+    var sender = Node("phone", 0);
     var pack = _temp.Combine("Survival.r2z");
     File.WriteAllText(pack, "pack");
     receiver.OfferReceived += offer => offer.Decline();
@@ -71,8 +75,8 @@ public sealed class LocalSendTests : IDisposable
   [Fact]
   public async Task Files_LaunchHeim_does_not_take_are_refused_without_asking()
   {
-    var receiver = Node("pc", 53550);
-    var sender = Node("phone", 53560);
+    var receiver = Node("pc", 0);
+    var sender = Node("phone", 0);
     var photo = _temp.Combine("holiday.jpg");
     File.WriteAllText(photo, "jpeg");
     var asked = false;
@@ -87,7 +91,7 @@ public sealed class LocalSendTests : IDisposable
   [Fact]
   public async Task Register_remembers_the_caller_and_answers_with_LaunchHeims_info()
   {
-    var receiver = Node("pc", 53570);
+    var receiver = Node("pc", 0);
     using var http = new HttpClient();
     var phone = new DeviceInfo { Alias = "Pixel", DeviceModel = "Samsung", DeviceType = "mobile", Fingerprint = "abc", Port = 53317, Protocol = "https" };
 
@@ -104,10 +108,18 @@ public sealed class LocalSendTests : IDisposable
   [Fact]
   public async Task An_upload_needs_the_sessions_token()
   {
-    var receiver = Node("pc", 53580);
+    var receiver = Node("pc", 0);
     using var http = new HttpClient();
     using var response = await http.PostAsync($"http://127.0.0.1:{receiver.Port}/api/localsend/v2/upload?sessionId=x&fileId=y&token=z", new StringContent("data"));
     Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+  }
+
+  [Fact]
+  public void Asking_for_any_port_gets_a_real_one()
+  {
+    using var server = new MiniHttpServer((_, _) => Task.FromResult(new HttpResponse(200)));
+    server.Start(0);
+    Assert.True(server.Port > 0);
   }
 
   [Fact]

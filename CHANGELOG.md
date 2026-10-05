@@ -12,6 +12,8 @@ bullet per change.
 ### Fixed
 - Send to phone no longer closes LaunchHeim when it sends only the server list, which is always the
   case while the library has no instances.
+- Phone sync starts on Windows even when Windows has reserved its usual network port (Hyper-V and WSL
+  do that); it then uses another free one, which phones still find.
 
 ## 0.5.0 - 2026-10-05
 

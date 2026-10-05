@@ -41,8 +41,8 @@ class LocalSendNodeTest {
 
   @Test
   fun sendsAFileTheReceiverAccepts() = runBlocking {
-    val receiver = node("pc", 53410)
-    val sender = node("phone", 53420)
+    val receiver = node("pc", 0)
+    val sender = node("phone", 0)
     val pack = File(temp.root, "Survival.r2z").apply { writeBytes(ByteArray(200_000) { (it % 251).toByte() }) }
 
     launch { receiver.incoming.filterNotNull().first().accept() }
@@ -58,8 +58,8 @@ class LocalSendNodeTest {
 
   @Test
   fun aDeclinedOfferIsReportedAsDeclined() = runBlocking {
-    val receiver = node("pc", 53430)
-    val sender = node("phone", 53440)
+    val receiver = node("pc", 0)
+    val sender = node("phone", 0)
     val pack = File(temp.root, "Survival.r2z").apply { writeText("pack") }
 
     launch { receiver.incoming.filterNotNull().first().decline() }
@@ -68,8 +68,8 @@ class LocalSendNodeTest {
 
   @Test
   fun filesTheAppDoesNotTakeAreRejectedWithoutAsking() = runBlocking {
-    val receiver = node("pc", 53450)
-    val sender = node("phone", 53460)
+    val receiver = node("pc", 0)
+    val sender = node("phone", 0)
     val photo = File(temp.root, "holiday.jpg").apply { writeText("jpeg") }
 
     assertEquals(SendResult.Declined, sender.send(peerOf(receiver), listOf(OutgoingFile(photo, photo.name))))
@@ -78,7 +78,7 @@ class LocalSendNodeTest {
 
   @Test
   fun registerRemembersTheCallerAndAnswersWithItsOwnInfo() {
-    val receiver = node("pc", 53470)
+    val receiver = node("pc", 0)
     val body = """{"alias":"LocalSend phone","version":"2.0","deviceModel":"Samsung","deviceType":"mobile","fingerprint":"abc","port":53317,"protocol":"https"}"""
     val response = OkHttpClient().newCall(
       Request.Builder().url("http://127.0.0.1:${receiver.port}/api/localsend/v2/register").post(body.toRequestBody("application/json".toMediaType())).build(),
@@ -94,7 +94,7 @@ class LocalSendNodeTest {
 
   @Test
   fun uploadsArePinnedToTheSessionToken() {
-    val receiver = node("pc", 53480)
+    val receiver = node("pc", 0)
     val response = OkHttpClient().newCall(
       Request.Builder().url("http://127.0.0.1:${receiver.port}/api/localsend/v2/upload?sessionId=x&fileId=y&token=z")
         .post("data".toRequestBody()).build(),

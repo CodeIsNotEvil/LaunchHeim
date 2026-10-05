@@ -47,10 +47,16 @@ class MiniHttpServer(private val handler: (HttpRequest) -> HttpResponse) {
 
   val port: Int get() = socket?.localPort ?: -1
 
-  /** Binds the first free port from [preferred] on, because the LocalSend app may hold the default one. */
+  /**
+   * Binds the first free port from [preferred] on, because the LocalSend app may hold the default one,
+   * and any free port when none of those can be had (0 asks for that right away). Devices learn the
+   * port from the announcement, as in Core's MiniHttpServer.Start, where Windows' reserved port ranges
+   * make this matter.
+   */
   fun start(preferred: Int, attempts: Int = 10) {
     var lastError: IOException? = null
-    for (port in preferred until preferred + attempts) {
+    val candidates = if (preferred == 0) listOf(0) else (preferred until preferred + attempts).toList() + 0
+    for (port in candidates) {
       try {
         val server = ServerSocket(port)
         socket = server
