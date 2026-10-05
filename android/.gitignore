@@ -1,0 +1,13 @@
+# Gradle and Android Studio output. local.properties holds the SDK path of one machine.
+.gradle/
+.kotlin/
+build/
+/app/build/
+local.properties
+.idea/
+*.iml
+captures/
+# Release signing, see README "Releases".
+*.jks
+*.keystore
+keystore.properties

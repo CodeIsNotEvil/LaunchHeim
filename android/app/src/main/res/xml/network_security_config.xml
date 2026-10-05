@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  LocalSend peers with encryption turned off (LaunchHeim itself, see LocalSendNode) are reached over
+  plain HTTP at a LAN address. A network security config can't allow cleartext by address range, so it's
+  allowed in general; everything on the internet (Thunderstore, icons) is HTTPS anyway.
+-->
+<network-security-config>
+  <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
