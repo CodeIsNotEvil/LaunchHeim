@@ -131,6 +131,10 @@ accounts) and CurseForge (API key).
 - A list from the phone lacks the dependencies LaunchHeim pulled in itself (a Nexus mod's
   requirements); `PackService.Compare` first removed them as "dropped". It now keeps a dependency
   while a mod the pack keeps needs it (2026-10-05).
+- Qml.Net hands an empty QML string to .NET as `null`, not `""`. `Send to phone` with no instance
+  ticked (an empty library) crashed 0.5.0 on `instanceIds.Split`; an `async void` method called from
+  QML takes the whole app down on any exception before its `try`. Treat every string parameter from
+  QML as nullable (2026-10-05).
 - The emulator sits behind NAT, so LocalSend discovery can't reach it. `adb forward tcp:53630 tcp:53317`
   makes its server reachable from the PC, and the host is `10.0.2.2` from inside, which is how the
   transfer, the accept dialog and A2S were checked there (2026-10-05).
