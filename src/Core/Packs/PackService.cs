@@ -11,6 +11,22 @@ public sealed record PackExportReport(int Mods, int ConfigFiles, int LocalMods, 
 
 public sealed record PackImportReport(Instance Instance, InstallReport Install, int ConfigFiles, bool FromR2modman);
 
+/// <summary>A pack's mod list, read without installing anything.</summary>
+public sealed record PackContents(PackManifest Manifest, bool FromR2modman);
+
+/// <summary>What applying a pack to an instance would change, for the confirmation dialog.</summary>
+/// <param name="Changed">Mods at another version (Thunderstore) or file (Nexus, CurseForge) in the pack.</param>
+public sealed record PackChanges(
+  IReadOnlyList<PackMod> Added,
+  IReadOnlyList<InstalledMod> Removed,
+  IReadOnlyList<(InstalledMod Mod, PackMod To)> Changed,
+  IReadOnlyList<(InstalledMod Mod, bool Enabled)> Toggled)
+{
+  public bool IsEmpty => Added.Count == 0 && Removed.Count == 0 && Changed.Count == 0 && Toggled.Count == 0;
+}
+
+public sealed record PackApplyReport(InstallReport Install, int Removed, int Toggled);
+
 /// <summary>Exports an instance as a modpack file and imports one as a new instance.</summary>
 /// <remarks>
 /// <para>
@@ -120,6 +136,124 @@ public sealed class PackService(InstanceStore store, ModService mods, AppPaths p
     }
   }
 
+  /// <summary>Reads a pack's mod list straight from the zip, without unpacking or installing anything.</summary>
+  public static PackContents Read(string file)
+  {
+    using var zip = ZipFile.OpenRead(file);
+    var manifestEntry = zip.Entries.FirstOrDefault(e => e.FullName.Equals(ManifestEntry, StringComparison.OrdinalIgnoreCase));
+    if (manifestEntry is not null)
+    {
+      using var stream = manifestEntry.Open();
+      return new PackContents(ParseManifest(stream, Path.GetFileNameWithoutExtension(file)), FromR2modman: false);
+    }
+
+    var r2x = zip.Entries.FirstOrDefault(e => e.FullName.Equals(R2x.EntryName, StringComparison.OrdinalIgnoreCase))
+      ?? throw new InvalidDataException($"{Path.GetFileName(file)} is not a modpack: it has neither {ManifestEntry} nor r2modman's {R2x.EntryName}.");
+    using var reader = new StreamReader(r2x.Open());
+    return new PackContents(FromProfile(R2x.Read(reader.ReadToEnd())), FromR2modman: true);
+  }
+
+  /// <summary>
+  /// Compares an instance with a pack of it that was edited elsewhere (the companion app). Local mods
+  /// can only be added through their files, so a pack never adds one, and BepInEx is never removed.
+  /// </summary>
+  public static PackChanges Compare(Instance instance, PackManifest manifest)
+  {
+    var pack = PackMods(manifest);
+    var added = new List<PackMod>();
+    var changed = new List<(InstalledMod, PackMod)>();
+    var toggled = new List<(InstalledMod, bool)>();
+    foreach (var (key, packMod) in pack)
+    {
+      if (instance.FindMod(key) is not { } mod)
+      {
+        if (packMod.Source != ModSource.Local)
+        {
+          added.Add(packMod);
+        }
+
+        continue;
+      }
+
+      if (Differs(mod, packMod))
+      {
+        changed.Add((mod, packMod));
+      }
+
+      if (mod.Enabled != packMod.Enabled)
+      {
+        toggled.Add((mod, packMod.Enabled));
+      }
+    }
+
+    var removed = instance.Mods.Where(m => !m.IsLoader && !pack.ContainsKey(m.Key)).ToList();
+    return new PackChanges(added, removed, changed, toggled);
+  }
+
+  /// <summary>
+  /// Makes the instance match the pack's mod list: removes what the pack dropped, installs what it added
+  /// or moved to another version (at exactly that version), and switches mods on and off as it says.
+  /// </summary>
+  /// <remarks>
+  /// Configs, launch arguments and the name stay as they are. The pack's configs are older copies of
+  /// this instance's own (the phone can't edit them), so copying them would only undo changes made here.
+  /// </remarks>
+  public async Task<PackApplyReport> ApplyAsync(Instance instance, PackManifest manifest, IProgress<InstallProgress>? progress, CancellationToken cancellationToken)
+  {
+    var changes = Compare(instance, manifest);
+    var pack = PackMods(manifest);
+
+    // Removing first, because removing a mod also removes the dependencies only it needed; one the pack
+    // still lists is installed again below.
+    var removed = 0;
+    foreach (var mod in changes.Removed.Where(m => instance.FindMod(m.Key) is not null))
+    {
+      progress?.Report(new InstallProgress(mod.Name, "Removing", null));
+      removed += (await mods.RemoveAsync(instance, mod.Key, cancellationToken)).Removed.Count;
+    }
+
+    var pins = pack
+      .Where(p => p.Value.Source != ModSource.Local && (instance.FindMod(p.Key) is not { } mod || Differs(mod, p.Value)))
+      .Select(p => p.Value.ToPin())
+      .ToList();
+    var install = pins.Count > 0
+      ? await mods.InstallPinnedAsync(instance, pins, progress, cancellationToken)
+      : new InstallReport([], []);
+
+    var toggled = 0;
+    foreach (var (key, packMod) in pack)
+    {
+      if (instance.FindMod(key) is not { } mod)
+      {
+        continue;
+      }
+
+      if (mod.Enabled != packMod.Enabled)
+      {
+        toggled += (await mods.SetEnabledAsync(instance, key, packMod.Enabled)).Count;
+      }
+
+      // The phone may have picked a mod that was only a dependency here, which keeps it when its
+      // dependents go. BepInEx always stays.
+      mod.InstalledAsDependency = !mod.IsLoader && packMod.InstalledAsDependency;
+    }
+
+    store.Save(instance);
+    return new PackApplyReport(install, removed, toggled);
+  }
+
+  private static Dictionary<string, PackMod> PackMods(PackManifest manifest) =>
+    manifest.Mods
+      .GroupBy(m => InstalledMod.MakeKey(m.Source, m.Id), StringComparer.OrdinalIgnoreCase)
+      .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+  private static bool Differs(InstalledMod mod, PackMod packMod) => packMod.Source switch
+  {
+    ModSource.Thunderstore => !string.IsNullOrWhiteSpace(packMod.Version) && !string.Equals(mod.Version, packMod.Version, StringComparison.OrdinalIgnoreCase),
+    ModSource.Local => false,
+    _ => packMod.FileId is not null && !string.Equals(mod.FileId, packMod.FileId, StringComparison.OrdinalIgnoreCase),
+  };
+
   /// <summary>
   /// Copies everything but the two lists into the instance, over what the mods installed: a pack's
   /// configs are the point of the pack, so they win over each mod's defaults.
@@ -210,19 +344,35 @@ public sealed class PackService(InstanceStore store, ModService mods, AppPaths p
       return null;
     }
 
+    using var stream = File.OpenRead(path);
+    return ParseManifest(stream, "");
+  }
+
+  private static PackManifest ParseManifest(Stream stream, string fallbackName)
+  {
     PackManifest? manifest;
     try
     {
-      manifest = JsonFile.Read<PackManifest>(path);
+      manifest = JsonSerializer.Deserialize<PackManifest>(stream, JsonFile.Options);
     }
     catch (JsonException ex)
     {
       throw new InvalidDataException($"The pack's {ManifestEntry} is damaged: {ex.Message}");
     }
 
-    if (manifest is { Format: > PackManifest.CurrentFormat })
+    if (manifest is null)
+    {
+      throw new InvalidDataException($"The pack's {ManifestEntry} is empty.");
+    }
+
+    if (manifest.Format > PackManifest.CurrentFormat)
     {
       throw new InvalidDataException("This pack was made by a newer LaunchHeim. Update LaunchHeim to import it.");
+    }
+
+    if (string.IsNullOrWhiteSpace(manifest.Name))
+    {
+      manifest.Name = fallbackName;
     }
 
     return manifest;
@@ -231,25 +381,21 @@ public sealed class PackService(InstanceStore store, ModService mods, AppPaths p
   private static PackManifest? ReadR2x(string directory)
   {
     var path = Path.Combine(directory, R2x.EntryName);
-    if (!File.Exists(path))
-    {
-      return null;
-    }
-
-    var profile = R2x.Read(File.ReadAllText(path));
-    return new PackManifest
-    {
-      Name = profile.Name,
-      Mods = profile.Mods.Select(m => new PackMod
-      {
-        Source = ModSource.Thunderstore,
-        Id = m.FullName,
-        Name = m.FullName[(m.FullName.IndexOf('-') + 1)..].Replace('_', ' '),
-        Version = m.Version,
-        Enabled = m.Enabled,
-      }).ToList(),
-    };
+    return File.Exists(path) ? FromProfile(R2x.Read(File.ReadAllText(path))) : null;
   }
+
+  private static PackManifest FromProfile(R2x.Profile profile) => new()
+  {
+    Name = profile.Name,
+    Mods = profile.Mods.Select(m => new PackMod
+    {
+      Source = ModSource.Thunderstore,
+      Id = m.FullName,
+      Name = m.FullName[(m.FullName.IndexOf('-') + 1)..].Replace('_', ' '),
+      Version = m.Version,
+      Enabled = m.Enabled,
+    }).ToList(),
+  };
 
   private static void WriteText(ZipArchive zip, string entry, string text)
   {
