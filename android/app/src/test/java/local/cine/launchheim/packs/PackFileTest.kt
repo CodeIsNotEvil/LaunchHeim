@@ -109,6 +109,15 @@ class PackFileTest {
   }
 
   @Test
+  fun aListStartedOnThePhoneGetsAnExportTimeTheDesktopCanParse() {
+    val written = ByteArrayOutputStream()
+    PackFile.write(PackManifest(name = "New"), null, written)
+
+    val exportedAt = PackFile.read(ByteArrayInputStream(written.toByteArray()), "x").manifest.exportedAt
+    assertTrue(runCatching { java.time.Instant.parse(exportedAt) }.isSuccess)
+  }
+
+  @Test
   fun r2xRoundTripsThunderstoreModsOnly() {
     val mods = listOf(
       PackMod(id = "denikson-BepInExPack_Valheim", version = "5.4.2202"),

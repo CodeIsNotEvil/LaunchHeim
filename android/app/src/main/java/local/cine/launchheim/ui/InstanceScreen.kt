@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -34,7 +35,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -148,6 +148,7 @@ fun InstanceScreen(vm: MainViewModel, id: String, onBack: () -> Unit, onBrowse: 
       items(mods, key = { it.key }) { mod ->
         ModListRow(
           mod = mod,
+          icon = vm.iconOf(mod),
           update = modUpdates[mod.key],
           onToggle = { vm.setEnabled(id, mod.key, it) },
           onUpdate = { vm.update(id, mod.key) },
@@ -194,21 +195,28 @@ fun InstanceScreen(vm: MainViewModel, id: String, onBack: () -> Unit, onBrowse: 
 }
 
 @Composable
-private fun ModListRow(mod: PackMod, update: String?, onToggle: (Boolean) -> Unit, onUpdate: () -> Unit, onRemove: () -> Unit, onOpen: () -> Unit) {
+private fun ModListRow(mod: PackMod, icon: String?, update: String?, onToggle: (Boolean) -> Unit, onUpdate: () -> Unit, onRemove: () -> Unit, onOpen: () -> Unit) {
   ListItem(
     modifier = Modifier.clickable(onClick = onOpen),
-    leadingContent = { ModIcon(mod.iconUrl, 40.dp) },
+    leadingContent = { ModIcon(icon, 40.dp) },
     headlineContent = { Text(mod.name.ifBlank { mod.id }, maxLines = 1, overflow = TextOverflow.Ellipsis) },
     supportingContent = {
-      Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(mod.version.ifBlank { "?" }, maxLines = 1)
-        when {
-          mod.isLoader -> Tag("Mod loader", MaterialTheme.colorScheme.primary)
-          mod.installedAsDependency -> Tag("Dependency")
+      Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+          Text(mod.version.ifBlank { "?" }, maxLines = 1)
+          when {
+            mod.isLoader -> Tag("Mod loader", MaterialTheme.colorScheme.primary)
+            mod.installedAsDependency -> Tag("Dependency")
+          }
+          if (mod.source != ModSource.Thunderstore) Tag(mod.source.name)
         }
-        if (mod.source != ModSource.Thunderstore) Tag(mod.source.name)
         if (update != null) {
-          TextButton(onClick = onUpdate, contentPadding = PaddingValues(horizontal = 6.dp)) { Text("→ $update", color = Positive) }
+          Text(
+            "Update to $update",
+            color = Positive,
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.clickable(onClick = onUpdate).padding(vertical = 2.dp),
+          )
         }
       }
     },
@@ -216,9 +224,12 @@ private fun ModListRow(mod: PackMod, update: String?, onToggle: (Boolean) -> Uni
       Row(verticalAlignment = Alignment.CenterVertically) {
         Switch(checked = mod.enabled, onCheckedChange = onToggle)
         // Every mod needs BepInEx, so it can't be removed here; LaunchHeim would add it again anyway.
-        if (!mod.isLoader) IconButton(onClick = onRemove) { Icon(Icons.Default.Delete, "Remove ${mod.name}") }
+        if (mod.isLoader) {
+          Spacer(Modifier.size(48.dp))
+        } else {
+          IconButton(onClick = onRemove) { Icon(Icons.Default.Delete, "Remove ${mod.name}") }
+        }
       }
     },
   )
 }
-

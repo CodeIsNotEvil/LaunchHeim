@@ -23,6 +23,7 @@ import local.cine.launchheim.localsend.Peer
 import local.cine.launchheim.localsend.SendResult
 import local.cine.launchheim.packs.ModListEditor
 import local.cine.launchheim.packs.PackManifest
+import local.cine.launchheim.packs.ModSource
 import local.cine.launchheim.packs.PackMod
 
 /** Instances, sending and settings: everything outside Browse and Servers. */
@@ -53,6 +54,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // Loads the cached list in the background, so update badges are there without opening Browse.
     viewModelScope.launch { runCatching { container.index.ensureLoaded() } }
   }
+
+  /**
+   * A pack only has icons for mods installed by LaunchHeim 0.4 or later, and none for r2modman's. The
+   * Thunderstore list has them all.
+   */
+  fun iconOf(mod: PackMod): String? =
+    mod.iconUrl ?: if (mod.source == ModSource.Thunderstore) container.index.find(mod.id)?.icon else null
 
   fun alias(): String = settings.value.alias.ifBlank { Container.defaultAlias(getApplication()) }
 

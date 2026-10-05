@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -65,7 +66,8 @@ fun BrowseScreen(vm: BrowseViewModel, targetId: String?, onMod: (String) -> Unit
 
   Scaffold(
     topBar = {
-      Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
+      // A plain Column, not a TopAppBar, so it has to keep clear of the status bar itself.
+      Column(Modifier.statusBarsPadding().padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
         OutlinedTextField(
           value = query,
           onValueChange = { vm.query.value = it },

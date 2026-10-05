@@ -45,6 +45,7 @@ import androidx.navigation.navArgument
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import local.cine.launchheim.localsend.IncomingOffer
+import local.cine.launchheim.servers.ServerListFile
 import local.cine.launchheim.ui.BrowseScreen
 import local.cine.launchheim.ui.BrowseViewModel
 import local.cine.launchheim.ui.InstanceScreen
@@ -185,7 +186,7 @@ private fun IncomingDialog(offer: IncomingOffer) {
     title = { Text("${offer.sender.alias} wants to send") },
     text = {
       Text(
-        offer.files.joinToString("\n") { "• " + it.fileName.removeSuffix(".r2z") } +
+        offer.files.joinToString("\n") { "• " + if (it.fileName == ServerListFile.FILE_NAME) "The server list" else it.fileName.removeSuffix(".r2z") } +
           "\n\nMod lists that came from the same LaunchHeim instance are replaced.",
       )
     },

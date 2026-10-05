@@ -3,6 +3,7 @@ package local.cine.launchheim.packs
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.time.Instant
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -84,9 +85,12 @@ object PackFile {
    * them, and LaunchHeim doesn't copy a returning pack's configs over the instance's anyway.
    */
   fun write(manifest: PackManifest, original: File?, output: OutputStream) {
+    // LaunchHeim reads exportedAt as a DateTimeOffset and refuses the whole pack over an empty one, which
+    // is what a list started on the phone would otherwise have.
+    val stamped = if (manifest.exportedAt.isBlank()) manifest.copy(exportedAt = Instant.now().toString()) else manifest
     ZipOutputStream(output.buffered()).use { zip ->
       zip.putNextEntry(ZipEntry(MANIFEST_ENTRY))
-      zip.write(PackJson.encodeToString(PackManifest.serializer(), manifest).toByteArray())
+      zip.write(PackJson.encodeToString(PackManifest.serializer(), stamped).toByteArray())
       zip.closeEntry()
 
       zip.putNextEntry(ZipEntry(R2x.ENTRY_NAME))

@@ -41,6 +41,8 @@ import local.cine.launchheim.data.PhoneInstance
 fun InstancesScreen(vm: MainViewModel, onOpen: (String) -> Unit, onOpenFile: () -> Unit) {
   val instances by vm.instances.collectAsState()
   val updates by vm.updates.collectAsState()
+  // Icons come from the Thunderstore list for packs that don't carry them, so the cards follow it too.
+  val index by vm.container.index.packages.collectAsState()
   var creating by remember { mutableStateOf(false) }
 
   Scaffold(
@@ -68,7 +70,9 @@ fun InstancesScreen(vm: MainViewModel, onOpen: (String) -> Unit, onOpenFile: () 
         verticalArrangement = Arrangement.spacedBy(10.dp),
       ) {
         items(instances, key = { it.id }) { instance ->
-          InstanceCard(instance, updates[instance.id]?.size ?: 0) { onOpen(instance.id) }
+          val mods = instance.manifest.mods
+          val icon = remember(instance, index) { (mods.firstOrNull { !it.isLoader && !it.installedAsDependency } ?: mods.firstOrNull())?.let(vm::iconOf) }
+          InstanceCard(instance, updates[instance.id]?.size ?: 0, icon) { onOpen(instance.id) }
         }
       }
     }
@@ -80,15 +84,15 @@ fun InstancesScreen(vm: MainViewModel, onOpen: (String) -> Unit, onOpenFile: () 
 }
 
 @Composable
-private fun InstanceCard(instance: PhoneInstance, updateCount: Int, onClick: () -> Unit) {
+private fun InstanceCard(instance: PhoneInstance, updateCount: Int, icon: String?, onClick: () -> Unit) {
   val mods = instance.manifest.mods
   Card(
     Modifier.fillMaxWidth().clickable(onClick = onClick),
     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
   ) {
     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-      // The first few picked mods' icons say more about a list than its name.
-      ModIcon(mods.firstOrNull { !it.isLoader && !it.installedAsDependency }?.iconUrl ?: mods.firstOrNull()?.iconUrl, 52.dp)
+      // The first picked mod's icon says more about a list than its name.
+      ModIcon(icon, 52.dp)
       Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(instance.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(

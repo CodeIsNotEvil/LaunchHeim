@@ -30,13 +30,27 @@ android {
     versionCode = launchHeimVersionCode
   }
 
+  // A release key from the environment (the CI secrets, see README "Releases"). Android only installs an
+  // update signed with the same key as the installed app, so every published APK must use this one.
+  val releaseKeystore = System.getenv("LAUNCHHEIM_KEYSTORE")?.let(::file)?.takeIf { it.exists() }
+  signingConfigs {
+    if (releaseKeystore != null) {
+      create("release") {
+        storeFile = releaseKeystore
+        storePassword = System.getenv("LAUNCHHEIM_KEYSTORE_PASSWORD")
+        keyAlias = System.getenv("LAUNCHHEIM_KEY_ALIAS")
+        keyPassword = System.getenv("LAUNCHHEIM_KEY_PASSWORD")
+      }
+    }
+  }
+
   buildTypes {
     release {
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      // Signed with the debug key unless a release key is configured, see README "Releases".
-      signingConfig = signingConfigs.getByName("debug")
+      // Without a release key, the debug key: fine for trying a build, not for publishing one.
+      signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
     }
   }
 

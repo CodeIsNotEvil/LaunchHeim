@@ -107,7 +107,7 @@ fun ModScreen(vm: BrowseViewModel, fullName: String, onBack: () -> Unit, onMod: 
         VersionPicker(pkg.versions.map { it.version }, version) { version = it }
         Button(onClick = { vm.add(pkg.fullName, version) }, enabled = target != null) {
           Icon(Icons.Default.Add, null)
-          Text(if (added) " Use this version" else " Add")
+          Text(if (added) " Set version" else " Add")
         }
       }
       Text(
