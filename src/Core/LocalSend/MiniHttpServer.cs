@@ -56,11 +56,22 @@ public sealed class MiniHttpServer(Func<HttpRequest, CancellationToken, Task<Htt
 
   public int Port => _listener is { } listener ? ((IPEndPoint)listener.LocalEndpoint).Port : -1;
 
-  /// <summary>Binds the first free port from <paramref name="preferred"/> on, because the LocalSend app may hold the default one.</summary>
+  /// <summary>
+  /// Binds the first free port from <paramref name="preferred"/> on, because the LocalSend app may hold
+  /// the default one, and any free port when none of those can be had. 0 asks for any port right away.
+  /// </summary>
+  /// <remarks>
+  /// Windows reserves blocks of TCP ports (Hyper-V, WSL and Docker take them at boot, see <c>netsh int
+  /// ipv4 show excludedportrange protocol=tcp</c>), and binding one fails with "access forbidden"
+  /// rather than "in use". A whole block can cover 53317 and its neighbours, so the last resort is a port
+  /// the system picks; devices learn it from the announcement and still connect. Only the HTTP-scan
+  /// fallback, which knocks on 53317 alone, can't find it there.
+  /// </remarks>
   public void Start(int preferred, int attempts = 10)
   {
     SocketException? last = null;
-    for (var port = preferred; port < preferred + attempts; port++)
+    int[] candidates = preferred == 0 ? [0] : [.. Enumerable.Range(preferred, attempts), 0];
+    foreach (var port in candidates)
     {
       try
       {

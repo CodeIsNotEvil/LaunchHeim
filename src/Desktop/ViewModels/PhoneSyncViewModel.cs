@@ -159,15 +159,18 @@ public sealed class PhoneSyncViewModel : ViewModel, IDisposable
     }
   }
 
-  /// <param name="instanceIds">The instances to send, separated by U+001F (QML hands over one string).</param>
-  public async void Send(string peerId, string instanceIds, bool servers)
+  /// <param name="instanceIds">
+  /// The instances to send, separated by U+001F (QML hands over one string). Qml.Net turns an empty
+  /// string into null, which is what arrives when only the server list is sent, so both mean none.
+  /// </param>
+  public async void Send(string? peerId, string? instanceIds, bool servers)
   {
     if (Sending || _node.Peers.FirstOrDefault(p => p.Id == peerId) is not { } peer)
     {
       return;
     }
 
-    var ids = instanceIds.Split('\u001f', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
+    var ids = (instanceIds ?? "").Split('\u001f', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
     var instances = _app.InstanceList.Where(i => ids.Contains(i.Id)).ToList();
     if (instances.Count == 0 && !servers)
     {
