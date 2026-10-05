@@ -186,7 +186,13 @@ public sealed class PackService(InstanceStore store, ModService mods, AppPaths p
       }
     }
 
-    var removed = instance.Mods.Where(m => !m.IsLoader && !pack.ContainsKey(m.Key)).ToList();
+    // A dependency the pack doesn't list stays while a mod the pack keeps needs it. The phone only
+    // resolves Thunderstore's and CurseForge's dependencies itself; what LaunchHeim pulled in on
+    // install (a Nexus mod's requirements, a dependency added after the pack left) isn't in the list.
+    var removed = instance.Mods
+      .Where(m => !m.IsLoader && !pack.ContainsKey(m.Key))
+      .Where(m => !(m.InstalledAsDependency && NeededBy(instance, m.Key, pack)))
+      .ToList();
     return new PackChanges(added, removed, changed, toggled);
   }
 
@@ -240,6 +246,27 @@ public sealed class PackService(InstanceStore store, ModService mods, AppPaths p
 
     store.Save(instance);
     return new PackApplyReport(install, removed, toggled);
+  }
+
+  /// <summary>Whether a mod the pack keeps needs this one, directly or through other dependencies.</summary>
+  private static bool NeededBy(Instance instance, string key, Dictionary<string, PackMod> pack)
+  {
+    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var queue = new Queue<string>([key]);
+    while (queue.TryDequeue(out var next))
+    {
+      foreach (var dependent in instance.Dependents(next).Where(d => seen.Add(d.Key)))
+      {
+        if (pack.ContainsKey(dependent.Key))
+        {
+          return true;
+        }
+
+        queue.Enqueue(dependent.Key);
+      }
+    }
+
+    return false;
   }
 
   private static Dictionary<string, PackMod> PackMods(PackManifest manifest) =>

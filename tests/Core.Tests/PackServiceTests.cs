@@ -316,6 +316,25 @@ public class PackServiceTests : IDisposable
     Assert.Equal(source.Mods.Select(m => m.Key).Order(), reloaded.Mods.Select(m => m.Key).Order());
   }
 
+  /// <summary>A list from the phone that lacks a dependency LaunchHeim pulled in itself.</summary>
+  [Fact]
+  public async Task A_dependency_the_pack_doesnt_list_stays_while_a_kept_mod_needs_it()
+  {
+    var source = await Modded();
+    var file = _temp.Combine("pack.r2z");
+    _packs.Export(source, file);
+    var manifest = PackService.Read(file).Manifest;
+    manifest.Mods.RemoveAll(m => m.Id == "Author-Library");
+
+    Assert.Empty(PackService.Compare(source, manifest).Removed);
+    await _packs.ApplyAsync(source, manifest, null, CancellationToken.None);
+    Assert.NotNull(source.FindMod("thunderstore:Author-Library"));
+
+    // Once the mod that needed it is gone too, the library goes with it.
+    manifest.Mods.RemoveAll(m => m.Id == "Author-Mod");
+    Assert.Equal(["Author-Library", "Author-Mod"], PackService.Compare(source, manifest).Removed.Select(m => m.SourceId).Order());
+  }
+
   [Fact]
   public async Task A_mod_added_elsewhere_is_installed_with_its_dependencies()
   {
