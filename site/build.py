@@ -10,6 +10,7 @@ What it does:
   holds its own drifting copies.
 - Renders each app's CHANGELOG.md (through Scripts/changelog.py) into a version history, so users see
   what changed between the version they run and the newest one.
+- Asks F-Droid's API whether it lists the LaunchHeim companion app, and links it there if so.
 - Asks the GitHub API for each app's newest release (tags grocerytracker-v* and launchheim-v*) and
   links its files directly, with the SHA-256 GitHub computed for each. The repository holds several
   apps, so GitHub's single "latest release" link can't be used. Before an app has a release, <!-- if:key --> ... <!-- else --> ... <!-- end -->
@@ -58,9 +59,11 @@ LAUNCHHEIM_FILES = {
   "arch": ".pkg.tar.zst",
   "deb": "_amd64.deb",
   "rpm": ".x86_64.rpm",
-  # LaunchHeim Companion, the Android app, released under the same tag.
-  "android": ".apk",
 }
+
+# LaunchHeim Companion, the Android app, is published by F-Droid (built from the launchheim-v* tags), not
+# as a release file. Its page is linked once F-Droid lists it.
+FDROID_PACKAGE = "io.github.codeisnotevil.launchheim"
 GROCERYTRACKER_FILES = {
   "compose": "compose.yaml",
   "env": "env.example",
@@ -112,6 +115,34 @@ def release_values(release: dict | None, key: str, prefix: str, files: dict[str,
       if algorithm == "sha256" and digest:
         values[f"{key}_{name}_sha256"] = digest
   return values
+
+
+def fdroid_values(package: str, key: str) -> dict[str, str]:
+  """The app's F-Droid version, from F-Droid's API, or nothing while it isn't listed (yet).
+
+  The API answers 404 for an unknown package. Any failure only hides the F-Droid link; it never
+  fails the build, since F-Droid is a site of its own the release doesn't control.
+  """
+  request = urllib.request.Request(
+    f"https://f-droid.org/api/v1/packages/{package}",
+    headers={"Accept": "application/json", "User-Agent": "CodeIsNotEvil-site-build"},
+  )
+  try:
+    with urllib.request.urlopen(request, timeout=30) as response:
+      data = json.load(response)
+  except Exception as error:  # noqa: BLE001 - 404 before the first F-Droid release, or offline
+    print(f"note: {package} not on F-Droid ({error}); the page says it's coming", file=sys.stderr)
+    return {}
+  suggested = data.get("suggestedVersionCode")
+  versions = data.get("packages") or []
+  current = next((p for p in versions if p.get("versionCode") == suggested), versions[0] if versions else None)
+  if current is None:
+    return {}
+  return {
+    f"{key}_fdroid": "yes",
+    f"{key}_fdroid_version": str(current.get("versionName", "")),
+    f"{key}_fdroid_url": f"https://f-droid.org/packages/{package}/",
+  }
 
 
 def version_key(version: str) -> tuple[int, ...]:
@@ -195,6 +226,7 @@ def main() -> None:
   parser.add_argument("output", nargs="?", type=Path, default=ROOT / "site" / "_site")
   parser.add_argument("--require-releases-api", action="store_true", help="fail instead of falling back when GitHub can't be reached")
   parser.add_argument("--releases-json", type=Path, help="read releases from this file (the API's format) instead, to preview the page")
+  parser.add_argument("--fdroid-version", help="pretend F-Droid lists the companion at this version, to preview the page")
   args = parser.parse_args()
 
   releases = json.loads(args.releases_json.read_text()) if args.releases_json else fetch_releases(args.require_releases_api)
@@ -204,6 +236,10 @@ def main() -> None:
     **release_values(newest(releases, "grocerytracker-v"), "gt", "grocerytracker-v", GROCERYTRACKER_FILES),
     **release_values(newest(releases, "launchheim-v"), "lh", "launchheim-v", LAUNCHHEIM_FILES),
   }
+  if args.fdroid_version:
+    values.update(lh_fdroid="yes", lh_fdroid_version=args.fdroid_version, lh_fdroid_url=f"https://f-droid.org/packages/{FDROID_PACKAGE}/")
+  elif not args.releases_json:
+    values.update(fdroid_values(FDROID_PACKAGE, "lh"))
   for key, path in CHANGELOGS.items():
     values[f"{key}_changes"] = changelog_html(path, values.get(f"{key}_version"))
 

@@ -152,9 +152,6 @@ nano .env        # set POSTGRES_PASSWORD</code></pre></li>
         <!-- if:lh_rpm_url -->
         <a class="button" href="{{ lh_rpm_url }}">Fedora, RHEL <small>.rpm · {{ lh_rpm_size }}</small></a>
         <!-- end -->
-        <!-- if:lh_android_url -->
-        <a class="button" href="{{ lh_android_url }}">Android companion <small>.apk · {{ lh_android_size }}</small></a>
-        <!-- end -->
       </div>
       <!-- LGPL-3.0: the Windows zip ships Qt, so where to get its source has to sit next to the download. -->
       <p class="fine-print">LaunchHeim is MIT licensed and built on open-source software, including Qt 5.15
@@ -213,29 +210,6 @@ nano .env        # set POSTGRES_PASSWORD</code></pre></li>
           which still has Qt 5. To update, run the same commands for the new version.</p>
       </details>
       <!-- end -->
-      <!-- if:lh_android_url -->
-      <details>
-        <summary>Android companion app</summary>
-        <p>LaunchHeim Companion keeps your instances' mod lists on the phone: browse Thunderstore, Nexus
-          Mods and CurseForge on the way and add mods, see who's online on your servers, and send the
-          lists back to LaunchHeim at home. It needs Android 8 or newer and isn't in the Play Store.</p>
-        <ol class="steps">
-          <li>Open the download link above on the phone and open the file when it's done.</li>
-          <li>Android asks to allow installing apps from your browser (or file manager) the first time.
-            Allow it, go back, and install.</li>
-          <li>On the PC, turn on <strong>Settings → Phone sync</strong>, then <strong>Library → Send to
-            phone</strong>. Keep both on the same Wi-Fi.</li>
-        </ol>
-        <!-- if:lh_android_sha256 -->
-        <p>To check the file on a PC first:</p>
-<pre><code>curl -LO {{ lh_android_url }}
-echo "{{ lh_android_sha256 }}  {{ lh_android_file }}" | sha256sum -c</code></pre>
-        <!-- end -->
-        <p>To update, install the new APK over the old one; your lists are kept. Apps such as
-          <a href="https://obtainium.imranr.dev/">Obtainium</a> can watch the GitHub releases and
-          update it for you.</p>
-      </details>
-      <!-- end -->
       <!-- else -->
       <div class="note">
         <p>The first release is on its way. Until then, the
@@ -243,6 +217,27 @@ echo "{{ lh_android_sha256 }}  {{ lh_android_file }}" | sha256sum -c</code></pre
           shows how to build it for Arch (<code>makepkg -si</code>), Debian, Fedora and Windows.</p>
       </div>
       <!-- end -->
+
+      <h3 id="launchheim-android">Android companion</h3>
+      <p>LaunchHeim Companion keeps your instances' mod lists on the phone: browse Thunderstore, Nexus
+        Mods and CurseForge on the way and add mods, see who's online on your servers, and send the
+        lists back to LaunchHeim at home over your Wi-Fi. Android 8 or newer.</p>
+      <!-- if:lh_fdroid -->
+      <div class="downloads">
+        <a class="button primary" href="{{ lh_fdroid_url }}">Get it on F-Droid <small>version {{ lh_fdroid_version }}</small></a>
+      </div>
+      <p>Install it with the <a href="https://f-droid.org/">F-Droid app</a>, which also keeps it up to date.
+        F-Droid builds it from this repository's source.</p>
+      <!-- else -->
+      <div class="note">
+        <p>It's on its way to <a href="https://f-droid.org/">F-Droid</a>, which builds it from this
+          repository's source. Until it's listed there, the
+          <a href="{{ repo_url }}/tree/HEAD/Applications/LaunchHeim/android#readme">companion's README</a>
+          shows how to build it.</p>
+      </div>
+      <!-- end -->
+      <p>To pair them, turn on <strong>Settings → Phone sync</strong> in LaunchHeim, open the companion,
+        and use <strong>Library → Send to phone</strong>.</p>
 
       <h3 id="launchheim-changes">What's new</h3>
       <!-- Built from Applications/LaunchHeim/CHANGELOG.md by build.py. -->
