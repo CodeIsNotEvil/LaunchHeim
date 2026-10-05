@@ -132,6 +132,7 @@ Item {
               MenuItem { text: "Install from file…"; onTriggered: fileDialog.open() }
               MenuItem { text: "Check for updates"; onTriggered: root.inst.checkUpdates() }
               MenuItem { text: "Export as modpack…"; onTriggered: exportDialog.open() }
+              MenuItem { text: "Send to phone…"; onTriggered: Vm.phone.openSend(root.inst.id) }
               MenuSeparator {}
               MenuItem { text: "Open console"; onTriggered: root.inst.openConsole() }
               MenuItem { text: "Open instance folder"; onTriggered: root.inst.openFolder() }
@@ -197,6 +198,7 @@ Item {
 
               LhButton { text: "Install from file"; iconName: "file"; kind: "ghost"; onClicked: fileDialog.open() }
               LhButton { text: "Export"; iconName: "export"; kind: "ghost"; enabled: root.inst.modCount > 0; onClicked: exportDialog.open() }
+              LhButton { text: "Send to phone"; iconName: "phone"; kind: "ghost"; onClicked: Vm.phone.openSend(root.inst.id) }
               LhButton { text: "Check for updates"; iconName: "refresh"; kind: "ghost"; onClicked: root.inst.checkUpdates() }
               LhButton {
                 visible: root.inst.updateCount > 0

@@ -57,6 +57,7 @@ public sealed class AppViewModel : ViewModel
     BrowserPrompt = new BrowserPromptViewModel();
     DebugConsole = new ConsoleViewModel(this);
     Play = new PlayViewModel(this);
+    PhoneSync = new PhoneSyncViewModel(this);
 
     _instances = instances.LoadAll().Select(i => new InstanceViewModel(this, i)).ToList();
     _selected = _instances.FirstOrDefault(i => i.Id == SettingsModel.LastInstanceId) ?? _instances.FirstOrDefault();
@@ -86,6 +87,9 @@ public sealed class AppViewModel : ViewModel
 
   [NotifySignal]
   public PlayViewModel Play { get; }
+
+  [NotifySignal]
+  public PhoneSyncViewModel PhoneSync { get; }
 
   /// <summary>Not called Console: QML would read <c>console</c> as its logging object.</summary>
   [NotifySignal]
@@ -225,6 +229,9 @@ public sealed class AppViewModel : ViewModel
 
   /// <param name="fileUrl">A file:// URL from the QML file dialog.</param>
   public void ImportPack(string fileUrl) => _ = ImportPackAsync(LocalPath(fileUrl));
+
+  /// <summary>Imports a pack that arrived from the companion app or another LocalSend device.</summary>
+  internal Task ImportPackFile(string file) => ImportPackAsync(file);
 
   private async Task ImportPackAsync(string file)
   {
@@ -532,6 +539,9 @@ public sealed class AppViewModel : ViewModel
       ReportInstall(report, target.Name);
     }
   }
+
+  /// <summary>Brings the window to the front, for something that needs an answer now.</summary>
+  internal void Activate() => this.ActivateSignal("activateRequested");
 
   /// <summary>Handles a command line forwarded by a second start, usually an nxm:// link.</summary>
   public void HandleCommandLine(string line)

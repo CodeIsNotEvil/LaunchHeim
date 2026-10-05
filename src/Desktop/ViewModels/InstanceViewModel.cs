@@ -242,6 +242,15 @@ public sealed class InstanceViewModel : ViewModel
     });
   }
 
+  /// <summary>Makes this instance match a pack of it that was edited in the companion app.</summary>
+  internal void ApplyPack(PackManifest manifest, string from) => RunExclusive($"Updating {Model.Name} from {from}", async progress =>
+  {
+    var report = await Task.Run(() => _app.Packs.ApplyAsync(Model, manifest, progress, CancellationToken.None));
+    _app.ReportInstall(report.Install, Model.Name, quiet: true);
+    Log.Info($"Updated {Model.Name} from {from}: {report.Install.Installed.Count} installed, {report.Removed} removed, {report.Toggled} switched.");
+    _app.Toast("success", $"Updated {Model.Name}", $"From {from}: {report.Install.Installed.Count} installed, {report.Removed} removed, {report.Toggled} switched on or off.");
+  });
+
   public void CheckUpdates() => RunExclusive("Checking for updates", async _ =>
   {
     await Task.Run(() => _app.Catalogs.Thunderstore.Index.EnsureLoadedAsync(forceRefresh: true, CancellationToken.None));

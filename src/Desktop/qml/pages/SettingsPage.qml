@@ -132,6 +132,39 @@ Item {
       }
 
       SettingsSection {
+        iconName: "phone"
+        title: "Phone sync"
+        description: "LaunchHeim Companion for Android keeps your mod lists on the phone, browses Thunderstore and shows who's online on your servers. It talks to LaunchHeim over the local network with the LocalSend protocol, which the LocalSend app understands too. Sending to the phone works either way; receiving needs this switch."
+        Layout.fillWidth: true
+
+        LhSwitch {
+          text: "Receive mod lists from phones while LaunchHeim runs"
+          checked: Vm.phone.enabled
+          onToggled: Vm.phone.setEnabled(checked)
+        }
+
+        RowLayout {
+          spacing: 10
+          Icon { iconName: Vm.phone.running ? "check" : "info"; color: Vm.phone.running ? Theme.positive : Theme.textMuted }
+          Label { text: Vm.phone.statusText; elide: Text.ElideRight; Layout.fillWidth: true }
+          LhButton { text: "Send to phone…"; iconName: "phone"; onClicked: Vm.phone.openSend("") }
+        }
+
+        RowLayout {
+          spacing: 8
+          LhTextField {
+            id: aliasField
+            text: Vm.phone.alias
+            placeholderText: "Device name"
+            selectByMouse: true
+            Layout.preferredWidth: 280
+            onAccepted: Vm.phone.setAlias(text)
+          }
+          LhButton { text: "Rename"; kind: "ghost"; enabled: aliasField.text.trim() !== Vm.phone.alias; onClicked: Vm.phone.setAlias(aliasField.text) }
+        }
+      }
+
+      SettingsSection {
         iconName: "browse"
         title: "Browsing"
         Layout.fillWidth: true
