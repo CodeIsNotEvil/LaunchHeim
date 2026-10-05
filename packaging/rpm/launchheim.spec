@@ -53,6 +53,9 @@ tar -xf %{SOURCE0} -C %{buildroot}
 %{_datadir}/metainfo/io.github.codeisnotevil.LaunchHeim.metainfo.xml
 
 %changelog
+* Mon Oct 05 2026 CodeIsNotEvil <noreply@github.com> - 0.5.1-1
+- Fix a crash when sending only the server list to a phone (see CHANGELOG.md)
+
 * Mon Oct 05 2026 CodeIsNotEvil <noreply@github.com> - 0.5.0-1
 - Phone sync with the LaunchHeim Companion Android app over LocalSend (see CHANGELOG.md)
 
