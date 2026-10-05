@@ -58,6 +58,8 @@ LAUNCHHEIM_FILES = {
   "arch": ".pkg.tar.zst",
   "deb": "_amd64.deb",
   "rpm": ".x86_64.rpm",
+  # LaunchHeim Companion, the Android app, released under the same tag.
+  "android": ".apk",
 }
 GROCERYTRACKER_FILES = {
   "compose": "compose.yaml",

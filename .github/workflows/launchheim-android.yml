@@ -1,6 +1,7 @@
 # Builds LaunchHeim Companion, the Android app in Applications/LaunchHeim/android, runs its unit tests
 # and keeps the APK as an artifact. The app takes its version from LaunchHeim's Directory.Build.props,
-# so a change there rebuilds it too.
+# so a change there rebuilds it too. The release workflow (launchheim-release.yml) builds the APK
+# it publishes through this one, with release: true.
 name: LaunchHeim Android
 
 on:
@@ -15,6 +16,12 @@ on:
       - Applications/LaunchHeim/Directory.Build.props
       - .github/workflows/launchheim-android.yml
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      release:
+        description: Fail without the release key, since a published APK must always be signed with it.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -44,7 +51,14 @@ jobs:
 
       # A release key is used when the repository has one (README "Releases"); otherwise the APK is
       # signed with the runner's throwaway debug key, which is fine for trying it but can't update an
-      # installed copy from another build.
+      # installed copy from another build. A release refuses that: every copy people installed would
+      # need uninstalling (and lose its lists) to take the next one.
+      - name: A release needs the release key
+        if: inputs.release && env.HAS_RELEASE_KEY != 'true'
+        run: |
+          echo "::error::The LAUNCHHEIM_ANDROID_KEYSTORE secrets are missing. See Applications/LaunchHeim/android/README.md, \"Releases\"."
+          exit 1
+
       - name: Release key
         env:
           KEYSTORE_BASE64: ${{ secrets.LAUNCHHEIM_ANDROID_KEYSTORE }}
@@ -65,11 +79,16 @@ jobs:
           version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' ../Directory.Build.props)
           mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/LaunchHeimCompanion-$version.apk"
 
+      # The APK on its own, so the release finds it at the top of its artifact folder.
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: LaunchHeimCompanion-android
-          path: |
-            Applications/LaunchHeim/android/app/build/outputs/apk/release/*.apk
-            Applications/LaunchHeim/android/app/build/reports/tests/
-          if-no-files-found: warn
+          name: LaunchHeimCompanion-apk
+          path: Applications/LaunchHeim/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: LaunchHeimCompanion-test-reports
+          path: Applications/LaunchHeim/android/app/build/reports/tests/
+          if-no-files-found: ignore
