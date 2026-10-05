@@ -128,6 +128,9 @@ accounts) and CurseForge (API key).
 - The Android SDK lives in `~/.local/share/android-sdk` on the owner's machine (cmdline-tools,
   platforms 36 and 37, an `lh-test` AVD). OkHttp 5.5 needs compileSdk 37; AGP 9 compiles Kotlin itself
   and takes the Kotlin version from the Compose compiler plugin declared in the root build (2026-10-05).
+- A list from the phone lacks the dependencies LaunchHeim pulled in itself (a Nexus mod's
+  requirements); `PackService.Compare` first removed them as "dropped". It now keeps a dependency
+  while a mod the pack keeps needs it (2026-10-05).
 - The emulator sits behind NAT, so LocalSend discovery can't reach it. `adb forward tcp:53630 tcp:53317`
   makes its server reachable from the PC, and the host is `10.0.2.2` from inside, which is how the
   transfer, the accept dialog and A2S were checked there (2026-10-05).
@@ -137,10 +140,11 @@ accounts) and CurseForge (API key).
 ## Open
 - LaunchHeim Companion (2026-10-05): not yet tried between a real phone and the desktop on the same
   Wi-Fi (multicast discovery, the /24 fallback, Android 14+ background behaviour). Checked on an
-  emulator through adb forwarding and with C#↔Kotlin tests on localhost. Also open: a release key and
-  the APK in the `launchheim-v*` release and on the download page; Nexus and CurseForge browsing on the
-  phone; adding a device by address when discovery fails; Android 17's local network permission
-  before targetSdk 37.
+  emulator through adb forwarding and with C#↔Kotlin tests on localhost. CurseForge on the phone is
+  only covered by parsing tests (no key on the test machine). Also open: the release key secrets (a
+  tag fails without them since 2026-10-05), registering with Google's developer verification before
+  it's enforced globally in 2027, IzzyOnDroid, adding a device by address when discovery fails, and
+  Android 17's local network permission before targetSdk 37.
 - Direct play hasn't been tried in a real game yet (2026-10-04): joining with `+connect` and a saved
   password, the preselected character and world, and the Windows registry prefs. A helper plugin
   could make world launches fully direct for modded instances

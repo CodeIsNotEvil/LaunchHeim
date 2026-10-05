@@ -44,6 +44,7 @@ without a server or an account.
   rejects the whole pack over an empty string, so the phone always stamps it.
 - LAN traffic is unencrypted and unauthenticated apart from the accept dialog. Fine for mod lists; no
   passwords are sent (the server list has none).
-- Publishing the APK needs a release key kept as CI secrets; until then CI APKs are debug-signed.
+- The APK is published with the `launchheim-v*` release and must be signed with the release key, so a
+  tag fails without it. Losing the key strands every installed copy.
 
 Related: [[launchheim]], [[0009-launchheim-modpacks-are-r2z]], [[0010-launchheim-direct-play-uses-the-games-own-options]]

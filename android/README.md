@@ -1,7 +1,8 @@
 # LaunchHeim Companion
 
-The Android app for LaunchHeim. It keeps your instances' mod lists on the phone, browses Thunderstore
-and adds mods with their dependencies, and shows how many players are on your Valheim servers. Mod
+The Android app for LaunchHeim. It keeps your instances' mod lists on the phone, browses Thunderstore,
+Nexus Mods and CurseForge and adds mods with their dependencies, and shows how many players are on
+your Valheim servers. Mod
 lists travel between the phone and LaunchHeim over the local network with the
 [LocalSend protocol](https://github.com/localsend/protocol), so there is no account and no server in
 between. The LocalSend app sees the phone too and can send it modpacks.
@@ -21,6 +22,11 @@ which Settings → Third-party licenses shows.
 
 Lists can also be started on the phone (New list) or opened from an `.r2z` file (the open button, or
 "Open with" from a file manager or messenger), and shared as a file through Android's share sheet.
+
+Away from the PC (on the bus, say) nothing needs the PC: the Thunderstore list is cached on the phone,
+and Nexus and CurseForge are searched over mobile data. Back home, send the list. A list that came from
+an instance offers **Update instance** on the PC (or **Import as a copy**); a list started on the phone,
+or one made with **Duplicate as a new list**, becomes a new instance.
 
 ## Build
 
@@ -47,25 +53,45 @@ so a `launchheim-v*` release describes both apps. AGP 9 compiles Kotlin itself; 
 the one of the Compose compiler plugin in `gradle/libs.versions.toml`.
 
 The *LaunchHeim Android* workflow (`.github/workflows/launchheim-android.yml`) runs the tests and keeps
-the release APK as an artifact on every change.
+the release APK as an artifact on every change. The *LaunchHeim release* workflow builds the APK
+through it for every `launchheim-v*` tag and attaches `LaunchHeimCompanion-<version>.apk` to the
+release, and the download page links it like the desktop builds.
 
 ## Releases
 
 Android only installs an update signed with the same key as the installed app. Without a release key
 the build falls back to the debug key, which differs per machine and per CI run, so those APKs are for
-trying, not for handing out. To sign releases, create a key once and keep it safe; losing it means
-users have to uninstall to update:
+trying, not for handing out. A tagged release therefore **fails without the key**, rather than
+publishing an APK nobody could update. Create the key once and keep a copy somewhere safe (a password
+manager): losing it means everyone has to uninstall, and lose their lists, to update.
 
 ```fish
 keytool -genkeypair -v -keystore launchheim-release.jks -alias launchheim -keyalg RSA -keysize 4096 -validity 10000
-base64 -w0 launchheim-release.jks   # the LAUNCHHEIM_ANDROID_KEYSTORE secret
+base64 -w0 launchheim-release.jks | gh secret set LAUNCHHEIM_ANDROID_KEYSTORE
+gh secret set LAUNCHHEIM_ANDROID_KEYSTORE_PASSWORD
+gh secret set LAUNCHHEIM_ANDROID_KEY_ALIAS --body launchheim
+gh secret set LAUNCHHEIM_ANDROID_KEY_PASSWORD
 ```
 
-and add the repository secrets `LAUNCHHEIM_ANDROID_KEYSTORE`, `LAUNCHHEIM_ANDROID_KEYSTORE_PASSWORD`,
-`LAUNCHHEIM_ANDROID_KEY_ALIAS` and `LAUNCHHEIM_ANDROID_KEY_PASSWORD`. Locally the same values go in the
-environment variables `LAUNCHHEIM_KEYSTORE` (the file's path), `LAUNCHHEIM_KEYSTORE_PASSWORD`,
-`LAUNCHHEIM_KEY_ALIAS` and `LAUNCHHEIM_KEY_PASSWORD`. The APK isn't part of the `launchheim-v*` release
-yet.
+Locally the same values go in the environment variables `LAUNCHHEIM_KEYSTORE` (the file's path),
+`LAUNCHHEIM_KEYSTORE_PASSWORD`, `LAUNCHHEIM_KEY_ALIAS` and `LAUNCHHEIM_KEY_PASSWORD`.
+
+Where else it could go, beyond the GitHub release and the download page:
+- **Obtainium** needs nothing from us: it installs and updates straight from GitHub releases. The
+  download page mentions it.
+- **IzzyOnDroid**, an F-Droid repository that takes the APK from the GitHub releases. Request it there
+  once the app has had a release or two; it checks for trackers and non-free dependencies (there are
+  none).
+- **F-Droid** itself builds from source, which works since everything is open source, but wants a
+  metadata merge request and reproducible builds to keep our signature.
+- **Google Play**: a one-off developer fee, identity verification, and a closed test with about a dozen
+  testers for two weeks before a new personal account may publish.
+
+Google's developer verification also covers APKs installed from outside Play: on certified phones,
+apps from unregistered developers need an extra, slower install flow, enforced in Brazil, Indonesia,
+Singapore and Thailand since 2026-09-30 and everywhere in 2027. Registering the signing key in the
+Android Developer Console keeps the APK installable normally; the free limited-distribution account
+only allows 20 devices.
 
 ## Layout
 
@@ -73,6 +99,7 @@ yet.
 |---|---|
 | `packs` | `launchheim.json` and `export.r2x` (ports of Core's `PackManifest` and `R2x`), reading and writing `.r2z`, and `ModListEditor`, which adds, removes, updates and switches mods the way `ModService` does. |
 | `thunderstore` | The Valheim package list, downloaded, trimmed and cached like Core's `ThunderstoreIndex`, and the same search and ordering. |
+| `catalogs` | Nexus Mods (anonymous GraphQL) and CurseForge (API key), ports of Core's catalogs for browsing only, and Nexus's BBCode. |
 | `servers` | A2S player counts (a port of Core's `ServerQuery`) and the server list file. |
 | `localsend` | The LocalSend node: discovery, a small HTTP server, sending. |
 | `data` | The phone's storage (mod lists, servers, settings) and `SyncService`, which turns received files into lists and lists back into packs. |
@@ -89,6 +116,14 @@ installs it. So the list must end up as the desktop would have it. `ModListEdito
 kept), removing a mod also removes the dependencies only it needed, turning a mod on turns on what it
 needs, and BepInExPack is always there and never removable. Search scoring and order match
 `ThunderstoreCatalog.Search`. When one side changes, change the other.
+
+**Nexus and CurseForge.** Searched on their servers a page at a time. A mod is added with a file id,
+which is how Core pins those sites (`PackMod.FileId`); LaunchHeim downloads it when the list comes
+back, with its own API keys, and names what it can't download (Nexus without Premium, CurseForge
+opt-outs) to install from Browse mods. CurseForge lists required dependencies per file, and the phone
+adds them like Thunderstore's; Nexus lists none. LaunchHeim keeps a dependency that a returning list
+doesn't mention while a mod in it still needs it, so what it pulled in itself survives. The phone
+needs its own CurseForge key (Settings), kept in the app's private storage; Nexus browsing needs none.
 
 **Thunderstore.** As on the desktop, the whole Valheim list is downloaded (about 17 MB) because
 Thunderstore has no search API for apps. Each gzipped chunk is parsed as a stream and trimmed right
