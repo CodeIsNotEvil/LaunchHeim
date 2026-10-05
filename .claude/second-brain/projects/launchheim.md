@@ -135,6 +135,10 @@ accounts) and CurseForge (API key).
   ticked (an empty library) crashed 0.5.0 on `instanceIds.Split`; an `async void` method called from
   QML takes the whole app down on any exception before its `try`. Treat every string parameter from
   QML as nullable (2026-10-05).
+- Windows reserves blocks of TCP ports at boot (Hyper-V, WSL, Docker; `netsh int ipv4 show
+  excludedportrange protocol=tcp`), and binding one fails with WSAEACCES "access forbidden", not "in
+  use". Fixed test ports (53510+) failed the Windows CI intermittently, and a block can cover 53317 on
+  a user's PC. Tests bind port 0, and both MiniHttpServers fall back to any free port (2026-10-05).
 - The emulator sits behind NAT, so LocalSend discovery can't reach it. `adb forward tcp:53630 tcp:53317`
   makes its server reachable from the PC, and the host is `10.0.2.2` from inside, which is how the
   transfer, the accept dialog and A2S were checked there (2026-10-05).
