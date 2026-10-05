@@ -49,49 +49,61 @@ with `emulator -avd lh-test`. Multicast doesn't leave the emulator's NAT, so Lau
 `adb forward tcp:53630 tcp:53317` makes its LocalSend port reachable as `127.0.0.1:53630` on the PC.
 
 The version is LaunchHeim's: `app/build.gradle.kts` reads `<Version>` from `../Directory.Build.props`,
-so a `launchheim-v*` release describes both apps. AGP 9 compiles Kotlin itself; the Kotlin version is
+so a `launchheim-v*` release describes both apps. Next to it sits `<AndroidVersionCode>` (major ×
+10000 + minor × 100 + patch), written out for F-Droid, which reads it with a regex; the build fails
+when the two disagree. The package name is `io.github.codeisnotevil.launchheim` (the same id as the
+desktop app's AppStream metadata), the code's package `local.cine.launchheim`, so the activity is
+`adb shell am start -n io.github.codeisnotevil.launchheim/local.cine.launchheim.MainActivity`. AGP 9 compiles Kotlin itself; the Kotlin version is
 the one of the Compose compiler plugin in `gradle/libs.versions.toml`.
 
-The *LaunchHeim Android* workflow (`.github/workflows/launchheim-android.yml`) runs the tests and keeps
-the release APK as an artifact on every change. The *LaunchHeim release* workflow builds the APK
-through it for every `launchheim-v*` tag and attaches `LaunchHeimCompanion-<version>.apk` to the
-release, and the download page links it like the desktop builds.
+The *LaunchHeim Android* workflow (`.github/workflows/launchheim-android.yml`) runs the tests, builds
+the release APK the way F-Droid does (unsigned, minified) and keeps a debug APK to try as an artifact.
 
 ## Releases
 
-Android only installs an update signed with the same key as the installed app. Without a release key
-the build falls back to the debug key, which differs per machine and per CI run, so those APKs are for
-trying, not for handing out. A tagged release therefore **fails without the key**, rather than
-publishing an APK nobody could update. Create the key once and keep a copy somewhere safe (a password
-manager): losing it means everyone has to uninstall, and lose their lists, to update.
+F-Droid builds the companion from source and signs it with its own key; there is no APK on the GitHub
+releases. Since it shares LaunchHeim's version and tags, a desktop release is a companion release:
 
-```fish
-keytool -genkeypair -v -keystore launchheim-release.jks -alias launchheim -keyalg RSA -keysize 4096 -validity 10000
-base64 -w0 launchheim-release.jks | gh secret set LAUNCHHEIM_ANDROID_KEYSTORE
-gh secret set LAUNCHHEIM_ANDROID_KEYSTORE_PASSWORD
-gh secret set LAUNCHHEIM_ANDROID_KEY_ALIAS --body launchheim
-gh secret set LAUNCHHEIM_ANDROID_KEY_PASSWORD
-```
+1. Bump `<Version>` and `<AndroidVersionCode>` in `../Directory.Build.props` (the Android build fails if
+   they disagree).
+2. Write `app/fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`, what changed in the
+   companion in at most 500 characters. F-Droid shows it as "What's new".
+3. Tag `launchheim-v<version>` as usual. The release workflow refuses the tag when either is missing,
+   because F-Droid reads both from the tagged source and nothing can be added afterwards.
 
-Locally the same values go in the environment variables `LAUNCHHEIM_KEYSTORE` (the file's path),
-`LAUNCHHEIM_KEYSTORE_PASSWORD`, `LAUNCHHEIM_KEY_ALIAS` and `LAUNCHHEIM_KEY_PASSWORD`.
+F-Droid's checkupdates finds the tag (`UpdateCheckMode: Tags`), reads the two versions from
+`Directory.Build.props` (`UpdateCheckData`), adds a build and publishes it, usually within a few days.
+The store texts, icon and screenshots come from `app/fastlane/metadata/android/en-US/`; F-Droid only
+looks for them under the build's subdir.
 
-Where else it could go, beyond the GitHub release and the download page:
-- **Obtainium** needs nothing from us: it installs and updates straight from GitHub releases. The
-  download page mentions it.
-- **IzzyOnDroid**, an F-Droid repository that takes the APK from the GitHub releases. Request it there
-  once the app has had a release or two; it checks for trackers and non-free dependencies (there are
-  none).
-- **F-Droid** itself builds from source, which works since everything is open source, but wants a
-  metadata merge request and reproducible builds to keep our signature.
-- **Google Play**: a one-off developer fee, identity verification, and a closed test with about a dozen
-  testers for two weeks before a new personal account may publish.
+**Getting listed (once).** The build recipe is [`fdroid/io.github.codeisnotevil.launchheim.yml`](fdroid/io.github.codeisnotevil.launchheim.yml),
+formatted the way `fdroid rewritemeta` writes it (fdroiddata's CI rejects anything else, comments
+included). After the first `launchheim-v*` tag with the companion in it (the recipe expects 0.5.0;
+change `versionName`, `versionCode`, `commit` and `Current*` if it's another one):
 
-Google's developer verification also covers APKs installed from outside Play: on certified phones,
-apps from unregistered developers need an extra, slower install flow, enforced in Brazil, Indonesia,
-Singapore and Thailand since 2026-09-30 and everywhere in 2027. Registering the signing key in the
-Android Developer Console keeps the APK installable normally; the free limited-distribution account
-only allows 20 devices.
+1. Fork https://gitlab.com/fdroid/fdroiddata, add the file as `metadata/io.github.codeisnotevil.launchheim.yml`
+   on a branch, and open a merge request with the "App inclusion" template.
+2. Its CI builds the app and runs the scanner. A reviewer may ask about the anti-feature or the
+   category; `NonFreeNet` is declared because Nexus Mods and CurseForge are proprietary services.
+3. Once merged, the app appears on F-Droid with the next index update, and the download page links it
+   by itself (`site/build.py` asks F-Droid's API).
+
+To try the recipe locally: `pip install fdroidserver`, put the file into `metadata/` of an fdroiddata
+checkout with `sdk_path` set in its `config.yml`, then `fdroid lint`, `fdroid rewritemeta` (must change
+nothing) and `fdroid build -v -l io.github.codeisnotevil.launchheim`, which clones the repo and builds
+the tagged commit with the scanner. Before the tag exists, point `commit` at a pushed commit.
+
+Points that matter for F-Droid, and why the build looks the way it does:
+- The release build is unsigned (F-Droid signs it), and `dependenciesInfo` is off, because AGP would
+  otherwise embed a dependency list encrypted for Google, which F-Droid refuses.
+- No JVM toolchain is requested, so any JDK 17 or newer on the build server works.
+- Everything the APK contains is open source (`app/src/main/assets/THIRD-PARTY-NOTICES.txt`), and the
+  only binary in the whole repository is the Gradle wrapper jar, which the scanner knows.
+- Google's developer verification for apps from outside Play (enforced in some countries since
+  2026-09-30, everywhere in 2027) applies to F-Droid's apps too, and how F-Droid will handle it isn't
+  settled; F-Droid has objected to it publicly. Watch their announcements before 2027.
+- Should a GitHub APK ever be wanted again, it needs a signing key of its own, and it can't update an
+  F-Droid install or the other way round (different signatures).
 
 ## Layout
 

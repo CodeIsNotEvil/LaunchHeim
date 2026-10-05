@@ -159,8 +159,8 @@ opt-outs) are listed to install from Browse mods. The pack's configs are copied 
 defaults.
 
 **Phone sync.** [LaunchHeim Companion](android/README.md), the Android app, keeps mod lists on the
-phone, browses Thunderstore, Nexus and CurseForge and shows who's online on the servers. Its APK is
-released with every `launchheim-v*` tag. LaunchHeim talks to it with the
+phone, browses Thunderstore, Nexus and CurseForge and shows who's online on the servers. F-Droid
+builds and publishes it from the `launchheim-v*` tags. LaunchHeim talks to it with the
 LocalSend protocol (`Core/LocalSend`): Library → Send to phone (or an instance's Send to phone) finds
 devices on the LAN and sends the chosen instances as `.r2z` packs plus Valheim's server list as
 `launchheim-servers.json`. Receiving is off until Settings → Phone sync switches it on, since it opens
