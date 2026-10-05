@@ -1,0 +1,94 @@
+# Builds LaunchHeim Companion, the Android app in Applications/LaunchHeim/android, runs its unit tests
+# and keeps the APK as an artifact. The app takes its version from LaunchHeim's Directory.Build.props,
+# so a change there rebuilds it too. The release workflow (launchheim-release.yml) builds the APK
+# it publishes through this one, with release: true.
+name: LaunchHeim Android
+
+on:
+  push:
+    paths:
+      - Applications/LaunchHeim/android/**
+      - Applications/LaunchHeim/Directory.Build.props
+      - .github/workflows/launchheim-android.yml
+  pull_request:
+    paths:
+      - Applications/LaunchHeim/android/**
+      - Applications/LaunchHeim/Directory.Build.props
+      - .github/workflows/launchheim-android.yml
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      release:
+        description: Fail without the release key, since a published APK must always be signed with it.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    env:
+      # Secrets can't be used in a step's `if` directly.
+      HAS_RELEASE_KEY: ${{ secrets.LAUNCHHEIM_ANDROID_KEYSTORE != '' }}
+    defaults:
+      run:
+        working-directory: Applications/LaunchHeim/android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The runner's SDK may lag behind; OkHttp 5.5 needs compileSdk 37.
+      - name: Android SDK platform 37
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;37.0.0" > /dev/null
+
+      # A release key is used when the repository has one (README "Releases"); otherwise the APK is
+      # signed with the runner's throwaway debug key, which is fine for trying it but can't update an
+      # installed copy from another build. A release refuses that: every copy people installed would
+      # need uninstalling (and lose its lists) to take the next one.
+      - name: A release needs the release key
+        if: inputs.release && env.HAS_RELEASE_KEY != 'true'
+        run: |
+          echo "::error::The LAUNCHHEIM_ANDROID_KEYSTORE secrets are missing. See Applications/LaunchHeim/android/README.md, \"Releases\"."
+          exit 1
+
+      - name: Release key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.LAUNCHHEIM_ANDROID_KEYSTORE }}
+        if: env.HAS_RELEASE_KEY == 'true'
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "LAUNCHHEIM_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Test and build
+        env:
+          LAUNCHHEIM_KEYSTORE_PASSWORD: ${{ secrets.LAUNCHHEIM_ANDROID_KEYSTORE_PASSWORD }}
+          LAUNCHHEIM_KEY_ALIAS: ${{ secrets.LAUNCHHEIM_ANDROID_KEY_ALIAS }}
+          LAUNCHHEIM_KEY_PASSWORD: ${{ secrets.LAUNCHHEIM_ANDROID_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleRelease
+
+      - name: Name the APK after the version
+        run: |
+          version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' ../Directory.Build.props)
+          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/LaunchHeimCompanion-$version.apk"
+
+      # The APK on its own, so the release finds it at the top of its artifact folder.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LaunchHeimCompanion-apk
+          path: Applications/LaunchHeim/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: LaunchHeimCompanion-test-reports
+          path: Applications/LaunchHeim/android/app/build/reports/tests/
+          if-no-files-found: ignore

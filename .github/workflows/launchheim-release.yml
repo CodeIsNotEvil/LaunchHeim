@@ -1,6 +1,6 @@
 # Builds every LaunchHeim download and publishes them as one GitHub release.
 #
-#   tag launchheim-v1.2.3    Windows zip, Arch package, .deb and .rpm, tested, then released
+#   tag launchheim-v1.2.3    Windows zip, Arch package, .deb, .rpm and the Android APK, tested, then released
 #   Run workflow (manual)    the same builds and tests as a dry run; the files stay as artifacts
 #   pull request             the same dry run when the packaging or this workflow changes
 #
@@ -42,6 +42,15 @@ jobs:
   windows:
     needs: version
     uses: ./.github/workflows/launchheim-windows.yml
+
+  # LaunchHeim Companion carries LaunchHeim's version, so the same tag releases it. On a tag it must be
+  # signed with the release key (android/README.md "Releases"); dry runs use a throwaway key.
+  android:
+    needs: version
+    uses: ./.github/workflows/launchheim-android.yml
+    with:
+      release: ${{ startsWith(github.ref, 'refs/tags/launchheim-v') }}
+    secrets: inherit
 
   linux:
     needs: version
@@ -85,7 +94,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: [windows, linux]
+    needs: [windows, linux, android]
     if: startsWith(github.ref, 'refs/tags/launchheim-v')
     runs-on: ubuntu-24.04
     permissions:
@@ -117,6 +126,7 @@ jobs:
           | Arch, CachyOS | \`launchheim-git-*.pkg.tar.zst\` | download it, then \`sudo pacman -U ./<file>\` |
           | Debian 13, Ubuntu 24.04+ | \`launchheim_${version}-1_amd64.deb\` | \`sudo apt install ./<file>\` |
           | Fedora, RHEL 9/10 (EPEL) | \`launchheim-${version}-1.x86_64.rpm\` | \`sudo dnf install ./<file>\` |
+          | Android 8+ (companion app) | \`LaunchHeimCompanion-${version}.apk\` | open it on the phone and allow installing from that app |
 
           The packages aren't signed, so \`pacman -U <url>\` fails looking for a \`.sig\`; install the downloaded file.
           Check a download with \`sha256sum -c --ignore-missing\` and these lines:
@@ -125,7 +135,7 @@ jobs:
           EOF
           # The same digests GitHub stores per asset; the download page shows them too.
           (cd artifacts && sha256sum LaunchHeim-win-x64/*.zip LaunchHeim-linux/*.pkg.tar.zst \
-            LaunchHeim-linux/*.deb LaunchHeim-linux/*.rpm) | sed 's|  .*/|  |' >> notes.md
+            LaunchHeim-linux/*.deb LaunchHeim-linux/*.rpm LaunchHeimCompanion-apk/*.apk) | sed 's|  .*/|  |' >> notes.md
           cat >> notes.md <<EOF
           \`\`\`
 
@@ -136,6 +146,7 @@ jobs:
             artifacts/LaunchHeim-linux/*.pkg.tar.zst \
             artifacts/LaunchHeim-linux/*.deb \
             artifacts/LaunchHeim-linux/*.rpm \
+            artifacts/LaunchHeimCompanion-apk/*.apk \
             --title "LaunchHeim ${version}" --notes-file notes.md --latest=false
 
       # A release made with GITHUB_TOKEN triggers no other workflows (GitHub's loop protection), so

@@ -251,6 +251,106 @@ public class PackServiceTests : IDisposable
     Assert.Contains("not a modpack", error.Message);
     Assert.Empty(_store.LoadAll());
   }
+
+  [Fact]
+  public async Task A_pack_remembers_its_instance_and_reads_without_installing()
+  {
+    var source = await Modded();
+    var file = _temp.Combine("pack.r2z");
+    _packs.Export(source, file);
+
+    var contents = PackService.Read(file);
+
+    Assert.False(contents.FromR2modman);
+    Assert.Equal(source.Id, contents.Manifest.InstanceId);
+    Assert.Contains(contents.Manifest.Mods, m => m.Id == "Author-Mod");
+  }
+
+  [Fact]
+  public async Task An_unchanged_pack_changes_nothing()
+  {
+    var source = await Modded();
+    var file = _temp.Combine("pack.r2z");
+    _packs.Export(source, file);
+
+    Assert.True(PackService.Compare(source, PackService.Read(file).Manifest).IsEmpty);
+  }
+
+  /// <summary>What the companion app does: edits the mod list in the pack and sends it back.</summary>
+  [Fact]
+  public async Task A_pack_edited_elsewhere_updates_its_instance()
+  {
+    var source = await Modded();
+    var file = _temp.Combine("pack.r2z");
+    _packs.Export(source, file);
+    var manifest = PackService.Read(file).Manifest;
+
+    // Removed Author-Mod (and so the library it pulled in), switched Author-Other back on, and added the
+    // library back as a mod picked by hand, at 1.0.0 instead of the 1.1.0 installed here.
+    manifest.Mods.RemoveAll(m => m.Id is "Author-Mod" or "Author-Library");
+    var other = manifest.Mods.Single(m => m.Id == "Author-Other");
+    other.Enabled = true;
+    manifest.Mods.Add(new PackMod { Source = ModSource.Thunderstore, Id = "Author-Library", Name = "Library", Version = "1.0.0" });
+
+    var changes = PackService.Compare(source, manifest);
+    Assert.Equal(["Author-Mod"], changes.Removed.Select(m => m.SourceId));
+    Assert.Equal(["Author-Library"], changes.Changed.Select(c => c.Mod.SourceId));
+    Assert.Equal([("Author-Other", true)], changes.Toggled.Select(t => (t.Mod.SourceId, t.Enabled)));
+    Assert.Empty(changes.Added);
+
+    var report = await _packs.ApplyAsync(source, manifest, null, CancellationToken.None);
+
+    Assert.Empty(report.Install.Warnings);
+    Assert.Null(source.FindMod("thunderstore:Author-Mod"));
+    var library = source.FindMod("thunderstore:Author-Library")!;
+    Assert.Equal("1.0.0", library.Version);
+    Assert.False(library.InstalledAsDependency);
+    Assert.True(source.FindMod("thunderstore:Author-Other")!.Enabled);
+    // The local mod and the configs made on the PC are left alone.
+    Assert.NotNull(source.FindMod("local:Handmade"));
+    Assert.Equal("tuned", File.ReadAllText(Path.Combine(_store.DirectoryOf(source), "BepInEx/config/Author.Mod.cfg")));
+    Assert.True(PackService.Compare(source, manifest).IsEmpty);
+
+    // And it is saved: a fresh load sees the same mods.
+    var reloaded = _store.LoadAll().Single(i => i.Id == source.Id);
+    Assert.Equal(source.Mods.Select(m => m.Key).Order(), reloaded.Mods.Select(m => m.Key).Order());
+  }
+
+  /// <summary>A list from the phone that lacks a dependency LaunchHeim pulled in itself.</summary>
+  [Fact]
+  public async Task A_dependency_the_pack_doesnt_list_stays_while_a_kept_mod_needs_it()
+  {
+    var source = await Modded();
+    var file = _temp.Combine("pack.r2z");
+    _packs.Export(source, file);
+    var manifest = PackService.Read(file).Manifest;
+    manifest.Mods.RemoveAll(m => m.Id == "Author-Library");
+
+    Assert.Empty(PackService.Compare(source, manifest).Removed);
+    await _packs.ApplyAsync(source, manifest, null, CancellationToken.None);
+    Assert.NotNull(source.FindMod("thunderstore:Author-Library"));
+
+    // Once the mod that needed it is gone too, the library goes with it.
+    manifest.Mods.RemoveAll(m => m.Id == "Author-Mod");
+    Assert.Equal(["Author-Library", "Author-Mod"], PackService.Compare(source, manifest).Removed.Select(m => m.SourceId).Order());
+  }
+
+  [Fact]
+  public async Task A_mod_added_elsewhere_is_installed_with_its_dependencies()
+  {
+    var source = _store.Create("Fresh");
+    await _mods.InstallLoaderAsync(source, null, CancellationToken.None);
+    var file = _temp.Combine("pack.r2z");
+    _packs.Export(source, file);
+    var manifest = PackService.Read(file).Manifest;
+    manifest.Mods.Add(new PackMod { Source = ModSource.Thunderstore, Id = "Author-Mod", Name = "Mod", Version = "1.0.0", Dependencies = ["thunderstore:Author-Library"] });
+
+    Assert.Equal(["Author-Mod"], PackService.Compare(source, manifest).Added.Select(m => m.Id));
+    await _packs.ApplyAsync(source, manifest, null, CancellationToken.None);
+
+    Assert.Equal("1.0.0", source.FindMod("thunderstore:Author-Mod")!.Version);
+    Assert.True(source.FindMod("thunderstore:Author-Library")!.InstalledAsDependency);
+  }
 }
 
 public class R2xTests
@@ -288,4 +388,5 @@ public class R2xTests
     Assert.Equal("It's mine", profile.Name);
     Assert.Equal([new R2x.Mod("A-B", "2.0.1", false)], profile.Mods);
   }
+
 }

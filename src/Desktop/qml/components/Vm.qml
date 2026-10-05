@@ -19,6 +19,7 @@ QtObject {
   readonly property var prompt: App.browserPrompt
   readonly property var debugConsole: App.debugConsole
   readonly property var play: App.play
+  readonly property var phone: App.phoneSync
   readonly property var selected: App.selectedInstance
   readonly property var recent: App.recentInstance
   readonly property var details: browse.details
@@ -30,4 +31,5 @@ QtObject {
   readonly property var detailFiles: details ? Net.toVariantList(details.files) : []
   readonly property var servers: Net.toVariantList(play.servers)
   readonly property var worlds: Net.toVariantList(play.worlds)
+  readonly property var peers: Net.toVariantList(phone.peers)
 }

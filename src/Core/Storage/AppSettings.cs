@@ -36,6 +36,18 @@ public sealed class AppSettings
 
   /// <summary>What was started last, which the sidebar's Play button starts again. Null before the first launch.</summary>
   public LastPlay? LastPlay { get; set; }
+
+  /// <summary>
+  /// Receives mod lists from the companion app (and other LocalSend devices) while LaunchHeim runs. Off
+  /// until switched on, because it opens a port on the network. Sending works either way.
+  /// </summary>
+  public bool PhoneSyncEnabled { get; set; }
+
+  /// <summary>The name phones show for this PC. Null means the computer's name.</summary>
+  public string? PhoneSyncAlias { get; set; }
+
+  /// <summary>LocalSend's device fingerprint: random, made once, so phones don't list this PC twice.</summary>
+  public string? PhoneSyncFingerprint { get; set; }
 }
 
 /// <summary>The last launch: a server or world from the Play page, an instance, or vanilla.</summary>

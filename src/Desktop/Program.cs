@@ -127,6 +127,7 @@ public static class Program
 
     var exitCode = app.Exec();
     viewModel.Theme.Dispose();
+    viewModel.PhoneSync.Dispose();
     Log.Info("LaunchHeim closed.");
     Log.Close();
     return exitCode;

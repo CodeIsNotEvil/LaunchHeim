@@ -18,6 +18,13 @@ public sealed class PackManifest
 
   public string Name { get; set; } = "";
 
+  /// <summary>
+  /// The instance the pack was exported from. When the pack comes back (from the companion app, after
+  /// editing its mod list there), LaunchHeim offers to update that instance instead of importing a copy.
+  /// Older LaunchHeim and r2modman ignore it.
+  /// </summary>
+  public string? InstanceId { get; set; }
+
   /// <summary>The LaunchHeim version that wrote the pack, to make sense of bug reports.</summary>
   public string ExportedBy { get; set; } = "";
 
@@ -30,6 +37,7 @@ public sealed class PackManifest
   public static PackManifest From(Instance instance) => new()
   {
     Name = instance.Name,
+    InstanceId = instance.Id,
     ExportedBy = $"LaunchHeim {AppInfo.Version}",
     LaunchArguments = instance.LaunchArguments,
     Mods = instance.Mods.Select(PackMod.From).ToList(),

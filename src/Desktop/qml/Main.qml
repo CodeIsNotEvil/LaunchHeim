@@ -78,6 +78,9 @@ ApplicationWindow {
   }
 
   BrowserPromptDialog {}
+  SendToPhoneDialog {}
+  IncomingDialog {}
+  PackUpdateDialog {}
   ConsoleWindow { id: consoleWindow }
 
   Connections {

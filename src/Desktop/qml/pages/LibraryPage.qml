@@ -56,6 +56,12 @@ Item {
         }
 
         LhButton {
+          text: "Send to phone"
+          iconName: "phone"
+          onClicked: Vm.phone.openSend("")
+        }
+
+        LhButton {
           text: "Import modpack"
           iconName: "import"
           onClicked: packDialog.open()
