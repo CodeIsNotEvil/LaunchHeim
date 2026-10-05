@@ -7,6 +7,19 @@ Format: a `## <version> - <yyyy-mm-dd>` heading per release (the version must ma
 `src/Desktop/LaunchHeim.Desktop.csproj`), then `### Added`, `### Changed` or `### Fixed` with one
 bullet per change.
 
+## 0.5.0 - 2026-10-05
+
+### Added
+- LaunchHeim Companion for Android: keep your instances' mod lists on the phone, browse Thunderstore,
+  Nexus Mods and CurseForge and add mods with their dependencies, and see how many players are on your
+  servers. Download the APK from the release or the download page.
+- Send to phone (Library or an instance) sends your instances and Valheim's server list to the
+  companion over your Wi-Fi, with no account and no cloud. It also works with the LocalSend app.
+- Mod lists edited on the phone come back the same way: LaunchHeim lists what changed, and Update
+  instance installs, removes and switches mods while your configs stay as they are. A list started on
+  the phone becomes a new instance.
+- Settings → Phone sync switches receiving on and sets the name phones see for this PC.
+
 ## 0.4.0 - 2026-10-04
 
 ### Added
