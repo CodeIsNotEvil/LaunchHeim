@@ -1,0 +1,24 @@
+<p>The companion to <b>LaunchHeim</b>, the Valheim mod launcher for Linux and Windows. Take your modpacks along, pick mods wherever you are, and bring them home to your PC.</p>
+
+<p><b>Mod lists</b></p>
+<ul>
+<li>Your LaunchHeim instances arrive on the phone as mod lists, with versions, dependencies and what's switched on.</li>
+<li>Add, remove, update or switch off mods. Dependencies come along and leave again the way LaunchHeim handles them, and BepInEx is always there.</li>
+<li>Start new lists on the phone, duplicate one as the start of a new instance, or open an .r2z modpack from r2modman or the Thunderstore Mod Manager.</li>
+</ul>
+
+<p><b>Browse mods</b></p>
+<ul>
+<li>All of Thunderstore's Valheim mods, searchable offline once downloaded, with READMEs and every version.</li>
+<li>Nexus Mods without an account, and CurseForge with your own free API key.</li>
+</ul>
+
+<p><b>Servers</b></p>
+<ul>
+<li>The servers from Valheim's Favorites and Recent lists on your PC, plus any you add, with how many players are online right now.</li>
+</ul>
+
+<p><b>Sync without an account</b></p>
+<p>Phone and PC find each other on your Wi-Fi and exchange lists directly with the open LocalSend protocol: no cloud, no sign-up. Every transfer is accepted on the receiving side, and LaunchHeim shows what changed before it installs anything. The LocalSend app can send modpacks to it too.</p>
+
+<p>The app never installs mods on the phone; LaunchHeim downloads and installs them on the PC. Not affiliated with Iron Gate, Thunderstore, Nexus Mods or CurseForge.</p>
