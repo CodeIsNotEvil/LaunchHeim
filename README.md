@@ -176,6 +176,18 @@ needs it. Any other pack is imported as a new instance. The HTTP server
 is a small one on `TcpListener`, because `HttpListener` needs administrator rights on Windows for
 anything but localhost.
 
+**Update reminder.** At start and twice a day, LaunchHeim reads the repository's releases from
+GitHub's API (anonymous, one request) and takes the newest `launchheim-v*` release by version,
+leaving out drafts, pre-releases and the other apps' releases (`Core/Updates`). When it's newer, the
+sidebar shows one small line. Clicking it opens a dialog with the download page, the release notes
+and, if this install can be told apart, the terminal commands that update it: the pacman, apt or dnf
+package (the package build's switch plus `ID`/`ID_LIKE` from `/etc/os-release`), the Windows zip
+copied over the folder LaunchHeim runs from, or `install.sh` again for an install in
+`~/.local/opt/LaunchHeim`. A development build, a custom `install.sh` prefix or an unreadable
+`os-release` only get the download page. *Skip this version* hides that version and announces the
+next; *Don't remind me again* stops reminders and checks (`updateRemindersDisabled` in
+`settings.json`) until Settings → About switches them back on. Offline or rate-limited, nothing shows.
+
 **Console and logs.** The console window (the terminal button on an instance, or in the sidebar while
 the game runs) follows one of three logs live: the instance's BepInEx `LogOutput.log`, Unity's
 `Player.log` (`~/.config/unity3d/IronGate/Valheim`, or `%USERPROFILE%\AppData\LocalLow\IronGate\Valheim`)
