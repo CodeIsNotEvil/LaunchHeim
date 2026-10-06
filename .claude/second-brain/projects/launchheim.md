@@ -1,7 +1,7 @@
 ---
 tags: [project, dotnet, qml, gaming]
 created: 2026-09-26
-updated: 2026-10-05
+updated: 2026-10-06
 status: active
 ---
 # LaunchHeim
@@ -91,9 +91,12 @@ accounts) and CurseForge (API key).
   is started directly rather than through Steam. `SteamClient` starts Steam and waits for the login
   first (2026-09-30). Linux Steam no longer writes `ActiveProcess/ActiveUser` to `registry.vdf` (only
   `HKLM/.../SteamPID`), so the first version waited forever. On Linux the login comes from
-  `logs/connection_log.txt` (last state `Logged On`, newer than the `steam` process); Windows keeps
-  the registry value. The pid Steam records is not trusted: Flatpak Steam writes its sandbox pid, and
-  `~/.steam/steam.pid` is left stale after Steam exits.
+  `logs/connection_log.txt` (last state `Logged On`, newer than the `steam` process). Windows read
+  the registry value until 2026-10-06, when the owner found the check only worked on Linux; it now
+  reads the same log under `SteamPath`. The pid Steam records is not trusted: Flatpak Steam writes its
+  sandbox pid, and `~/.steam/steam.pid` is left stale after Steam exits. A Steam run as administrator
+  may refuse its start time to Windows' `Process.StartTime`, so that counts as running, with any login
+  in the log accepted.
 - .NET can't marshal `string[]` as UTF-8 (`LPUTF8Str` isn't allowed as an `ArraySubType`). Pass
   `LPWStr` and take `const QChar*` natively (2026-09-28).
 

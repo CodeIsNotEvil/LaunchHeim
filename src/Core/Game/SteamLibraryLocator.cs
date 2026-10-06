@@ -44,8 +44,9 @@ public sealed class SteamLibraryLocator(IEnumerable<string> steamRoots, GamePlat
   }
 
   // Steam records where it lives on every start. The default folder covers a registry that was cleaned.
+  // SteamClient reads the login state from the same folder.
   [System.Runtime.Versioning.SupportedOSPlatform("windows")]
-  private static IEnumerable<string> WindowsSteamRoots()
+  internal static IEnumerable<string> WindowsSteamRoots()
   {
     using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Valve\Steam"))
     {

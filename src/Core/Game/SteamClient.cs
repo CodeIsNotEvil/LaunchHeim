@@ -22,13 +22,15 @@ public enum SteamState
 /// logged in.
 /// </para>
 /// <para>
-/// Where "logged in" comes from differs per platform. Windows keeps Steam's <c>ActiveProcess/ActiveUser</c>
-/// in the registry: 0 until a user is logged in, reset on a clean exit. Linux Steam used to mirror that
-/// key into <c>registry.vdf</c> but no longer does (checked 2026-09-30, the file only holds
-/// <c>SteamPID</c>), so there the last state in <c>logs/connection_log.txt</c> is used: <c>Logged On</c>
-/// after login, <c>Logging Off</c>/<c>Logged Off</c> on exit. A crash can leave either signal set, so it
-/// only counts while a <c>steam</c> process runs, and on Linux only when it is newer than that process.
-/// The pid Steam records is not used, because Flatpak Steam writes the pid from inside its sandbox.
+/// "Logged in" comes from the last state in Steam's <c>logs/connection_log.txt</c> on both systems:
+/// <c>Logged On</c> after login, <c>Logging Off</c>/<c>Logged Off</c> on exit. Windows used to read
+/// <c>ActiveProcess/ActiveUser</c> from the registry instead, but Steam no longer keeps that value: Linux
+/// Steam stopped mirroring it into <c>registry.vdf</c> (checked 2026-09-30, the file only holds
+/// <c>SteamPID</c>), and on Windows the check stopped working too (reported 2026-10-06).
+/// A value an older Steam left behind would also never be reset, and read as a login before there was
+/// one. A crash can leave <c>Logged On</c> as the last line too, so it only counts while a <c>steam</c>
+/// process runs and when it is newer than that process. The pid Steam records is not used, because
+/// Flatpak Steam writes the pid from inside its sandbox.
 /// </para>
 /// </remarks>
 public sealed partial class SteamClient(Func<SteamState> probe, Func<bool> start)
@@ -97,7 +99,11 @@ public sealed partial class SteamClient(Func<SteamState> probe, Func<bool> start
   {
     if (OperatingSystem.IsWindows())
     {
-      return new SteamClient(ProbeWindows, StartWindowsSteam);
+      // The same folder Valheim is found through: where the registry says Steam lives, or the default.
+      var windowsLogs = SteamLibraryLocator.WindowsSteamRoots()
+        .Select(root => Path.Combine(root, "logs", ConnectionLog))
+        .ToArray();
+      return new SteamClient(() => Probe(windowsLogs), StartWindowsSteam);
     }
 
     var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -106,14 +112,17 @@ public sealed partial class SteamClient(Func<SteamState> probe, Func<bool> start
       Path.Combine(home, ".steam", "steam", "logs", ConnectionLog),
       Path.Combine(home, ".var", "app", FlatpakId, ".local", "share", "Steam", "logs", ConnectionLog),
     ];
-    return new SteamClient(() => ProbeLinux(logs), () => StartLinuxSteam(home));
+    return new SteamClient(() => Probe(logs), () => StartLinuxSteam(home));
   }
 
   /// <summary>
   /// Whether the last connection state in Steam's <c>connection_log.txt</c> is <c>Logged On</c>, written at
   /// or after <paramref name="since"/> (local time, like the log).
   /// </summary>
-  /// <remarks>State lines look like <c>[2026-09-30 20:25:00] [Logged On, 4, 7] [U:1:…] …</c>. Other lines are skipped.</remarks>
+  /// <remarks>
+  /// State lines look like <c>[2026-09-30 20:25:00] [Logged On, 4, 7] [U:1:…] …</c>. Other lines are
+  /// skipped, and so is the <c>\r</c> a Windows line may end in.
+  /// </remarks>
   public static bool IsLoggedOn(string connectionLog, DateTime since)
   {
     var lines = connectionLog.Split('\n');
@@ -136,7 +145,7 @@ public sealed partial class SteamClient(Func<SteamState> probe, Func<bool> start
   [System.Text.RegularExpressions.GeneratedRegex(@"^\[(?<time>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] \[(?<state>[A-Za-z ]+), ")]
   private static partial System.Text.RegularExpressions.Regex StateLine();
 
-  private static SteamState ProbeLinux(string[] logs)
+  private static SteamState Probe(string[] logs)
   {
     if (SteamStartedAt() is not { } startedAt)
     {
@@ -177,31 +186,28 @@ public sealed partial class SteamClient(Func<SteamState> probe, Func<bool> start
     {
       using (process)
       {
+        DateTime started;
         try
         {
-          var started = process.StartTime;
-          oldest = oldest is { } o && o < started ? o : started;
+          started = process.StartTime;
         }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        catch (InvalidOperationException)
         {
           // Exited between listing and asking; counts as not running.
+          continue;
         }
+        catch (System.ComponentModel.Win32Exception)
+        {
+          // Access denied: Windows can refuse it for a Steam run as administrator, which still runs.
+          // Without its start time any login in the log counts, which only misleads after a crash.
+          started = DateTime.MinValue;
+        }
+
+        oldest = oldest is { } o && o < started ? o : started;
       }
     }
 
     return oldest;
-  }
-
-  [System.Runtime.Versioning.SupportedOSPlatform("windows")]
-  private static SteamState ProbeWindows()
-  {
-    if (SteamStartedAt() is null)
-    {
-      return SteamState.NotRunning;
-    }
-
-    using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Valve\Steam\ActiveProcess");
-    return key?.GetValue("ActiveUser") is int user && user != 0 ? SteamState.Ready : SteamState.Starting;
   }
 
   [System.Runtime.Versioning.SupportedOSPlatform("windows")]

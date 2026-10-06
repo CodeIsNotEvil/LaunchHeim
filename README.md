@@ -76,9 +76,12 @@ Qt variables LaunchHeim sets on itself are removed from the game's environment.
 
 **Steam first.** Started without a logged-in Steam client, Valheim only shows a black window and never
 an error. So before every launch `SteamClient` checks that a `steam` process runs and that a user is
-logged in. On Windows that is Steam's `ActiveProcess/ActiveUser` registry value. Linux Steam no longer
-writes that key to `registry.vdf`, so there the last state in `logs/connection_log.txt` has to be
-`Logged On` and newer than the running `steam` process (the Flatpak's log is checked too). If Steam isn't running, LaunchHeim starts it with `-silent` (`steam` on `PATH`, then
+logged in: the last state in Steam's `logs/connection_log.txt` has to be `Logged On` and newer than
+the running `steam` process. On Linux the native and the Flatpak log are checked; on Windows the log in
+the Steam folder the registry's `SteamPath` names (or `Program Files (x86)\Steam`). Steam's
+`ActiveProcess/ActiveUser` registry value isn't used: Linux Steam no longer writes it to
+`registry.vdf`, and on Windows it didn't follow the login either. If Steam isn't running, LaunchHeim
+starts it with `-silent` (`steam` on `PATH`, then
 `flatpak run com.valvesoftware.Steam`, and on Windows the `SteamExe` from the registry). It then waits
 up to three minutes for the login, plus a few seconds for the Steam API to settle, and the sidebar
 shows "Starting Steam" or "Waiting for Steam" meanwhile. After the timeout the launch is cancelled with
