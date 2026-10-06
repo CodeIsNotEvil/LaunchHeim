@@ -48,6 +48,15 @@ public sealed class AppSettings
 
   /// <summary>LocalSend's device fingerprint: random, made once, so phones don't list this PC twice.</summary>
   public string? PhoneSyncFingerprint { get; set; }
+
+  /// <summary>
+  /// "Don't remind me again" in the update dialog: no reminder for any version, and no check either.
+  /// Settings → About switches reminders back on.
+  /// </summary>
+  public bool UpdateRemindersDisabled { get; set; }
+
+  /// <summary>"Skip this version": no reminder for it, but again for the one after.</summary>
+  public string? SkippedUpdateVersion { get; set; }
 }
 
 /// <summary>The last launch: a server or world from the Play page, an instance, or vanilla.</summary>

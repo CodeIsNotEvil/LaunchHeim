@@ -9,6 +9,7 @@ using CINE.LaunchHeim.Core.Logging;
 using CINE.LaunchHeim.Core.Mods;
 using CINE.LaunchHeim.Core.Packs;
 using CINE.LaunchHeim.Core.Storage;
+using CINE.LaunchHeim.Core.Updates;
 using CINE.LaunchHeim.Desktop.Hosting;
 using CINE.LaunchHeim.Desktop.ViewModels;
 using Qml.Net;
@@ -92,7 +93,8 @@ public static class Program
       catalogs,
       new PackService(instances, mods, paths),
       new GameFolderImporter(instances),
-      new ImageCache(http, paths));
+      new ImageCache(http, paths),
+      new UpdateChecker(http));
 
     // A singleton instead of a context property: Qml.Net gives context-property objects JavaScript
     // ownership, so the JS garbage collector deletes the wrapper after a while and `app` turns null.

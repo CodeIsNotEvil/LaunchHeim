@@ -133,6 +133,41 @@ Rectangle {
       }
     }
 
+    // A newer LaunchHeim is out. Small on purpose: it's news, not an alarm. The dialog says the rest.
+    ItemDelegate {
+      id: updateLink
+      visible: Vm.updates.available
+      hoverEnabled: true
+      Layout.fillWidth: true
+      Layout.topMargin: 6
+      leftPadding: 10
+      rightPadding: 10
+      topPadding: 6
+      bottomPadding: 6
+      onClicked: Vm.updates.openDialog()
+
+      background: Rectangle {
+        radius: Theme.radius
+        color: updateLink.hovered ? Theme.alpha(Theme.accent, 0.15) : "transparent"
+      }
+
+      contentItem: RowLayout {
+        spacing: 8
+        Icon { iconName: "update"; size: 16; color: Theme.accent }
+        Label {
+          text: Vm.updates.shortText
+          color: Theme.accent
+          font.pointSize: Theme.small
+          font.underline: updateLink.hovered
+          wrapMode: Text.Wrap
+          Layout.fillWidth: true
+        }
+      }
+
+      ToolTip.visible: hovered
+      ToolTip.text: "How to update"
+    }
+
     Card {
       id: statusCard
       Layout.fillWidth: true

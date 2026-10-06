@@ -238,6 +238,31 @@ Item {
           }
         }
 
+        RowLayout {
+          spacing: 10
+          Layout.topMargin: 4
+          LhSwitch {
+            text: "Remind me when a new version is out"
+            checked: Vm.updates.remindersEnabled
+            onToggled: Vm.updates.setRemindersEnabled(checked)
+          }
+          Item { Layout.fillWidth: true }
+          Label {
+            visible: Vm.updates.available
+            text: "<a href=\"show\">" + Vm.updates.text + "</a>"
+            textFormat: Text.StyledText
+            linkColor: Theme.link
+            onLinkActivated: Vm.updates.openDialog()
+          }
+          LhButton {
+            text: Vm.updates.checking ? "Checking…" : "Check now"
+            iconName: "refresh"
+            kind: "ghost"
+            enabled: Vm.updates.remindersEnabled && !Vm.updates.checking
+            onClicked: Vm.updates.checkNow()
+          }
+        }
+
         LhButton {
           text: "Third-party licenses"
           iconName: "external"
