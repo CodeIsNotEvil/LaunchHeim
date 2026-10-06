@@ -20,6 +20,7 @@ QtObject {
   readonly property var debugConsole: App.debugConsole
   readonly property var play: App.play
   readonly property var phone: App.phoneSync
+  readonly property var updates: App.updates
   readonly property var selected: App.selectedInstance
   readonly property var recent: App.recentInstance
   readonly property var details: browse.details

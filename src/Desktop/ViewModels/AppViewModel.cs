@@ -8,6 +8,7 @@ using CINE.LaunchHeim.Core.Mods;
 using CINE.LaunchHeim.Core.Packs;
 using CINE.LaunchHeim.Core.Saves;
 using CINE.LaunchHeim.Core.Storage;
+using CINE.LaunchHeim.Core.Updates;
 using CINE.LaunchHeim.Desktop.Hosting;
 using Qml.Net;
 
@@ -39,7 +40,8 @@ public sealed class AppViewModel : ViewModel
     CatalogRegistry catalogs,
     PackService packs,
     GameFolderImporter importer,
-    ImageCache images)
+    ImageCache images,
+    UpdateChecker updates)
   {
     Paths = paths;
     _settingsStore = settingsStore;
@@ -58,6 +60,7 @@ public sealed class AppViewModel : ViewModel
     DebugConsole = new ConsoleViewModel(this);
     Play = new PlayViewModel(this);
     PhoneSync = new PhoneSyncViewModel(this);
+    Updates = new UpdateViewModel(this, updates);
 
     _instances = instances.LoadAll().Select(i => new InstanceViewModel(this, i)).ToList();
     _selected = _instances.FirstOrDefault(i => i.Id == SettingsModel.LastInstanceId) ?? _instances.FirstOrDefault();
@@ -90,6 +93,10 @@ public sealed class AppViewModel : ViewModel
 
   [NotifySignal]
   public PhoneSyncViewModel PhoneSync { get; }
+
+  /// <summary>The reminder that a newer LaunchHeim is out. Not called Update: QML items have an update().</summary>
+  [NotifySignal]
+  public UpdateViewModel Updates { get; }
 
   /// <summary>Not called Console: QML would read <c>console</c> as its logging object.</summary>
   [NotifySignal]
@@ -657,6 +664,7 @@ public sealed class AppViewModel : ViewModel
     }
 
     await Settings.ValidateAllAsync();
+    Updates.StartChecking();
   }
 
   private void AddInstance(InstanceViewModel instance)

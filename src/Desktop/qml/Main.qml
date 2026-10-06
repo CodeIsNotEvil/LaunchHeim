@@ -81,6 +81,7 @@ ApplicationWindow {
   SendToPhoneDialog {}
   IncomingDialog {}
   PackUpdateDialog {}
+  UpdateDialog {}
   ConsoleWindow { id: consoleWindow }
 
   Connections {

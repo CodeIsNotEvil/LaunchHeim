@@ -47,6 +47,11 @@ accounts) and CurseForge (API key).
   Compose). It edits mod lists, browses Thunderstore and shows player counts; packs and the server list
   travel over LocalSend, and a returning pack updates its instance after a confirmation
   ([[0011-launchheim-companion-syncs-packs-over-localsend]]). Its README has the SDK setup.
+- Update reminder (2026-10-06): GitHub's releases API, newest `launchheim-v*` by version, at start
+  and every 12 hours; a sidebar line and a dialog with per-install commands (`Core/Updates`). The
+  install kind comes from the package build's switch plus `/etc/os-release`, the Windows zip, or
+  install.sh's default prefix; anything else only gets the download page. Skip / never are
+  `skippedUpdateVersion` / `updateRemindersDisabled` in settings.json.
 - Distro packages use the system Qt ([[0005-launchheim-distro-packages-use-system-qt]]). Windows keeps
   the QML UI with a patched QmlNet.dll built in CI ([[0006-launchheim-windows-keeps-qml]]).
 
@@ -142,6 +147,11 @@ accounts) and CurseForge (API key).
   excludedportrange protocol=tcp`), and binding one fails with WSAEACCES "access forbidden", not "in
   use". Fixed test ports (53510+) failed the Windows CI intermittently, and a block can cover 53317 on
   a user's PC. Tests bind port 0, and both MiniHttpServers fall back to any free port (2026-10-05).
+- A Qt Quick Popup has no size in the offscreen screenshot mode ("grabToImage: item has invalid
+  dimensions"), even open. To look at a dialog, copy its content into a plain Rectangle in a one-off
+  copy of the built `qml/` folder and grab that; a `-p:Version=0.4.0` build makes the update dialog
+  appear against the real API, and `LaunchHeim.DistroPackage` in its runtimeconfig.json pretends a
+  package install (2026-10-06).
 - The emulator sits behind NAT, so LocalSend discovery can't reach it. `adb forward tcp:53630 tcp:53317`
   makes its server reachable from the PC, and the host is `10.0.2.2` from inside, which is how the
   transfer, the accept dialog and A2S were checked there (2026-10-05).
