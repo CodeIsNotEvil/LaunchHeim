@@ -7,6 +7,18 @@ Format: a `## <version> - <yyyy-mm-dd>` heading per release (the version must ma
 `src/Desktop/LaunchHeim.Desktop.csproj`), then `### Added`, `### Changed` or `### Fixed` with one
 bullet per change.
 
+## 0.5.2 - 2026-10-06
+
+### Added
+- LaunchHeim tells you when a new version is out, with one small line in the sidebar. Click it for
+  the download page and the commands that update your install (Arch, Debian/Ubuntu, Fedora, Windows,
+  or install.sh). Skip a version, or turn the reminder off and on again under Settings → About.
+
+### Fixed
+- On Windows, LaunchHeim now sees that Steam is running and logged in before it starts Valheim. It
+  read a registry value Steam no longer writes, so it started Steam again and then gave up.
+- A Steam started as administrator no longer counts as not running.
+
 ## 0.5.1 - 2026-10-05
 
 ### Fixed
