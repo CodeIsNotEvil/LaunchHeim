@@ -101,6 +101,16 @@ public class SteamClientTests
     Assert.True(SteamClient.IsLoggedOn(Log, new DateTime(2026, 9, 30, 20, 24, 58)));
   }
 
+  // Windows reads the same log, and its lines may end in \r\n.
+  [Fact]
+  public void A_log_with_windows_line_endings_is_read()
+  {
+    var log = Log.ReplaceLineEndings("\r\n");
+
+    Assert.True(SteamClient.IsLoggedOn(log, new DateTime(2026, 9, 30, 20, 24, 58)));
+    Assert.False(SteamClient.IsLoggedOn(log, new DateTime(2026, 9, 30, 20, 30, 0)));
+  }
+
   [Fact]
   public void A_login_older_than_the_running_steam_is_left_over_from_a_crash()
   {
