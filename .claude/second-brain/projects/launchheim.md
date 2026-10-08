@@ -57,6 +57,9 @@ accounts) and CurseForge (API key).
 - Code signing (2026-10-08): `build.ps1` Authenticode-signs the exe and the DLLs it compiles with a
   self-signed `CN=CodeIsNotEvil` certificate, separate from the APK key
   ([[0012-launchheim-windows-self-signed-code-signing]]). Packaging README "Code signing".
+- Windows setup (2026-10-08, for 0.5.3): Inno Setup, per user by default, optional Start menu and
+  desktop shortcuts; an installed copy updates itself with **Update now**, which runs the new setup
+  silently ([[0013-launchheim-windows-setup-with-inno-setup]]). The zip stays as the portable option.
 
 ## Gotchas
 - NetNativeLibLoader, pulled in by Qml.Net, is LGPL-3.0-or-later (Firwood Software), not MIT like
