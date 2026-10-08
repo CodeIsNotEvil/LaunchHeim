@@ -60,6 +60,7 @@ public sealed class AppViewModel : ViewModel
     BrowserPrompt = new BrowserPromptViewModel();
     DebugConsole = new ConsoleViewModel(this);
     Play = new PlayViewModel(this);
+    Screenshots = new ScreenshotsViewModel(this);
     PhoneSync = new PhoneSyncViewModel(this);
     Updates = new UpdateViewModel(this, updates);
 
@@ -95,6 +96,9 @@ public sealed class AppViewModel : ViewModel
   [NotifySignal]
   public PhoneSyncViewModel PhoneSync { get; }
 
+  [NotifySignal]
+  public ScreenshotsViewModel Screenshots { get; }
+
   /// <summary>The reminder that a newer LaunchHeim is out. Not called Update: QML items have an update().</summary>
   [NotifySignal]
   public UpdateViewModel Updates { get; }
@@ -110,7 +114,7 @@ public sealed class AppViewModel : ViewModel
   [NotifySignal]
   public string Version => Core.AppInfo.Version;
 
-  /// <summary>library, play, instance, browse or settings.</summary>
+  /// <summary>library, play, instance, browse, screenshots or settings.</summary>
   [NotifySignal]
   public string CurrentPage { get => _page; private set => Set(ref _page, value); }
 
@@ -212,6 +216,10 @@ public sealed class AppViewModel : ViewModel
     else if (page == "play")
     {
       Play.Refresh();
+    }
+    else if (page == "screenshots")
+    {
+      Screenshots.Refresh();
     }
   }
 
@@ -408,6 +416,8 @@ public sealed class AppViewModel : ViewModel
       Raise(nameof(RunningName));
       RefreshRunning();
       Play.RefreshIfLoaded();
+      // F12 in the game saved new ones.
+      Screenshots.RefreshIfLoaded();
     }
   }
 

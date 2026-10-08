@@ -55,6 +55,14 @@ Rectangle {
     }
 
     NavButton {
+      text: "Screenshots"
+      iconName: "image"
+      active: App.currentPage === "screenshots"
+      Layout.fillWidth: true
+      onClicked: App.navigate("screenshots")
+    }
+
+    NavButton {
       text: "Settings"
       iconName: "settings"
       active: App.currentPage === "settings"

@@ -96,7 +96,14 @@ public sealed class ValheimSaves(string dataDirectory, IReadOnlyList<string> clo
   /// account id inside it. Older Steam marks the last account <c>MostRecent</c>, current Steam only
   /// keeps a login <c>Timestamp</c>. Without that file every account's folder is used.
   /// </remarks>
-  internal static IReadOnlyList<string> CloudDirectoriesFor(IEnumerable<string> steamRoots)
+  internal static IReadOnlyList<string> CloudDirectoriesFor(IEnumerable<string> steamRoots) =>
+    AccountDirectories(steamRoots, SteamLibraryLocator.ValheimAppId, "remote");
+
+  /// <summary>
+  /// A folder inside <c>userdata/&lt;account&gt;</c> of the Steam account that logged in last, as for
+  /// <see cref="CloudDirectoriesFor"/>, in every Steam folder where it exists.
+  /// </summary>
+  internal static IReadOnlyList<string> AccountDirectories(IEnumerable<string> steamRoots, params string[] relative)
   {
     var result = new List<string>();
     foreach (var root in steamRoots.Where(Directory.Exists))
@@ -104,11 +111,11 @@ public sealed class ValheimSaves(string dataDirectory, IReadOnlyList<string> clo
       var userdata = Path.Combine(root, "userdata");
       if (MostRecentAccountId(Path.Combine(root, "config", "loginusers.vdf")) is { } account)
       {
-        result.Add(Path.Combine(userdata, account.ToString(CultureInfo.InvariantCulture), SteamLibraryLocator.ValheimAppId, "remote"));
+        result.Add(Path.Combine([userdata, account.ToString(CultureInfo.InvariantCulture), .. relative]));
       }
       else if (Directory.Exists(userdata))
       {
-        result.AddRange(Directory.EnumerateDirectories(userdata).Select(d => Path.Combine(d, SteamLibraryLocator.ValheimAppId, "remote")));
+        result.AddRange(Directory.EnumerateDirectories(userdata).Select(d => Path.Combine([d, .. relative])));
       }
     }
 
