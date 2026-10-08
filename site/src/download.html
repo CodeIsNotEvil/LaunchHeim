@@ -301,6 +301,9 @@ echo "{{ lh_android_sha256 }}  {{ lh_android_file }}" | sha256sum -c</code></pre
         <li>Press <strong>Play</strong> on the instance, or join a server or load a world from the
           <strong>Play</strong> page with a character and setup it remembers. The sidebar's play
           button starts whatever you played last.</li>
+        <li>Steam's overlay works in every game LaunchHeim starts: press <strong>F12</strong> for a
+          screenshot, and the <strong>Screenshots</strong> page shows them with a large preview and a
+          button to their folder.</li>
         <li>Already modded by hand? <strong>Import game folder</strong> turns it into an instance and
           leaves the original alone.</li>
         <li>On the go: <strong>Send to phone</strong> puts your instances on the Android companion. Add
@@ -321,6 +324,13 @@ echo "{{ lh_android_sha256 }}  {{ lh_android_file }}" | sha256sum -c</code></pre
           BepInEx's loader (<code>winhttp.dll</code>) has to sit next to the game, so LaunchHeim puts it
           there, switched off. Starting Valheim from Steam stays vanilla. Delete that file and
           <code>doorstop_config.ini</code> to remove it.</p>
+      </details>
+      <details>
+        <summary>Why does Steam start the game on Windows?</summary>
+        <p>On Windows, LaunchHeim asks Steam to start Valheim with the instance's settings, because Steam
+          only adds its overlay (Shift+Tab, F12 screenshots) to games it starts itself. So the launch
+          options in Valheim's Steam properties apply too. On Linux, LaunchHeim starts the game itself
+          and loads the overlay the same way Steam does.</p>
       </details>
       <p>More in the <a href="{{ repo_url }}/tree/main/Applications/LaunchHeim#readme">LaunchHeim README</a>.</p>
     </section>
