@@ -11,6 +11,7 @@ public static class UpdateCommands
     InstallKind.Debian => Package(update, "_amd64.deb", "sudo apt install"),
     InstallKind.Fedora => Package(update, ".x86_64.rpm", "sudo dnf install"),
     InstallKind.Windows => Windows(update, appDirectory),
+    InstallKind.WindowsSetup => WindowsSetup(update),
     InstallKind.InstallScript =>
     [
       "# in your MyMonoRepo checkout",
@@ -24,6 +25,19 @@ public static class UpdateCommands
   // so all three download first and install the local file, as the download page explains.
   private static IReadOnlyList<string> Package(AvailableUpdate update, string suffix, string install) =>
     update.Asset(suffix) is { } asset ? [$"curl -LO {asset.Url}", $"{install} ./{asset.Name}"] : [];
+
+  /// <remarks>
+  /// What "Update now" does, for doing it by hand. /SILENT asks nothing: the setup reuses the folder,
+  /// the shortcuts and the install mode chosen the first time, and it closes LaunchHeim if it's open.
+  /// </remarks>
+  private static IReadOnlyList<string> WindowsSetup(AvailableUpdate update) =>
+    update.WindowsSetup is { } asset
+      ?
+      [
+        $"Invoke-WebRequest -Uri \"{asset.Url}\" -OutFile \"$env:TEMP\\{asset.Name}\"",
+        $"& \"$env:TEMP\\{asset.Name}\" /SILENT",
+      ]
+      : [];
 
   /// <remarks>
   /// The zip holds one folder, <c>LaunchHeim</c>. It's unpacked to the temporary folder and its contents

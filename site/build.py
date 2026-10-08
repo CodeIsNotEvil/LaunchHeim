@@ -54,6 +54,7 @@ ASSETS = {
 
 # Which release file is which download, by how its name ends.
 LAUNCHHEIM_FILES = {
+  "windows_setup": "-win-x64-setup.exe",
   "windows": "-win-x64.zip",
   "arch": ".pkg.tar.zst",
   "deb": "_amd64.deb",

@@ -6,7 +6,8 @@ It is built on the software listed below. Each part keeps its own license; the f
 the licenses folder next to this file. Which parts a copy of LaunchHeim contains depends on how it
 was installed:
 
-  Windows zip         everything below
+  Windows setup, zip  everything below; Inno Setup only in the setup (the installer itself and the
+                      uninstaller it leaves next to LaunchHeim.exe)
   .deb package        everything except Qt, Mesa and the Visual C++ runtime (it uses the system Qt
                       and ships its own .NET runtime)
   pacman, .rpm        everything except Qt, Mesa, the Visual C++ runtime and the .NET runtime
@@ -24,7 +25,7 @@ Company Ltd. and other contributors, and is used here under the GNU Lesser Gener
 version 3 (licenses/LGPL-3.0.txt), which builds on the GNU General Public License version 3
 (licenses/GPL-3.0.txt). Qt's own site: https://www.qt.io
 
-The Windows zip contains the unmodified Qt 5.15.2 MSVC 2019 64-bit binaries (the Qt5*.dll files
+The Windows setup and zip contain the unmodified Qt 5.15.2 MSVC 2019 64-bit binaries (the Qt5*.dll files
 and the plugin folders next to LaunchHeim.exe). The corresponding source code is available from
 the Qt Project:
 
@@ -49,7 +50,7 @@ licenses/Qt-third-party.txt. Two of them ask for this credit:
   Portions of this software are copyright (C) 2019 The FreeType Project (www.freetype.org).
   All rights reserved.
 
-The Windows zip also contains ANGLE (libEGL.dll, libGLESv2.dll, BSD-3-Clause; part of Qt and listed
+The Windows setup and zip also contain ANGLE (libEGL.dll, libGLESv2.dll, BSD-3-Clause; part of Qt and listed
 in licenses/Qt-third-party.txt) and opengl32sw.dll, a software OpenGL renderer built from Mesa 11.2.2
 and LLVM (MIT and University of Illinois/NCSA, see licenses/Mesa-llvmpipe.txt).
 
@@ -107,7 +108,7 @@ https://www.newtonsoft.com/json
 
 
 ------------------------------------------------------------------------------
-.NET 10 runtime (Windows zip and .deb only)
+.NET 10 runtime (Windows and .deb only)
 ------------------------------------------------------------------------------
 
 Copyright (c) .NET Foundation and Contributors. MIT License (licenses/dotnet-runtime.txt). The
@@ -116,13 +117,22 @@ https://github.com/dotnet/runtime
 
 
 ------------------------------------------------------------------------------
-Microsoft Visual C++ runtime (Windows zip only)
+Microsoft Visual C++ runtime (Windows only)
 ------------------------------------------------------------------------------
 
-msvcp140*.dll, vcruntime140*.dll, concrt140.dll, vccorlib140.dll and vc_redist.x64.exe are
-Copyright (c) Microsoft Corporation. They are not open source; they are redistributed unmodified
+msvcp140*.dll, vcruntime140*.dll, concrt140.dll, vccorlib140.dll and (in the zip) vc_redist.x64.exe
+are Copyright (c) Microsoft Corporation. They are not open source; they are redistributed unmodified
 as "Distributable Code" under the Microsoft Visual Studio license terms, which also apply to you:
 https://visualstudio.microsoft.com/license-terms/
+
+
+------------------------------------------------------------------------------
+Inno Setup 6 (Windows setup only)
+------------------------------------------------------------------------------
+
+The Windows setup and the uninstaller it installs (unins000.exe) are made with Inno Setup.
+Copyright (C) 1997-2026 Jordan Russell, portions Copyright (C) 2000-2026 Martijn Laan. Inno Setup
+License (licenses/InnoSetup.txt). https://jrsoftware.org/isinfo.php
 
 
 ------------------------------------------------------------------------------

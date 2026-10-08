@@ -11,16 +11,19 @@
      native/app_icon.cpp, which gives the window and the taskbar button the LaunchHeim icon.
   3. Copies the Qt 5.15 it was built against next to LaunchHeim.exe (windeployqt), plus the Visual C++
      runtime, so the folder runs on any Windows 10 or 11 without installing anything.
-  4. Signs LaunchHeim.exe and the DLLs this build compiled with the self-signed LaunchHeim certificate,
-     when LAUNCHHEIM_SIGNING_PFX names its .pfx (password in LAUNCHHEIM_SIGNING_PASSWORD). See
-     packaging/README.md, "Code signing".
-  5. Zips it, and with -Smoke starts it offscreen and saves a screenshot of every page.
+  4. Signs LaunchHeim.exe and the DLLs this build compiled with the self-signed LaunchHeim certificate
+     (sign.ps1), when LAUNCHHEIM_SIGNING_PFX names its .pfx (password in LAUNCHHEIM_SIGNING_PASSWORD).
+     See packaging/README.md, "Code signing".
+  5. Zips it.
+  6. Compiles the setup (launchheim.iss) from the same folder with Inno Setup 6, signed the same way.
+  With -Smoke it then starts the app offscreen and saves a screenshot of every page, and installs,
+  updates and uninstalls the setup for the current user.
 
   The GitHub workflow .github/workflows/launchheim-windows.yml runs exactly this script.
 
   Needs: Visual Studio 2022 (or its Build Tools) with the C++ workload, Qt 5.15.2 msvc2019_64
   (the Qt online installer or `aqt install-qt windows desktop 5.15.2 win64_msvc2019_64`), the .NET 10
-  SDK and git.
+  SDK, Inno Setup 6 (`winget install JRSoftware.InnoSetup`; GitHub's Windows runners have it) and git.
 
 .EXAMPLE
   .\packaging\windows\build.ps1 -QtDir C:\Qt\5.15.2\msvc2019_64
@@ -128,61 +131,43 @@ if (-not $crt) { throw "The Visual C++ runtime was not found in $env:VCToolsRedi
 Copy-Item (Join-Path $crt.FullName '*.dll') $package
 
 # 4. Authenticode signatures, so anyone can see these files come from LaunchHeim's build and weren't
-# changed since. Only what this build compiled is signed: Qt's DLLs and the Visual C++ runtime stay as
-# their makers shipped them, and .NET's own files already carry Microsoft's signature.
+# changed since. Only what this build compiled is signed: Qt's DLLs and the Visual C++ runtime stay as their
+# makers shipped them, and .NET's own files already carry Microsoft's signature.
 if ($SigningPfx) {
-  # The committed certificate is what the download page and the release notes tell people to expect,
-  # so a .pfx holding any other key (a stale secret, a test key) fails here instead of shipping.
-  $expected = [Security.Cryptography.X509Certificates.X509Certificate2]::new((Join-Path $PSScriptRoot 'launchheim-codesign.cer'))
-  # EphemeralKeySet: only the thumbprint is needed here, so the key isn't written to the user's key store.
-  $actual = [Security.Cryptography.X509Certificates.X509Certificate2]::new($SigningPfx, $env:LAUNCHHEIM_SIGNING_PASSWORD,
-    [Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet)
-  if ($actual.Thumbprint -ne $expected.Thumbprint) {
-    throw "$SigningPfx holds certificate $($actual.Thumbprint), not $($expected.Thumbprint) from launchheim-codesign.cer."
-  }
-
-  # On PATH in a Developer PowerShell (and after msvc-dev-cmd in CI), otherwise in the newest Windows SDK.
-  $signtool = (Get-Command signtool.exe -ErrorAction SilentlyContinue).Source
-  if (-not $signtool) {
-    $signtool = Get-ChildItem (Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin\*\x64\signtool.exe') -ErrorAction SilentlyContinue |
-      Sort-Object FullName | Select-Object -Last 1 -ExpandProperty FullName
-  }
-  if (-not $signtool) { throw 'signtool.exe was not found. It comes with the Windows SDK.' }
-
-  $ownFiles = 'LaunchHeim.exe', 'LaunchHeim.dll', 'LaunchHeim.Core.dll', 'QmlNet.dll', 'LaunchHeimAppIcon.dll' |
-    ForEach-Object { Join-Path $package $_ }
-  # The time stamp keeps a signature valid after the certificate expires (2036). A second server in case
-  # the first is down; signing again simply replaces a signature from a failed attempt. Not Invoke-Checked:
-  # its error message would print the password.
-  $signed = $false
-  foreach ($timestampServer in 'http://timestamp.digicert.com', 'http://timestamp.sectigo.com') {
-    & $signtool sign /fd sha256 /f $SigningPfx /p $env:LAUNCHHEIM_SIGNING_PASSWORD /tr $timestampServer /td sha256 `
-      /d LaunchHeim /du 'https://codeisnotevil.github.io/MyMonoRepo/' @ownFiles
-    if ($LASTEXITCODE -eq 0) { $signed = $true; break }
-    Write-Host "Signing with the time stamp server $timestampServer failed."
-  }
-  if (-not $signed) { throw 'signtool could not sign the files.' }
-
-  # Windows doesn't trust a self-signed certificate, so the status is UnknownError rather than Valid. What
-  # matters is that the signature covers the file as shipped (no HashMismatch), is ours, and is time stamped.
-  foreach ($file in $ownFiles) {
-    $signature = Get-AuthenticodeSignature $file
-    if ($signature.Status -in 'NotSigned', 'HashMismatch', 'NotSupportedFileFormat' -or
-      $signature.SignerCertificate.Thumbprint -ne $expected.Thumbprint -or -not $signature.TimeStamperCertificate) {
-      throw "$file has no valid LaunchHeim signature: $($signature.Status) $($signature.StatusMessage)"
-    }
-  }
-  Write-Host "Signed $($ownFiles.Count) files with certificate $($expected.Thumbprint)"
+  # sign.ps1 reads both from the environment, and so does the copy of it that ISCC starts in step 6.
+  $env:LAUNCHHEIM_SIGNING_PFX = $SigningPfx
+  & (Join-Path $PSScriptRoot 'sign.ps1') @('LaunchHeim.exe', 'LaunchHeim.dll', 'LaunchHeim.Core.dll', 'QmlNet.dll', 'LaunchHeimAppIcon.dll' |
+    ForEach-Object { Join-Path $package $_ })
 }
 else {
   Write-Host 'Not signed: no LAUNCHHEIM_SIGNING_PFX.'
 }
 
-# 5. Zip, then optionally a smoke test
+# 5. The portable zip
 $zip = Join-Path $OutputDir "LaunchHeim-$version-win-x64.zip"
 Remove-Item -Force $zip -ErrorAction SilentlyContinue
 Compress-Archive -Path $package -DestinationPath $zip
 Write-Host "Built $zip"
+
+# 6. The setup, from the same signed folder
+$iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+if (-not $iscc) {
+  $iscc = @((Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'), (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe'),
+    (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe')) | Where-Object { Test-Path $_ } | Select-Object -First 1
+}
+if (-not $iscc) { throw 'Inno Setup 6 (ISCC.exe) was not found. Install it with: winget install JRSoftware.InnoSetup' }
+$setup = Join-Path $OutputDir "LaunchHeim-$version-win-x64-setup.exe"
+Remove-Item -Force $setup -ErrorAction SilentlyContinue
+$isccArguments = @('/Q', "/DAppVersion=$version", "/DSourceDir=$package", "/DOutputDir=$OutputDir")
+if ($SigningPfx) {
+  # ISCC runs this for the setup and the uninstaller; $q is its quote and $f the quoted file. This same
+  # PowerShell runs sign.ps1, which takes the password from the environment: ISCC echoes the command.
+  $powershell = (Get-Process -Id $PID).Path
+  $isccArguments += '/DSign', "/Slaunchheim=`$q$powershell`$q -NoProfile -ExecutionPolicy Bypass -File `$q$(Join-Path $PSScriptRoot 'sign.ps1')`$q `$f"
+}
+Invoke-Checked $iscc ($isccArguments + (Join-Path $PSScriptRoot 'launchheim.iss'))
+if (-not (Test-Path $setup)) { throw "ISCC produced no $setup." }
+Write-Host "Built $setup"
 
 if ($Smoke) {
   # The real Windows platform, as users get it. Qt's offscreen platform has no font database on
@@ -213,5 +198,65 @@ if ($Smoke) {
   if ($register.ExitCode -ne 0 -or -not "$command".Contains("`"$exe`"")) { Write-Host '::error::nxm:// registration failed'; $failed = $true }
 
   if (Test-Path (Join-Path $env:USERPROFILE '.qmlnet-qt-runtimes')) { Write-Host '::error::downloaded a Qt runtime instead of using the shipped one'; $failed = $true }
+
+  # The setup: a first install with both shortcuts, an update that drops the desktop one, an update that
+  # changes nothing (it must remember the choices), then the uninstall. Per user, so neither CI nor a
+  # developer's machine gets a UAC prompt. A machine where LaunchHeim is already installed is left alone.
+  $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{AA9F6EE2-43EF-4C30-A1B6-44AEFFC95ECB}_is1'
+  if (Test-Path $uninstallKey) {
+    Write-Host '::warning::LaunchHeim is installed for this user, so the setup was not tested.'
+  }
+  else {
+    $installed = Join-Path $env:LOCALAPPDATA 'Programs\LaunchHeim'
+    $installedExe = Join-Path $installed 'LaunchHeim.exe'
+    $startMenuLink = Join-Path ([Environment]::GetFolderPath('Programs')) 'LaunchHeim.lnk'
+    $desktopLink = Join-Path ([Environment]::GetFolderPath('Desktop')) 'LaunchHeim.lnk'
+    $quiet = '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER'
+
+    function Test-Setup([string]$Step, [string[]]$Arguments, [bool]$StartMenu, [bool]$Desktop) {
+      $log = Join-Path $OutputDir "test-windows-setup-$Step.log"
+      $run = Start-Process $setup -ArgumentList ($quiet + $Arguments + "/LOG=`"$log`"") -Wait -PassThru
+      $ok = $run.ExitCode -eq 0 -and (Test-Path $installedExe) -and -not (Test-Path (Join-Path $installed 'vc_redist.x64.exe')) -and
+        (Test-Path $startMenuLink) -eq $StartMenu -and (Test-Path $desktopLink) -eq $Desktop -and
+        (Get-ItemProperty $uninstallKey -ErrorAction SilentlyContinue).DisplayVersion -eq $version
+      Write-Host "setup ($Step): exit $($run.ExitCode), Start menu $(Test-Path $startMenuLink), desktop $(Test-Path $desktopLink)"
+      if (-not $ok) { Write-Host "::error::the setup's $Step went wrong, see $log"; $script:failed = $true }
+    }
+
+    Test-Setup 'install' @('/TASKS=startmenu,desktopicon') $true $true
+
+    # The installed copy runs, and knows the setup installed it ("Update now" depends on that).
+    $env:LAUNCHHEIM_SCREENSHOT = Join-Path $OutputDir 'test-windows-installed.png'
+    $env:LAUNCHHEIM_SCREENSHOT_PAGE = 'settings'
+    $env:LAUNCHHEIM_SCREENSHOT_DELAY = '8000'
+    $log = Join-Path $OutputDir 'test-windows-installed.log'
+    $process = Start-Process $installedExe -PassThru -RedirectStandardError $log -RedirectStandardOutput "$log.out"
+    if (-not $process.WaitForExit(120000)) { $process.Kill(); Write-Host '::error::the installed copy timed out'; $failed = $true }
+    Remove-Item Env:\LAUNCHHEIM_SCREENSHOT, Env:\LAUNCHHEIM_SCREENSHOT_PAGE, Env:\LAUNCHHEIM_SCREENSHOT_DELAY
+    # Info lines only go to LaunchHeim's own log; the newest "Installed as" is this start's.
+    $appLog = Join-Path $env:LOCALAPPDATA 'LaunchHeim\Logs\launchheim.log'
+    $match = Select-String -Path $appLog -Pattern 'Installed as (\w+)\.' -ErrorAction SilentlyContinue | Select-Object -Last 1
+    $kind = if ($match) { $match.Matches[0].Groups[1].Value } else { 'nothing logged' }
+    Write-Host "installed copy: installed as $kind"
+    if ($kind -ne 'WindowsSetup') {
+      Get-Content $log, "$log.out" -ErrorAction SilentlyContinue | Write-Host
+      Write-Host "::error::the installed copy doesn't know the setup installed it"; $failed = $true
+    }
+
+    Test-Setup 'update' @('/TASKS=startmenu') $true $false
+    Test-Setup 'update-again' @() $true $false
+
+    # Uninstalling also removes the nxm:// handler, as long as it still points at the installed copy.
+    Start-Process $installedExe -ArgumentList '--register-desktop' -Wait | Out-Null
+    # The uninstaller runs a copy of itself from %TEMP%, so the folder may outlive the process briefly.
+    Start-Process (Join-Path $installed 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait | Out-Null
+    for ($i = 0; $i -lt 60 -and (Test-Path $installedExe); $i++) { Start-Sleep -Seconds 1 }
+    $left = @($installedExe, $startMenuLink, $desktopLink, $uninstallKey, 'HKCU:\Software\Classes\nxm') | Where-Object { Test-Path $_ }
+    Write-Host "uninstall: left behind $(if ($left) { $left -join ', ' } else { 'nothing' })"
+    if ($left) { Write-Host '::error::the uninstall left LaunchHeim behind'; $failed = $true }
+    # Instances and settings belong to the user and outlive the app.
+    if (-not (Test-Path (Join-Path $env:LOCALAPPDATA 'LaunchHeim'))) { Write-Host '::error::the uninstall removed LaunchHeim''s data'; $failed = $true }
+  }
+
   if ($failed) { throw 'The smoke test failed.' }
 }

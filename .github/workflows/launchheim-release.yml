@@ -1,6 +1,6 @@
 # Builds every LaunchHeim download and publishes them as one GitHub release.
 #
-#   tag launchheim-v1.2.3    Windows zip, Arch package, .deb, .rpm and the Android APK, tested, then released
+#   tag launchheim-v1.2.3    Windows setup and zip, Arch package, .deb, .rpm and the Android APK, tested, then released
 #   Run workflow (manual)    the same builds and tests as a dry run; the files stay as artifacts
 #   pull request             the same dry run when the packaging or this workflow changes
 #
@@ -127,13 +127,14 @@ jobs:
 
           | System | File | Install |
           |---|---|---|
-          | Windows 10/11 | \`LaunchHeim-${version}-win-x64.zip\` | unzip anywhere, run \`LaunchHeim.exe\` |
+          | Windows 10/11 | \`LaunchHeim-${version}-win-x64-setup.exe\` | run it; installed copies update themselves from LaunchHeim |
+          | Windows 10/11, portable | \`LaunchHeim-${version}-win-x64.zip\` | unzip anywhere, run \`LaunchHeim.exe\` |
           | Arch, CachyOS | \`launchheim-git-*.pkg.tar.zst\` | download it, then \`sudo pacman -U ./<file>\` |
           | Debian 13, Ubuntu 24.04+ | \`launchheim_${version}-1_amd64.deb\` | \`sudo apt install ./<file>\` |
           | Fedora, RHEL 9/10 (EPEL) | \`launchheim-${version}-1.x86_64.rpm\` | \`sudo dnf install ./<file>\` |
           | Android 8+ (companion app) | \`LaunchHeimCompanion-${version}.apk\` | open it on the phone and allow installing from that app |
 
-          \`LaunchHeim.exe\` and LaunchHeim's own DLLs in the Windows zip are signed by \`CN=CodeIsNotEvil\`, certificate
+          The Windows setup, \`LaunchHeim.exe\` and LaunchHeim's own DLLs are signed by \`CN=CodeIsNotEvil\`, certificate
           thumbprint \`284F5384B189984492629622EDC4A40646C5D8F6\`. The certificate is self-signed, so Windows still
           calls the publisher unknown; the thumbprint is what shows the files are ours and unchanged.
 
@@ -143,7 +144,7 @@ jobs:
           \`\`\`
           EOF
           # The same digests GitHub stores per asset; the download page shows them too.
-          (cd artifacts && sha256sum LaunchHeim-win-x64/*.zip LaunchHeim-linux/*.pkg.tar.zst \
+          (cd artifacts && sha256sum LaunchHeim-win-x64/*-setup.exe LaunchHeim-win-x64/*.zip LaunchHeim-linux/*.pkg.tar.zst \
             LaunchHeim-linux/*.deb LaunchHeim-linux/*.rpm LaunchHeimCompanion-apk/*.apk) | sed 's|  .*/|  |' >> notes.md
           cat >> notes.md <<EOF
           \`\`\`
@@ -151,6 +152,7 @@ jobs:
           Getting started: https://codeisnotevil.github.io/MyMonoRepo/download.html#launchheim
           EOF
           gh release create "$TAG" \
+            artifacts/LaunchHeim-win-x64/*-setup.exe \
             artifacts/LaunchHeim-win-x64/*.zip \
             artifacts/LaunchHeim-linux/*.pkg.tar.zst \
             artifacts/LaunchHeim-linux/*.deb \

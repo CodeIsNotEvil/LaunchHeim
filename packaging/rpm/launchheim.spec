@@ -53,6 +53,9 @@ tar -xf %{SOURCE0} -C %{buildroot}
 %{_datadir}/metainfo/io.github.codeisnotevil.LaunchHeim.metainfo.xml
 
 %changelog
+* Thu Oct 08 2026 CodeIsNotEvil <noreply@github.com> - 0.5.3-1
+- Signed Windows build (see CHANGELOG.md)
+
 * Tue Oct 06 2026 CodeIsNotEvil <noreply@github.com> - 0.5.2-1
 - Update reminder, and Steam detection fixed on Windows (see CHANGELOG.md)
 

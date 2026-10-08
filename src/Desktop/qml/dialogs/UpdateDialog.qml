@@ -5,7 +5,8 @@ import QtQuick.Layouts 1.15
 import "../components"
 
 // A newer LaunchHeim: the download page, the commands that update this kind of install, and the two
-// ways to stop being told (this version, or ever).
+// ways to stop being told (this version, or ever). A copy the Windows setup installed gets "Update now",
+// which downloads and starts the new setup, then closes LaunchHeim so its files can be replaced.
 LhDialog {
   id: dialog
 
@@ -24,16 +25,26 @@ LhDialog {
     copied.visible = true
   }
 
-  // TextEdit is the only way QML 2 reaches the clipboard (the console window does the same).
-  TextEdit { id: clipboard; visible: false }
+  Connections {
+    target: dialog.updates
+    function onQuitRequested() { Qt.quit() }
+  }
 
   ColumnLayout {
     anchors.fill: parent
     spacing: 12
 
+    // TextEdit is the only way QML 2 reaches the clipboard (the console window does the same). It lives
+    // in the layout, which skips it while invisible: a second item next to the layout would leave the
+    // dialog without an implicit content size, and its background then covered only the title.
+    TextEdit { id: clipboard; visible: false }
+
     Label {
-      text: "You have " + App.version + ". Do you want to open the download page to get the new version? "
-        + "Your instances and settings are kept when you update."
+      text: dialog.updates.canInstall
+        ? "You have " + App.version + ". Update now to download and install the new version; LaunchHeim "
+          + "closes and starts again when it's done. Your instances and settings are kept."
+        : "You have " + App.version + ". Do you want to open the download page to get the new version? "
+          + "Your instances and settings are kept when you update."
       wrapMode: Text.Wrap
       Layout.fillWidth: true
     }
@@ -93,6 +104,23 @@ LhDialog {
       Layout.fillWidth: true
     }
 
+    // Downloading the setup, then why it failed if it did.
+    ProgressBar {
+      visible: dialog.updates.installing
+      from: 0
+      to: 1
+      value: dialog.updates.installProgress
+      Layout.fillWidth: true
+    }
+
+    Label {
+      visible: dialog.updates.installError.length > 0
+      text: dialog.updates.installError
+      color: Theme.negative
+      wrapMode: Text.Wrap
+      Layout.fillWidth: true
+    }
+
     // Two rows: four buttons side by side are wider than the dialog, and a RowLayout then pushes the
     // whole dialog wider instead of shrinking.
     RowLayout {
@@ -108,7 +136,20 @@ LhDialog {
       spacing: 8
 
       LhButton { text: "Not now"; kind: "ghost"; onClicked: dialog.updates.closeDialog() }
-      LhButton { text: "Open download page"; kind: "primary"; iconName: "external"; onClicked: dialog.updates.openDownloadPage() }
+      LhButton {
+        text: "Open download page"
+        kind: dialog.updates.canInstall ? "ghost" : "primary"
+        iconName: "external"
+        onClicked: dialog.updates.openDownloadPage()
+      }
+      LhButton {
+        visible: dialog.updates.canInstall
+        enabled: !dialog.updates.installing
+        text: dialog.updates.installing ? "Downloading…" : "Update now"
+        kind: "primary"
+        iconName: "download"
+        onClicked: dialog.updates.installNow()
+      }
     }
   }
 }

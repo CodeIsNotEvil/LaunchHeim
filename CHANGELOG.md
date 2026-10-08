@@ -10,10 +10,20 @@ bullet per change.
 ## 0.5.3 - 2026-10-08
 
 ### Added
-- The Windows version is signed: `LaunchHeim.exe` and LaunchHeim's own DLLs carry a signature from
+- A setup for Windows. It installs LaunchHeim for you or for all users, and asks whether you want a
+  Start menu entry and a desktop shortcut. It also adds LaunchHeim to Windows' list of apps, so you
+  can uninstall it there; your instances and settings stay.
+- On Windows, **Update now** in the update reminder downloads the new version, installs it and starts
+  LaunchHeim again. This works for copies installed with the setup; the portable zip still shows
+  the commands.
+- The Windows version is signed: the setup, `LaunchHeim.exe` and LaunchHeim's own DLLs carry a signature from
   `CodeIsNotEvil`, certificate thumbprint `284F5384B189984492629622EDC4A40646C5D8F6`. It shows the
   files come from LaunchHeim's build and weren't changed since. The certificate is self-signed, so
   Windows still calls the publisher unknown. The download page shows how to check it.
+
+### Fixed
+- The update reminder's dialog now has its background behind all of its text and buttons, not just
+  the title.
 
 ## 0.5.2 - 2026-10-06
 

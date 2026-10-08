@@ -130,25 +130,52 @@ rpm -ql launchheim
 
 ## Windows 10 / 11
 
-There's no installer yet. The Windows build is a portable folder:
+### Setup (recommended)
 
-1. Download `LaunchHeim-<version>-win-x64.zip` from the
+1. Download `LaunchHeim-<version>-win-x64-setup.exe` from the
    [download page](https://codeisnotevil.github.io/MyMonoRepo/download.html#launchheim) (or the
-   `launchheim-v*` release on GitHub) and unzip it anywhere, for example
-   `%LOCALAPPDATA%\Programs\LaunchHeim`. Between releases, every change's zip is an artifact of the
-   *LaunchHeim Windows* workflow run.
-2. Start `LaunchHeim.exe`. .NET, Qt and the Visual C++ runtime are included.
-3. Settings → *Handle "Mod Manager Download" links* → Register, so Nexus links open LaunchHeim.
-4. To update, replace the folder. Instances live in `%LOCALAPPDATA%\LaunchHeim` and are kept. To
-   uninstall, delete the folder and the `HKCU\Software\Classes\nxm` registry key.
+   `launchheim-v*` release on GitHub) and run it. .NET, Qt and the Visual C++ runtime are included.
+2. Choose *Install for me only* (the default: `%LOCALAPPDATA%\Programs\LaunchHeim`, no administrator
+   needed) or *Install for all users* (`C:\Program Files\LaunchHeim`, asks for an administrator).
+3. Tick the shortcuts you want: a Start menu entry (ticked) and a desktop shortcut (not ticked).
+4. Settings → *Handle "Mod Manager Download" links* → Register, so Nexus links open LaunchHeim.
 
-It's built by `windows/build.ps1` (see the app README's Windows section), which needs MSVC, so it can't
-be built from Linux.
+**Updating.** When a new version is out, LaunchHeim's update reminder offers *Update now*. It
+downloads the new setup, checks it against the SHA-256 GitHub recorded for the file, runs it without
+questions (`/SILENT`: same folder, same shortcuts, same install mode) and starts LaunchHeim again.
+Running a newer setup by hand does the same with the wizard. An all-users install asks for an
+administrator each time.
+
+**Uninstalling.** *Settings → Apps → LaunchHeim → Uninstall*, or `unins000.exe` in the install folder.
+It removes the program, its shortcuts and the `nxm://` handler if it still points at LaunchHeim.
+Instances and settings stay in `%LOCALAPPDATA%\LaunchHeim` and `%APPDATA%\LaunchHeim`; delete those
+folders to remove them too.
+
+The setup is `windows/launchheim.iss`, compiled with [Inno Setup](https://jrsoftware.org/isinfo.php) 6.
+Its `AppId` must never change: it's how a newer setup finds the installed copy, and how LaunchHeim
+(`src/Desktop/Hosting/WindowsSetup.cs`) knows the setup installed it, which is what offers *Update now*.
+For scripted installs: `/VERYSILENT /CURRENTUSER` (or `/ALLUSERS`), `/TASKS="startmenu,desktopicon"`,
+`/DIR="<folder>"`.
+
+### Portable zip
+
+`LaunchHeim-<version>-win-x64.zip` has the same files without installing anything:
+
+1. Unzip it anywhere and start `LaunchHeim.exe`. Between releases, every change's zip and setup are an
+   artifact of the *LaunchHeim Windows* workflow run.
+2. To update, replace the folder (the update reminder shows the PowerShell commands). Instances live
+   in `%LOCALAPPDATA%\LaunchHeim` and are kept. To uninstall, delete the folder and the
+   `HKCU\Software\Classes\nxm` registry key.
+
+Both are built by `windows/build.ps1` (see the app README's Windows section), which needs MSVC and
+Inno Setup 6, so they can't be built from Linux. With `-Smoke` it also installs the setup for the
+current user, updates it twice (dropping the desktop shortcut, then changing nothing) and uninstalls
+it, checking the files, shortcuts, uninstall entry and `nxm://` key at each step.
 
 ### Code signing
 
-`LaunchHeim.exe`, `LaunchHeim.dll`, `LaunchHeim.Core.dll`, `QmlNet.dll` and `LaunchHeimAppIcon.dll`
-carry an Authenticode signature from a **self-signed** certificate, so anyone can see who built them
+The setup and its uninstaller, `LaunchHeim.exe`, `LaunchHeim.dll`, `LaunchHeim.Core.dll`, `QmlNet.dll`
+and `LaunchHeimAppIcon.dll` carry an Authenticode signature from a **self-signed** certificate, so anyone can see who built them
 and that nothing changed them since:
 
 | | |
@@ -178,8 +205,9 @@ shipped them, and .NET's files already have Microsoft's signature. Signatures ar
 (DigiCert, Sectigo as the fallback), so they stay valid after the certificate expires.
 
 `build.ps1` signs when `LAUNCHHEIM_SIGNING_PFX` names the `.pfx` and `LAUNCHHEIM_SIGNING_PASSWORD`
-holds its password. It refuses a `.pfx` whose certificate isn't the committed `.cer`, and checks
-every signature afterwards. In CI the `.pfx` and its password are the secrets
+holds its password. The signing itself is `windows/sign.ps1`, which Inno Setup's compiler also runs
+for the setup; it reads the password from the environment because ISCC prints the command it runs. It
+refuses a `.pfx` whose certificate isn't the committed `.cer`, and checks every signature afterwards. In CI the `.pfx` and its password are the secrets
 `LAUNCHHEIM_WINDOWS_SIGNING_PFX` (base64) and `LAUNCHHEIM_WINDOWS_SIGNING_PASSWORD`. Builds without
 them are unsigned, and a tagged release fails without them. The key was made once with OpenSSL:
 
@@ -222,18 +250,18 @@ QML imports to packages, and it can't see libraries that are loaded at runtime r
 
 ```fish
 # 1. bump <Version> in Directory.Build.props, add its section to CHANGELOG.md, and merge it
-git tag launchheim-v0.5.2
-git push origin launchheim-v0.5.2
+git tag launchheim-v0.5.3
+git push origin launchheim-v0.5.3
 ```
 
 The tag starts `.github/workflows/launchheim-release.yml`:
 1. It checks that the tag matches `<Version>` in `Directory.Build.props` and that `CHANGELOG.md` has
    a section for it. That section opens the release notes, and the download page shows every version.
-2. It builds the Windows zip (through the Windows workflow, signed and smoke-tested), plus the Arch
+2. It builds the Windows setup and zip (through the Windows workflow, signed and smoke-tested), plus the Arch
    package, the .deb and the .rpm (`build-packages.sh deb rpm arch` on Ubuntu), and the Android
    companion's APK, signed with the release key (`android/README.md` "Releases").
 3. It installs the .deb and .rpm in Debian and Fedora containers.
-4. It publishes all five files as the GitHub release `launchheim-v0.5.2`.
+4. It publishes all six files as the GitHub release `launchheim-v0.5.3`.
 
 The download page picks the new files up by itself. Starting the workflow by hand (*Run workflow*)
 does the same builds and tests as a dry run, without a release.
