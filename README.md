@@ -268,7 +268,9 @@ The same QML UI runs on Windows. The differences:
 Building needs Visual Studio 2022 with C++, Qt 5.15.2 `msvc2019_64`, the .NET 10 SDK and git:
 `packaging\windows\build.ps1 -QtDir C:\Qt\5.15.2\msvc2019_64` (add `-Smoke` to take screenshots). The
 GitHub workflow `.github/workflows/launchheim-windows.yml` runs the same script on every change and
-keeps the zip as an artifact. It also runs the Core tests on Windows.
+keeps the zip as an artifact. It also runs the Core tests on Windows. `LaunchHeim.exe` and the DLLs
+the script compiles are signed with a self-signed certificate (see
+[Code signing](packaging/README.md#code-signing)).
 
 ## Licenses
 
