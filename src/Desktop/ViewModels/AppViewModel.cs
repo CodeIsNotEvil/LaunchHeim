@@ -31,6 +31,7 @@ public sealed class AppViewModel : ViewModel
   private string _runningDestination = "";
   private bool _isGameRunning;
   private string _steamStatus = "";
+  private string _steamStatusDetail = "";
 
   public AppViewModel(
     AppPaths paths,
@@ -138,6 +139,10 @@ public sealed class AppViewModel : ViewModel
   /// <summary>Set while a launch waits for Steam, and shown in the sidebar instead of the game status.</summary>
   [NotifySignal]
   public string SteamStatus { get => _steamStatus; private set => Set(ref _steamStatus, value); }
+
+  /// <summary>The line under <see cref="SteamStatus"/>: what the player may have to do in Steam.</summary>
+  [NotifySignal]
+  public string SteamStatusDetail { get => _steamStatusDetail; private set => Set(ref _steamStatusDetail, value); }
 
   [NotifySignal]
   public string RunningInstanceId { get => _runningInstanceId; private set => Set(ref _runningInstanceId, value); }
@@ -339,18 +344,19 @@ public sealed class AppViewModel : ViewModel
         instanceDirectory,
         instance?.Model.LaunchArguments ?? SettingsModel.VanillaLaunchArguments,
         GameLauncher.CurrentEnvironment(),
-        joinArguments: direct?.Arguments);
+        joinArguments: direct?.Arguments,
+        steamDirectory: SteamLibraryLocator.ForCurrentUser().ClientDirectory());
 
       // Valheim without a logged-in Steam client shows a black window and no error (see SteamClient).
-      SteamStatus = "Checking Steam";
+      SetSteamStatus("Checking Steam", "Log in if asked");
       await _steam.EnsureReadyAsync(
         state =>
         {
-          SteamStatus = state == SteamState.NotRunning ? "Starting Steam" : "Waiting for Steam";
+          SetSteamStatus(state == SteamState.NotRunning ? "Starting Steam" : "Waiting for Steam", "Log in if asked");
           Log.Info(SteamStatus);
         },
         CancellationToken.None);
-      SteamStatus = "";
+      SetSteamStatus("", "");
 
       if (direct is not null)
       {
@@ -359,7 +365,7 @@ public sealed class AppViewModel : ViewModel
 
       LogLaunch(instance, plan, direct);
       var started = DateTimeOffset.Now;
-      using var process = Process.Start(plan.ToStartInfo()) ?? throw new LaunchException("The game did not start.");
+      using var process = await StartProcessAsync(plan);
       Log.Info($"Valheim started, process {process.Id}.");
       DebugConsole.GameStarted(instance);
       RunningInstanceId = instance?.Id ?? "";
@@ -385,8 +391,8 @@ public sealed class AppViewModel : ViewModel
       }
 
       RefreshRunning();
-      await process.WaitForExitAsync();
-      Log.Info($"Valheim exited with code {process.ExitCode} after {DateTimeOffset.Now - started:h\\:mm\\:ss}.");
+      var exitCode = await GameProcess.WaitForExitAsync(process, CancellationToken.None);
+      Log.Info($"Valheim exited{(exitCode is { } code ? $" with code {code}" : "")} after {DateTimeOffset.Now - started:h\\:mm\\:ss}.");
     }
     catch (Exception ex)
     {
@@ -395,7 +401,7 @@ public sealed class AppViewModel : ViewModel
     }
     finally
     {
-      SteamStatus = "";
+      SetSteamStatus("", "");
       IsGameRunning = false;
       RunningInstanceId = "";
       _runningDestination = "";
@@ -403,6 +409,40 @@ public sealed class AppViewModel : ViewModel
       RefreshRunning();
       Play.RefreshIfLoaded();
     }
+  }
+
+  /// <summary>Starts the game, or asks Steam to and waits for the game's process (see <see cref="LaunchPlan.SteamStartsGame"/>).</summary>
+  private async Task<Process> StartProcessAsync(LaunchPlan plan)
+  {
+    if (plan.SteamStartsGame is not { } game)
+    {
+      return Process.Start(plan.ToStartInfo()) ?? throw new LaunchException("The game did not start.");
+    }
+
+    // Steam would only bring the running game to the front, and LaunchHeim would follow the wrong one.
+    if (GameProcess.IsRunning(game))
+    {
+      throw new LaunchException("Valheim is already running. Close it, then click Play again.");
+    }
+
+    SetSteamStatus("Steam is starting Valheim", "Answer Steam if it asks");
+    try
+    {
+      Process.Start(plan.ToStartInfo())?.Dispose();
+      // As long as SteamClient waits for a login: Steam may sync the cloud or update the game first.
+      return await GameProcess.WaitForStartAsync(game, _steam.Timeout, TimeSpan.FromSeconds(1), CancellationToken.None)
+        ?? throw new LaunchException("Steam did not start Valheim. If Steam is still updating it or asking something, the game starts once that's done.");
+    }
+    finally
+    {
+      SetSteamStatus("", "");
+    }
+  }
+
+  private void SetSteamStatus(string status, string detail)
+  {
+    SteamStatusDetail = detail;
+    SteamStatus = status;
   }
 
   /// <summary>Sets the character and world Valheim's menus start on (see <see cref="PlayViewModel"/>).</summary>
