@@ -113,6 +113,9 @@ accounts) and CurseForge (API key).
   sandbox pid, and `~/.steam/steam.pid` is left stale after Steam exits. A Steam run as administrator
   may refuse its start time to Windows' `Process.StartTime`, so that counts as running, with any login
   in the log accepted.
+- Windows draws the title bar light in dark mode unless each window sets `DWMWA_USE_IMMERSIVE_DARK_MODE`
+  (2026-10-08). `native/app_icon.cpp` does it for every window as it's created, following the QML theme.
+  The QML screenshots never show the title bar; CI checks it with `DwmGetWindowAttribute`.
 - .NET can't marshal `string[]` as UTF-8 (`LPUTF8Str` isn't allowed as an `ArraySubType`). Pass
   `LPWStr` and take `const QChar*` natively (2026-09-28).
 

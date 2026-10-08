@@ -102,6 +102,11 @@ public static class Program
     TypeCreator.Current = TypeCreator.FromDelegate(type => type == typeof(AppViewModel) ? viewModel : Activator.CreateInstance(type)!);
     Qml.Net.Qml.RegisterSingletonType(typeof(AppViewModel), "App", "LaunchHeim", 1, 0);
 
+    if (OperatingSystem.IsWindows())
+    {
+      AppIcon.SetDarkFrames(viewModel.Theme.IsDark);
+    }
+
     using var engine = new QQmlApplicationEngine();
     engine.SetContextProperty("screenshotPath", Environment.GetEnvironmentVariable("LAUNCHHEIM_SCREENSHOT") ?? "");
     engine.SetContextProperty("screenshotDelay", int.TryParse(Environment.GetEnvironmentVariable("LAUNCHHEIM_SCREENSHOT_DELAY"), out var delay) ? delay : 4000);

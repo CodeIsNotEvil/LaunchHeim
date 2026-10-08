@@ -109,7 +109,7 @@ Invoke-Checked dotnet @('publish', (Join-Path $app 'src\Desktop'), '-c', 'Releas
   '-p:ContinuousIntegrationBuild=true', '-o', $package)
 Copy-Item -Force $qmlNetDll.FullName (Join-Path $package 'QmlNet.dll')
 
-# The window icon (the csproj builds the same file on Linux). The .exe's own icon only reaches Explorer:
+# The window icon, and on Windows the dark title bar (the csproj builds the same file on Linux). The .exe's own icon only reaches Explorer:
 # Qt looks for a resource named IDI_ICON1, and the .NET SDK stores <ApplicationIcon> under a number.
 # Built in its own folder, because the linker also writes an import library and .exp next to the DLL.
 # Same flags as qmake uses for QmlNet.dll, against the same Qt, whose Qt5Gui.dll windeployqt ships.
@@ -119,7 +119,7 @@ New-Item -ItemType Directory $appIconBuild | Out-Null
 Invoke-Checked cl.exe @('/nologo', '/LD', '/MD', '/O2', '/EHsc', '/permissive-', '/Zc:__cplusplus', '/DQT_NO_DEBUG',
   "/I$(Join-Path $QtDir 'include')", (Join-Path $app 'src\Desktop\native\app_icon.cpp'),
   "/Fo$(Join-Path $appIconBuild 'app_icon.obj')", "/Fe$(Join-Path $appIconBuild 'LaunchHeimAppIcon.dll')",
-  '/link', "/LIBPATH:$(Join-Path $QtDir 'lib')", 'Qt5Gui.lib', 'Qt5Core.lib')
+  '/link', "/LIBPATH:$(Join-Path $QtDir 'lib')", 'Qt5Gui.lib', 'Qt5Core.lib', 'dwmapi.lib')
 Copy-Item (Join-Path $appIconBuild 'LaunchHeimAppIcon.dll') $package
 # LICENSE.txt, THIRD-PARTY-NOTICES.txt and licenses\ come from the publish (see the csproj).
 
@@ -190,6 +190,64 @@ if ($Smoke) {
     if (Select-String -Quiet -Path $log -Pattern 'no app icon') { Write-Host '::error::the window has no app icon'; $failed = $true }
   }
   Remove-Item Env:\LAUNCHHEIM_SCREENSHOT, Env:\LAUNCHHEIM_SCREENSHOT_PAGE, Env:\LAUNCHHEIM_SCREENSHOT_DELAY
+
+  # The title bar in dark mode: Windows draws it, so the screenshots above never show it. Only in CI,
+  # where switching the runner's app mode to dark costs nothing; on a developer's PC it would flip
+  # theirs. Windows itself is asked whether the window got the dark frame, and the window is copied off
+  # the screen for a look.
+  if ($env:GITHUB_ACTIONS) {
+    $personalize = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+    if (-not (Test-Path $personalize)) { New-Item -Force $personalize | Out-Null }
+    Set-ItemProperty $personalize -Name AppsUseLightTheme -Value 0 -Type DWord
+    # Only the two Windows calls in C#: in PowerShell 7 the inline C# can't see System.Drawing, which
+    # PowerShell itself loads fine (Add-Type -AssemblyName), so the capture is done out here.
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class DarkFrameProbe {
+  [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left, Top, Right, Bottom; }
+  [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hwnd, int attribute, out int value, int size);
+  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd, out Rect rect);
+}
+'@
+    Add-Type -AssemblyName System.Drawing
+    $log = Join-Path $OutputDir 'test-windows-dark-frame.log'
+    $env:LAUNCHHEIM_SCREENSHOT = Join-Path $OutputDir 'test-windows-dark.png'
+    $env:LAUNCHHEIM_SCREENSHOT_PAGE = 'library'
+    $env:LAUNCHHEIM_SCREENSHOT_DELAY = '15000'
+    $process = Start-Process $exe -PassThru -RedirectStandardError $log -RedirectStandardOutput "$log.out"
+    $hwnd = [IntPtr]::Zero
+    for ($i = 0; $i -lt 60 -and $hwnd -eq [IntPtr]::Zero; $i++) {
+      Start-Sleep -Milliseconds 500
+      $process.Refresh()
+      $hwnd = $process.MainWindowHandle
+    }
+    if ($hwnd -eq [IntPtr]::Zero) {
+      Write-Host '::error::LaunchHeim showed no window in dark mode'; $failed = $true
+    }
+    else {
+      Start-Sleep -Seconds 5
+      $dark = 0
+      $result = [DarkFrameProbe]::DwmGetWindowAttribute($hwnd, 20, [ref]$dark, 4)
+      Write-Host "Dark title bar: DwmGetWindowAttribute returned $result, value $dark"
+      if ($result -eq 0 -and $dark -eq 0) { Write-Host '::error::the title bar is light in dark mode'; $failed = $true }
+      try {
+        $rect = New-Object DarkFrameProbe+Rect
+        [DarkFrameProbe]::GetWindowRect($hwnd, [ref]$rect) | Out-Null
+        $bitmap = [System.Drawing.Bitmap]::new($rect.Right - $rect.Left, $rect.Bottom - $rect.Top)
+        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+        $graphics.CopyFromScreen($rect.Left, $rect.Top, 0, 0, $bitmap.Size)
+        $bitmap.Save((Join-Path $OutputDir 'test-windows-dark-frame.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+        $graphics.Dispose(); $bitmap.Dispose()
+      }
+      catch { Write-Host "Could not copy the window off the screen: $_" }
+    }
+    if (-not $process.WaitForExit(60000)) { $process.Kill() }
+    Get-Content $log, "$log.out" -ErrorAction SilentlyContinue | Write-Host
+    if (Select-String -Quiet -Path $log -Pattern "keeps Windows' light colors") { Write-Host '::error::the dark title bar could not be set'; $failed = $true }
+    Remove-Item Env:\LAUNCHHEIM_SCREENSHOT, Env:\LAUNCHHEIM_SCREENSHOT_PAGE, Env:\LAUNCHHEIM_SCREENSHOT_DELAY
+    Set-ItemProperty $personalize -Name AppsUseLightTheme -Value 1 -Type DWord
+  }
 
   # nxm:// registration writes HKCU\Software\Classes\nxm pointing at this exe.
   $register = Start-Process $exe -ArgumentList '--register-desktop' -Wait -PassThru

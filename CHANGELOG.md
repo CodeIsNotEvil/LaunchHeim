@@ -18,6 +18,8 @@ bullet per change.
 - Steam's overlay now works in a Valheim started from LaunchHeim: Shift+Tab, the friends list and
   F12 screenshots. On Windows LaunchHeim now starts Valheim through Steam, so the launch options in
   Valheim's Steam properties apply there too.
+- On Windows in dark mode, the title bar and its buttons are dark too, instead of a white bar above
+  LaunchHeim's dark window. The console window as well.
 
 ## 0.5.3 - 2026-10-08
 
