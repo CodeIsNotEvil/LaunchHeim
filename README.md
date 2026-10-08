@@ -70,9 +70,26 @@ The path can also be set in Settings.
 
 **Launching.** `LaunchPlan` does what BepInExPack's `start_game_bepinex.sh` does: it preloads Unity
 Doorstop and points it at the *instance's* BepInEx preloader. BepInEx derives its root from that path,
-so plugins, configs and logs all come from the instance. The game is started directly with `SteamAppId`
-set rather than through `steam -applaunch`, because Steam launch options can't change per launch. The
-Qt variables LaunchHeim sets on itself are removed from the game's environment.
+so plugins, configs and logs all come from the instance. On Linux the game is started directly with
+`SteamAppId` set rather than through `steam -applaunch`: Steam starts a game with its own environment,
+so the preload wouldn't reach it. The Qt variables LaunchHeim sets on itself are removed from the
+game's environment.
+
+**Steam's overlay.** Steam injects its overlay (Shift+Tab, and F12 for screenshots) only into the games
+it starts itself. On Linux LaunchHeim therefore does what Steam does: it preloads
+`ubuntu12_64/gameoverlayrenderer.so` from the Steam folder (after Doorstop) and sets
+`ENABLE_VK_LAYER_VALVE_steam_overlay_1=1` for Steam's Vulkan layer, which Valheim renders with, and
+`SteamOverlayGameId`. On Windows the game is started through Steam instead (see [Windows](#windows)).
+Without a Steam folder holding the client the game still starts, only without the overlay.
+
+**Screenshots.** The Screenshots page shows what Steam's overlay saved in Valheim, newest first:
+`userdata/<account>/760/remote/892970/screenshots` in the Steam folder of the account that logged in
+last, with Steam's thumbnails from `thumbnails/` standing in while the pictures load. A click opens a
+large preview (arrow keys step through) with **Show in folder**, which selects the file in Explorer or,
+on Linux, in any file manager answering `org.freedesktop.FileManager1.ShowItems` over D-Bus (Dolphin,
+Nautilus, Nemo, Thunar), else opens the folder; and **Open**, for the default picture viewer. The page
+reads the folder again when it opens and after the game exits. Steam's `screenshots.vdf` is never read
+or changed, and copies Steam saves elsewhere (its uncompressed-copy option) aren't listed.
 
 **Steam first.** Started without a logged-in Steam client, Valheim only shows a black window and never
 an error. So before every launch `SteamClient` checks that a `steam` process runs and that a user is
@@ -262,6 +279,13 @@ The same QML UI runs on Windows. The differences:
   (`--doorstop-target-assembly`), so starting Valheim from Steam stays vanilla. r2modman does the same.
   An existing manual BepInEx install in the game folder is left alone. To remove LaunchHeim's trace,
   delete those two files.
+- **Through Steam.** Because those are plain arguments, Valheim is started with
+  `steam.exe -applaunch 892970 <arguments>` from the Steam folder, so Steam injects its overlay as for
+  any game it starts; started directly it had none. Valheim's launch options from Steam's game
+  properties are added too. `steam.exe` hands the launch to the running client and exits, so
+  LaunchHeim waits up to three minutes for a `valheim` process ("Steam is starting Valheim" in the
+  sidebar) and follows that one. A Valheim that is already running is refused first, so the next one
+  that appears is the right one. Without `steam.exe` the game is started directly as before.
 - **Folders.** Instances and caches go in `%LOCALAPPDATA%\LaunchHeim`, settings in
   `%APPDATA%\LaunchHeim`. Steam is found through the registry, then `libraryfolders.vdf` as on Linux.
 - **nxm://** is registered per user under `HKCU\Software\Classes\nxm` (Settings → Register). No
