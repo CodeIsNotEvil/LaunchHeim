@@ -140,8 +140,16 @@ nano .env        # set POSTGRES_PASSWORD</code></pre></li>
 
       <!-- if:lh_release -->
       <div class="downloads">
+        <!-- Releases before 0.5.3 have only the zip, which is then the Windows download. -->
+        <!-- if:lh_windows_setup_url -->
+        <a class="button primary" href="{{ lh_windows_setup_url }}">Windows 10/11 <small>setup · {{ lh_windows_setup_size }}</small></a>
+        <!-- if:lh_windows_url -->
+        <a class="button" href="{{ lh_windows_url }}">Windows, portable <small>.zip · {{ lh_windows_size }}</small></a>
+        <!-- end -->
+        <!-- else -->
         <!-- if:lh_windows_url -->
         <a class="button primary" href="{{ lh_windows_url }}">Windows 10/11 <small>.zip · {{ lh_windows_size }}</small></a>
+        <!-- end -->
         <!-- end -->
         <!-- if:lh_arch_url -->
         <a class="button" href="{{ lh_arch_url }}">Arch, CachyOS <small>pacman · {{ lh_arch_size }}</small></a>
@@ -156,14 +164,40 @@ nano .env        # set POSTGRES_PASSWORD</code></pre></li>
         <a class="button" href="{{ lh_android_url }}">Android companion <small>.apk · {{ lh_android_size }}</small></a>
         <!-- end -->
       </div>
-      <!-- LGPL-3.0: the Windows zip ships Qt, so where to get its source has to sit next to the download. -->
+      <!-- LGPL-3.0: the Windows setup and zip ship Qt, so where to get its source has to sit next to the download. -->
       <p class="fine-print">LaunchHeim is MIT licensed and built on open-source software, including Qt 5.15
         under the GNU LGPL v3. Every download contains <code>THIRD-PARTY-NOTICES.txt</code> and the
         license texts (<a href="{{ repo_url }}/blob/main/Applications/LaunchHeim/THIRD-PARTY-NOTICES.txt">read them online</a>).
-        The Qt in the Windows zip is the unmodified Qt 5.15.2; its source is at
+        The Qt in the Windows setup and zip is the unmodified Qt 5.15.2; its source is at
         <a href="https://download.qt.io/archive/qt/5.15/5.15.2/single/">download.qt.io</a>.</p>
 
       <h3>Install</h3>
+      <!-- if:lh_windows_setup_url -->
+      <details open>
+        <summary>Windows 10 and 11</summary>
+        <p>Run the setup. It installs LaunchHeim for you only (no administrator needed) or for all
+          users, and asks whether you want a Start menu entry and a desktop shortcut. Windows doesn't
+          know our certificate, so "Windows protected your PC" needs <em>More info → Run anyway</em>.</p>
+        <p>When a new version is out, LaunchHeim says so in its sidebar: click it, then
+          <em>Update now</em>, and it installs the new version and starts again. Running a newer setup
+          yourself works too. Your instances stay in <code>%LOCALAPPDATA%\LaunchHeim</code>, also when you
+          uninstall it (Windows Settings → Apps).</p>
+        <!-- if:lh_windows_setup_sha256 -->
+        <p>To check the download, run this in PowerShell in the folder you saved it to. It prints
+          <code>True</code> when the file is intact.</p>
+<pre><code>(Get-FileHash .\{{ lh_windows_setup_file }}).Hash -eq "{{ lh_windows_setup_sha256 }}"</code></pre>
+        <!-- end -->
+        <!-- The thumbprint of packaging/windows/launchheim-codesign.cer; change it with the certificate. -->
+        <p>The setup and LaunchHeim's own files are signed by <code>CodeIsNotEvil</code> with a self-signed
+          certificate. That doesn't make Windows trust it, but it shows the files are ours and unchanged.
+          This prints <code>True</code>:</p>
+<pre><code>(Get-AuthenticodeSignature .\{{ lh_windows_setup_file }}).SignerCertificate.Thumbprint -eq "284F5384B189984492629622EDC4A40646C5D8F6"</code></pre>
+        <!-- if:lh_windows_url -->
+        <p>Rather not install anything? The portable zip has the same files: unzip it anywhere and start
+          <code>LaunchHeim.exe</code>. To update it, replace the folder.</p>
+        <!-- end -->
+      </details>
+      <!-- else -->
       <!-- if:lh_windows_url -->
       <details open>
         <summary>Windows 10 and 11</summary>
@@ -182,6 +216,7 @@ nano .env        # set POSTGRES_PASSWORD</code></pre></li>
           unchanged; in the unzipped folder this prints <code>True</code>:</p>
 <pre><code>(Get-AuthenticodeSignature .\LaunchHeim\LaunchHeim.exe).SignerCertificate.Thumbprint -eq "284F5384B189984492629622EDC4A40646C5D8F6"</code></pre>
       </details>
+      <!-- end -->
       <!-- end -->
       <!-- if:lh_arch_url -->
       <details>

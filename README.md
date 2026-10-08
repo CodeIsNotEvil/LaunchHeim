@@ -18,7 +18,7 @@ see [Licenses](#licenses).
 | Debian 13, Ubuntu 24.04+ | `sudo apt install ./launchheim_*_amd64.deb` from `packaging/build-packages.sh` |
 | Fedora, RHEL 9/10 | `sudo dnf install ./launchheim-*.x86_64.rpm` (RHEL 10 needs EPEL) |
 | Any Linux, per user | `./install.sh` (and `./install.sh --uninstall`) |
-| Windows 10/11 | unzip `LaunchHeim-*-win-x64.zip` from the *LaunchHeim Windows* workflow and run `LaunchHeim.exe` |
+| Windows 10/11 | run `LaunchHeim-*-win-x64-setup.exe` from the release (per user or for all users, optional Start menu and desktop shortcuts), or unzip the portable `LaunchHeim-*-win-x64.zip` |
 
 [`packaging/README.md`](packaging/README.md) covers each of these: dependencies, upgrading, removing,
 and how the packages are built and tested.
@@ -183,7 +183,11 @@ sidebar shows one small line. Clicking it opens a dialog with the download page,
 and, if this install can be told apart, the terminal commands that update it: the pacman, apt or dnf
 package (the package build's switch plus `ID`/`ID_LIKE` from `/etc/os-release`), the Windows zip
 copied over the folder LaunchHeim runs from, or `install.sh` again for an install in
-`~/.local/opt/LaunchHeim`. A development build, a custom `install.sh` prefix or an unreadable
+`~/.local/opt/LaunchHeim`. A copy the Windows setup installed (its uninstall entry's
+`InstallLocation` is the folder LaunchHeim runs from, `Hosting/WindowsSetup.cs`) also gets *Update
+now*: it downloads the release's setup into the cache's `tmp` folder, checks it against the SHA-256
+GitHub recorded for it, starts it with `/SILENT /relaunch=yes` and quits, and the setup puts the new
+version in place and starts it again. A development build, a custom `install.sh` prefix or an unreadable
 `os-release` only get the download page. *Skip this version* hides that version and announces the
 next; *Don't remind me again* stops reminders and checks (`updateRemindersDisabled` in
 `settings.json`) until Settings → About switches them back on. Offline or rate-limited, nothing shows.
@@ -268,7 +272,7 @@ The same QML UI runs on Windows. The differences:
 Building needs Visual Studio 2022 with C++, Qt 5.15.2 `msvc2019_64`, the .NET 10 SDK and git:
 `packaging\windows\build.ps1 -QtDir C:\Qt\5.15.2\msvc2019_64` (add `-Smoke` to take screenshots). The
 GitHub workflow `.github/workflows/launchheim-windows.yml` runs the same script on every change and
-keeps the zip as an artifact. It also runs the Core tests on Windows. `LaunchHeim.exe` and the DLLs
+keeps the zip and the setup (`packaging/windows/launchheim.iss`, Inno Setup 6) as an artifact. It also runs the Core tests on Windows. `LaunchHeim.exe` and the DLLs
 the script compiles are signed with a self-signed certificate (see
 [Code signing](packaging/README.md#code-signing)).
 
@@ -276,10 +280,10 @@ the script compiles are signed with a self-signed certificate (see
 
 LaunchHeim is MIT. What it's built on keeps its own license, and every build carries the notices:
 [`THIRD-PARTY-NOTICES.txt`](THIRD-PARTY-NOTICES.txt) and the full texts in [`licenses/`](licenses)
-are copied next to the app by the csproj, so the Windows zip, the three Linux packages and
+are copied next to the app by the csproj, so the Windows setup and zip, the three Linux packages and
 `install.sh` all contain them. Settings → About shows the Qt notice and opens the file.
 
-Two parts are **LGPL-3.0**, which is what drives most of this: Qt (only the Windows zip ships it) and
+Two parts are **LGPL-3.0**, which is what drives most of this: Qt (only the Windows setup and zip ship it) and
 NetNativeLibLoader, a Qml.Net dependency that every build ships. The LGPL asks for a prominent notice,
 the LGPL and GPL texts, directions to the source, and that users can swap in their own build. Both
 are separate DLLs, so the last point holds as long as nothing merges or trims them (no single-file
