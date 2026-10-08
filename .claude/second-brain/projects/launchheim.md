@@ -1,7 +1,7 @@
 ---
 tags: [project, dotnet, qml, gaming]
 created: 2026-09-26
-updated: 2026-10-06
+updated: 2026-10-08
 status: active
 ---
 # LaunchHeim
@@ -54,6 +54,9 @@ accounts) and CurseForge (API key).
   `skippedUpdateVersion` / `updateRemindersDisabled` in settings.json.
 - Distro packages use the system Qt ([[0005-launchheim-distro-packages-use-system-qt]]). Windows keeps
   the QML UI with a patched QmlNet.dll built in CI ([[0006-launchheim-windows-keeps-qml]]).
+- Code signing (2026-10-08): `build.ps1` Authenticode-signs the exe and the DLLs it compiles with a
+  self-signed `CN=CodeIsNotEvil` certificate, separate from the APK key
+  ([[0012-launchheim-windows-self-signed-code-signing]]). Packaging README "Code signing".
 
 ## Gotchas
 - NetNativeLibLoader, pulled in by Qml.Net, is LGPL-3.0-or-later (Firwood Software), not MIT like
@@ -159,6 +162,8 @@ accounts) and CurseForge (API key).
   and kills that command (2026-10-05).
 
 ## Open
+- Code signing (2026-10-08): the `LAUNCHHEIM_WINDOWS_SIGNING_*` secrets must be set before the next
+  tag, or the release fails. signtool on the runner hasn't been seen signing yet.
 - LaunchHeim Companion (2026-10-05): not yet tried between a real phone and the desktop on the same
   Wi-Fi (multicast discovery, the /24 fallback, Android 14+ background behaviour). Checked on an
   emulator through adb forwarding and with C#↔Kotlin tests on localhost. CurseForge on the phone is
