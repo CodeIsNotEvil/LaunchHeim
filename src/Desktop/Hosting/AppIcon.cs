@@ -26,10 +26,9 @@ public static class AppIcon
   /// </remarks>
   public static void Apply()
   {
-    var file = OperatingSystem.IsWindows() ? "LaunchHeimAppIcon.dll" : "libLaunchHeimAppIcon.so";
-    if (!NativeLibrary.TryLoad(Path.Combine(AppContext.BaseDirectory, file), out var library))
+    if (Load() is not { } library)
     {
-      Log.Warning($"{file} could not be loaded, so the window has no app icon.");
+      Log.Warning("The window has no app icon.");
       return;
     }
 
@@ -52,13 +51,28 @@ public static class AppIcon
   [System.Runtime.Versioning.SupportedOSPlatform("windows")]
   public static void SetDarkFrames(bool dark)
   {
-    if (!NativeLibrary.TryLoad(Path.Combine(AppContext.BaseDirectory, "LaunchHeimAppIcon.dll"), out var library)
-      || !NativeLibrary.TryGetExport(library, "launchheim_set_dark_frames", out var export))
+    if (Load() is not { } library || !NativeLibrary.TryGetExport(library, "launchheim_set_dark_frames", out var export))
     {
-      Log.Warning("LaunchHeimAppIcon.dll could not be loaded, so the title bar keeps Windows' light colors.");
+      Log.Warning("The title bar keeps Windows' light colors.");
       return;
     }
 
     Marshal.GetDelegateForFunctionPointer<SetDarkFramesDelegate>(export)(dark ? 1 : 0);
+  }
+
+  /// <summary>The native library, or null with Windows' or the loader's reason in the log.</summary>
+  private static IntPtr? Load()
+  {
+    var file = Path.Combine(AppContext.BaseDirectory, OperatingSystem.IsWindows() ? "LaunchHeimAppIcon.dll" : "libLaunchHeimAppIcon.so");
+    try
+    {
+      return NativeLibrary.Load(file);
+    }
+    catch (Exception ex) when (ex is DllNotFoundException or BadImageFormatException)
+    {
+      // The message carries the reason: a missing file, a missing dependency, a blocked signature.
+      Log.Warning($"{file} could not be loaded: {ex.Message}");
+      return null;
+    }
   }
 }
