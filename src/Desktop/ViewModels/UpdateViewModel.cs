@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Diagnostics;
 using CINE.LaunchHeim.Core;
 using CINE.LaunchHeim.Core.Logging;
 using CINE.LaunchHeim.Core.Updates;
@@ -9,7 +11,10 @@ namespace CINE.LaunchHeim.Desktop.ViewModels;
 /// <summary>
 /// The reminder that a newer LaunchHeim is out: a line in the sidebar, and a dialog with the download
 /// page, the commands that update this kind of install, "Skip this version" and "Don't remind me again".
+/// A copy the Windows setup installed also gets "Update now", which runs the new version's setup.
 /// </summary>
+/// <remarks><c>quitRequested</c> asks QML to close LaunchHeim, so the setup can replace its files.</remarks>
+[Signal("quitRequested")]
 public sealed class UpdateViewModel : ViewModel
 {
   // Twice a day while LaunchHeim stays open, which people do between sessions.
@@ -21,6 +26,9 @@ public sealed class UpdateViewModel : ViewModel
   private AvailableUpdate? _update;
   private bool _dialogVisible;
   private bool _checking;
+  private bool _installing;
+  private double _installProgress;
+  private string _installError = "";
 
   public UpdateViewModel(AppViewModel app, UpdateChecker checker)
   {
@@ -31,7 +39,9 @@ public sealed class UpdateViewModel : ViewModel
       DistroPackage.IsInstalled,
       OperatingSystem.IsLinux() ? ReadOsRelease() : null,
       AppContext.BaseDirectory,
-      Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+      Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+      OperatingSystem.IsWindows() ? WindowsSetup.InstallFolders().ToList() : null);
+    Log.Info($"Installed as {_kind}.");
   }
 
   /// <summary>Whether the sidebar shows the reminder: something newer, not skipped, reminders on.</summary>
@@ -72,6 +82,21 @@ public sealed class UpdateViewModel : ViewModel
 
   [NotifySignal]
   public bool Checking { get => _checking; private set => Set(ref _checking, value); }
+
+  /// <summary>Whether "Update now" is offered: installed by the setup, and the release has a setup.</summary>
+  [NotifySignal]
+  public bool CanInstall => _kind == InstallKind.WindowsSetup && _update?.WindowsSetup is not null;
+
+  [NotifySignal]
+  public bool Installing { get => _installing; private set => Set(ref _installing, value); }
+
+  /// <summary>How much of the setup has been downloaded, 0 to 1.</summary>
+  [NotifySignal]
+  public double InstallProgress { get => _installProgress; private set => Set(ref _installProgress, value); }
+
+  /// <summary>Why "Update now" failed, for the dialog; empty otherwise.</summary>
+  [NotifySignal]
+  public string InstallError { get => _installError; private set => Set(ref _installError, value); }
 
   /// <summary>Checks now, then every <see cref="CheckInterval"/> while LaunchHeim runs.</summary>
   internal async void StartChecking()
@@ -128,6 +153,51 @@ public sealed class UpdateViewModel : ViewModel
 
   public void CloseDialog() => DialogVisible = false;
 
+  /// <summary>Downloads the new version's setup, checks it, starts it and closes LaunchHeim.</summary>
+  /// <remarks>
+  /// The setup runs with /SILENT: it shows its progress but asks nothing, and reuses the folder, the
+  /// shortcuts and the install mode (per user or all users, the latter with a UAC prompt) chosen the
+  /// first time. /CLOSEAPPLICATIONS covers LaunchHeim still shutting down when the setup starts copying.
+  /// <c>/relaunch=yes</c> is the setup's own switch (launchheim.iss) that starts LaunchHeim again at the
+  /// end; a silent setup run by hand doesn't.
+  /// </remarks>
+  public async void InstallNow()
+  {
+    if (!CanInstall || Installing || _update?.WindowsSetup is not { } asset)
+    {
+      return;
+    }
+
+    var version = _update.Version;
+    Installing = true;
+    InstallError = "";
+    InstallProgress = 0;
+    try
+    {
+      // Created here, on the Qt thread, so the reports come back to it from the download's thread.
+      var progress = new Progress<double>(value => InstallProgress = value);
+      // In the cache's tmp folder, which the next start empties again.
+      var folder = Path.Combine(_app.Paths.CacheDirectory, "tmp", "update");
+      var setup = await Task.Run(() => _checker.DownloadAsync(asset, folder, progress, CancellationToken.None));
+
+      Log.Info($"Starting {setup} to update to {version}.");
+      Process.Start(new ProcessStartInfo(setup, ["/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/relaunch=yes"])
+      {
+        UseShellExecute = false,
+      });
+      this.ActivateSignal("quitRequested");
+    }
+    catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or InvalidDataException or UnauthorizedAccessException or Win32Exception)
+    {
+      Log.Error($"Updating to {version} failed", ex);
+      InstallError = $"The update couldn't be installed: {ex.Message}";
+    }
+    finally
+    {
+      Installing = false;
+    }
+  }
+
   public void OpenDownloadPage()
   {
     DesktopShell.Open(UpdateChecker.DownloadPage);
@@ -167,7 +237,7 @@ public sealed class UpdateViewModel : ViewModel
 
   private void RaiseAll()
   {
-    foreach (var property in new[] { nameof(Available), nameof(Version), nameof(Text), nameof(ShortText), nameof(Commands), nameof(HasCommands), nameof(ReleaseUrl), nameof(RemindersEnabled) })
+    foreach (var property in new[] { nameof(Available), nameof(Version), nameof(Text), nameof(ShortText), nameof(Commands), nameof(HasCommands), nameof(ReleaseUrl), nameof(RemindersEnabled), nameof(CanInstall) })
     {
       Raise(property);
     }

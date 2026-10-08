@@ -6,7 +6,7 @@ public enum InstallKind
   /// <summary>Not known (a development build, a custom install.sh prefix, os-release unreadable): only the download page is offered.</summary>
   Unknown,
 
-  /// <summary>The portable Windows zip.</summary>
+  /// <summary>The portable Windows zip, or a copy in any folder the setup didn't install.</summary>
   Windows,
 
   /// <summary>The pacman package (Arch, CachyOS, Manjaro, EndeavourOS...).</summary>
@@ -20,6 +20,9 @@ public enum InstallKind
 
   /// <summary>install.sh into ~/.local/opt/LaunchHeim, updated by running it again in the checkout.</summary>
   InstallScript,
+
+  /// <summary>The Windows setup (packaging/windows/launchheim.iss), updated by running the new version's setup.</summary>
+  WindowsSetup,
 }
 
 public static class InstallDetection
@@ -29,11 +32,16 @@ public static class InstallDetection
   /// <param name="osRelease">The text of <c>/etc/os-release</c>, or null when it can't be read (a sandbox, say).</param>
   /// <param name="appDirectory">The folder the app runs from.</param>
   /// <param name="home">The user's home folder.</param>
-  public static InstallKind Detect(bool isWindows, bool distroPackage, string? osRelease, string appDirectory, string home)
+  /// <param name="setupFolders">
+  /// Windows: the <c>InstallLocation</c> of the setup's uninstall entries (per user and for all users).
+  /// Only a copy running from one of them counts as installed by the setup; an unzipped copy elsewhere
+  /// is still the zip, and must not be offered a setup that updates a different folder.
+  /// </param>
+  public static InstallKind Detect(bool isWindows, bool distroPackage, string? osRelease, string appDirectory, string home, IEnumerable<string>? setupFolders = null)
   {
     if (isWindows)
     {
-      return InstallKind.Windows;
+      return setupFolders?.Any(folder => SameFolder(folder, appDirectory)) == true ? InstallKind.WindowsSetup : InstallKind.Windows;
     }
 
     if (!distroPackage)
@@ -74,6 +82,11 @@ public static class InstallDetection
     return InstallKind.Unknown;
   }
 
+  // Inno Setup stores InstallLocation with a trailing backslash, AppContext.BaseDirectory has one too,
+  // but neither is guaranteed. Windows folder names don't differ by case.
+  private static bool SameFolder(string a, string b) =>
+    Path.TrimEndingDirectorySeparator(Path.GetFullPath(a)).Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(b)), StringComparison.OrdinalIgnoreCase);
+
   /// <summary>The KEY=value lines of os-release, with quotes removed.</summary>
   internal static Dictionary<string, string> ParseOsRelease(string text)
   {
@@ -102,7 +115,7 @@ public static class InstallDetection
   /// <summary>What people call the system, for "Update from a terminal on …".</summary>
   public static string DisplayName(InstallKind kind) => kind switch
   {
-    InstallKind.Windows => "Windows (PowerShell)",
+    InstallKind.Windows or InstallKind.WindowsSetup => "Windows (PowerShell)",
     InstallKind.Arch => "Arch Linux, CachyOS",
     InstallKind.Debian => "Debian, Ubuntu",
     InstallKind.Fedora => "Fedora, RHEL",
