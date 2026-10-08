@@ -25,9 +25,6 @@ LhDialog {
     copied.visible = true
   }
 
-  // TextEdit is the only way QML 2 reaches the clipboard (the console window does the same).
-  TextEdit { id: clipboard; visible: false }
-
   Connections {
     target: dialog.updates
     function onQuitRequested() { Qt.quit() }
@@ -36,6 +33,11 @@ LhDialog {
   ColumnLayout {
     anchors.fill: parent
     spacing: 12
+
+    // TextEdit is the only way QML 2 reaches the clipboard (the console window does the same). It lives
+    // in the layout, which skips it while invisible: a second item next to the layout would leave the
+    // dialog without an implicit content size, and its background then covered only the title.
+    TextEdit { id: clipboard; visible: false }
 
     Label {
       text: dialog.updates.canInstall
