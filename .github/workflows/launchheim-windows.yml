@@ -1,5 +1,6 @@
 # Builds the Windows version of LaunchHeim with packaging/windows/build.ps1, runs the Core tests on
-# Windows, starts the app offscreen and keeps the zip plus screenshots as an artifact. With the
+# Windows, starts the app offscreen, installs, updates and uninstalls the setup, and keeps the zip, the
+# setup and the screenshots as an artifact. With the
 # LAUNCHHEIM_WINDOWS_SIGNING_* secrets, LaunchHeim.exe and its own DLLs are signed (packaging/README.md,
 # "Code signing").
 # The Windows build needs MSVC, so this is where it gets built and tested; see
@@ -73,7 +74,8 @@ jobs:
           [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_BASE64))
           "LAUNCHHEIM_SIGNING_PFX=$pfx" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
-      # signtool.exe is on PATH through msvc-dev-cmd (the Windows SDK's bin folder).
+      # signtool.exe is on PATH through msvc-dev-cmd (the Windows SDK's bin folder). Inno Setup 6, which
+      # compiles the setup, comes with the runner image.
       - name: Build, test and smoke-test
         shell: pwsh
         env:
@@ -86,5 +88,6 @@ jobs:
           name: LaunchHeim-win-x64
           path: |
             Applications/LaunchHeim/packaging/dist/*.zip
+            Applications/LaunchHeim/packaging/dist/*-setup.exe
             Applications/LaunchHeim/packaging/dist/test-windows-*
           if-no-files-found: warn
