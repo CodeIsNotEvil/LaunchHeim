@@ -53,6 +53,9 @@ tar -xf %{SOURCE0} -C %{buildroot}
 %{_datadir}/metainfo/io.github.codeisnotevil.LaunchHeim.metainfo.xml
 
 %changelog
+* Thu Oct 08 2026 CodeIsNotEvil <noreply@github.com> - 0.5.4-1
+- Steam overlay in launched games, a Screenshots page, dark title bar on Windows (see CHANGELOG.md)
+
 * Thu Oct 08 2026 CodeIsNotEvil <noreply@github.com> - 0.5.3-1
 - Signed Windows build (see CHANGELOG.md)
 
