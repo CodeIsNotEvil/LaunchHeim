@@ -169,6 +169,78 @@ public class GameLauncherTests : IDisposable
   }
 
   [Fact]
+  public void Linux_launches_load_steams_overlay_like_steam_does()
+  {
+    var steam = _temp.Tree("Steam", "ubuntu12_32/steam", "ubuntu12_64/gameoverlayrenderer.so");
+    var overlay = Path.Combine(steam, "ubuntu12_64", "gameoverlayrenderer.so");
+
+    var vanilla = GameLauncher.Plan(_game, null, "", NoEnvironment, GamePlatform.Linux, steamDirectory: steam);
+    var modded = GameLauncher.Plan(_game, _instance, "", NoEnvironment, GamePlatform.Linux, steamDirectory: steam);
+
+    Assert.Equal(overlay, vanilla.Environment["LD_PRELOAD"]);
+    Assert.Equal("1", vanilla.Environment["ENABLE_VK_LAYER_VALVE_steam_overlay_1"]);
+    Assert.Equal("892970", vanilla.Environment["SteamOverlayGameId"]);
+    // Doorstop first, as with BepInEx's own start script in Steam's launch options.
+    Assert.Equal($"libdoorstop_x64.so:{overlay}", modded.Environment["LD_PRELOAD"]);
+    Assert.Equal(Path.Combine(_game, "valheim.x86_64"), modded.FileName);
+    Assert.Null(modded.SteamStartsGame);
+  }
+
+  [Fact]
+  public void Steams_overlay_is_not_preloaded_twice_or_without_the_library()
+  {
+    var steam = _temp.Tree("Steam", "ubuntu12_32/steam", "ubuntu12_64/gameoverlayrenderer.so");
+    var fromSteam = new Dictionary<string, string?> { ["LD_PRELOAD"] = "/steam/ubuntu12_64/gameoverlayrenderer.so" };
+
+    var inherited = GameLauncher.Plan(_game, null, "", fromSteam, GamePlatform.Linux, steamDirectory: steam);
+    var missing = GameLauncher.Plan(_game, null, "", NoEnvironment, GamePlatform.Linux, steamDirectory: _temp.Tree("NoOverlay"));
+
+    Assert.False(inherited.Environment.ContainsKey("LD_PRELOAD"));
+    Assert.False(missing.Environment.ContainsKey("LD_PRELOAD"));
+    Assert.False(missing.Environment.ContainsKey("ENABLE_VK_LAYER_VALVE_steam_overlay_1"));
+  }
+
+  [Fact]
+  public void Windows_launches_go_through_steam_with_the_same_arguments()
+  {
+    var (game, instance) = WindowsSetup();
+    var steam = _temp.Tree("SteamWindows", "steam.exe");
+    GameLauncher.PrepareGameFolder(game, instance, GamePlatform.Windows);
+    var join = GameLauncher.JoinArguments("10.0.0.1:2456", null);
+
+    var direct = GameLauncher.Plan(game, instance, "-console", NoEnvironment, GamePlatform.Windows, join);
+    var plan = GameLauncher.Plan(game, instance, "-console", NoEnvironment, GamePlatform.Windows, join, steam);
+
+    Assert.Equal(Path.Combine(steam, "steam.exe"), plan.FileName);
+    Assert.Equal(["-applaunch", "892970", .. direct.Arguments], plan.Arguments);
+    Assert.Equal(Path.Combine(game, "valheim.exe"), plan.SteamStartsGame);
+    Assert.Null(direct.SteamStartsGame);
+  }
+
+  [Fact]
+  public void Windows_starts_the_game_itself_when_steam_exe_is_missing()
+  {
+    var (game, _) = WindowsSetup();
+
+    var plan = GameLauncher.Plan(game, null, "", NoEnvironment, GamePlatform.Windows, steamDirectory: _temp.Tree("NoSteam"));
+
+    Assert.Equal(Path.Combine(game, "valheim.exe"), plan.FileName);
+    Assert.Null(plan.SteamStartsGame);
+  }
+
+  [Fact]
+  public void The_steam_client_folder_is_the_first_root_with_the_client_in_it()
+  {
+    var library = _temp.Tree("Library", "steamapps/libraryfolders.vdf");
+    var linux = _temp.Tree("LinuxSteam", "ubuntu12_32/steam");
+    var windows = _temp.Tree("WindowsSteam", "steam.exe");
+
+    Assert.Equal(linux, new SteamLibraryLocator([library, linux, windows], GamePlatform.Linux).ClientDirectory());
+    Assert.Equal(windows, new SteamLibraryLocator([library, linux, windows], GamePlatform.Windows).ClientDirectory());
+    Assert.Null(new SteamLibraryLocator([library], GamePlatform.Linux).ClientDirectory());
+  }
+
+  [Fact]
   public void Joining_a_server_comes_after_the_launch_arguments()
   {
     var join = GameLauncher.JoinArguments("10.0.0.1:2456", "hunter22");

@@ -25,6 +25,16 @@ public sealed class SteamLibraryLocator(IEnumerable<string> steamRoots, GamePlat
   /// <summary>The Steam folders searched, which also hold each account's cloud saves (<c>userdata</c>).</summary>
   public IEnumerable<string> SteamRoots => steamRoots;
 
+  public const string WindowsClient = "steam.exe";
+
+  /// <summary>
+  /// The first of <see cref="SteamRoots"/> that holds the Steam client itself, not just a library: where
+  /// LaunchHeim finds <c>steam.exe</c> and the overlay (<see cref="GameLauncher.Plan"/>).
+  /// </summary>
+  /// <remarks>On Linux the client is <c>ubuntu12_32/steam</c>, 32-bit to this day, next to the 64-bit overlay in <c>ubuntu12_64</c>.</remarks>
+  public string? ClientDirectory() => steamRoots.FirstOrDefault(root =>
+    File.Exists(platform == GamePlatform.Windows ? Path.Combine(root, WindowsClient) : Path.Combine(root, "ubuntu12_32", "steam")));
+
   public static SteamLibraryLocator ForCurrentUser()
   {
     if (OperatingSystem.IsWindows())

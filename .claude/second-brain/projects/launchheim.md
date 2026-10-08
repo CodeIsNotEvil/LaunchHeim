@@ -60,6 +60,11 @@ accounts) and CurseForge (API key).
 - Windows setup (2026-10-08, for 0.5.3): Inno Setup, per user by default, optional Start menu and
   desktop shortcuts; an installed copy updates itself with **Update now**, which runs the new setup
   silently ([[0013-launchheim-windows-setup-with-inno-setup]]). The zip stays as the portable option.
+- Steam overlay and screenshots (2026-10-08, for 0.5.4): Linux preloads Steam's overlay into the
+  direct start, Windows starts Valheim through `steam.exe -applaunch` and follows its process by name
+  ([[0014-launchheim-steam-overlay]]). The Screenshots page lists Steam's F12 pictures of Valheim with
+  a large preview, "Show in folder" (Explorer `/select`, D-Bus `FileManager1.ShowItems` on Linux) and
+  "Open".
 
 ## Gotchas
 - NetNativeLibLoader, pulled in by Qml.Net, is LGPL-3.0-or-later (Firwood Software), not MIT like

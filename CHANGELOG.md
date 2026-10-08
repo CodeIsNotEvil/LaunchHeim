@@ -7,6 +7,18 @@ Format: a `## <version> - <yyyy-mm-dd>` heading per release (the version must ma
 `src/Desktop/LaunchHeim.Desktop.csproj`), then `### Added`, `### Changed` or `### Fixed` with one
 bullet per change.
 
+## 0.5.4 - 2026-10-08
+
+### Added
+- A Screenshots page in the menu with the pictures you took in Valheim with Steam (F12), newest
+  first. Click one for a large preview, step through them with the arrow keys, show it in your file
+  manager, or open it in your picture viewer.
+
+### Fixed
+- Steam's overlay now works in a Valheim started from LaunchHeim: Shift+Tab, the friends list and
+  F12 screenshots. On Windows LaunchHeim now starts Valheim through Steam, so the launch options in
+  Valheim's Steam properties apply there too.
+
 ## 0.5.3 - 2026-10-08
 
 ### Added

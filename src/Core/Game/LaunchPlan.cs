@@ -8,6 +8,12 @@ public sealed record LaunchPlan(
   IReadOnlyList<string> Arguments,
   IReadOnlyDictionary<string, string?> Environment)
 {
+  /// <summary>
+  /// Set when <see cref="FileName"/> is Steam, which then starts the game: the game's executable, whose
+  /// process LaunchHeim waits for (see <see cref="GameProcess"/>). Null when the game itself is started.
+  /// </summary>
+  public string? SteamStartsGame { get; init; }
+
   public ProcessStartInfo ToStartInfo()
   {
     var info = new ProcessStartInfo(FileName) { WorkingDirectory = WorkingDirectory, UseShellExecute = false };
@@ -43,9 +49,11 @@ public sealed class LaunchException(string message) : Exception(message);
 /// game folder stays untouched. That is what makes several instances possible.
 /// </para>
 /// <para>
-/// The game is started directly rather than through <c>steam -applaunch</c>, because Steam's launch
-/// options cannot be set per launch. <c>SteamAppId</c> lets the Steam API attach to the running client
-/// anyway, which is how the BepInEx script does it as well.
+/// On Linux the game is started directly rather than through <c>steam -applaunch</c>: Steam starts it
+/// with its own environment, and Doorstop only gets in through <c>LD_PRELOAD</c>. <c>SteamAppId</c> lets
+/// the Steam API attach to the running client anyway, which is how the BepInEx script does it as well.
+/// Steam's overlay (Shift+Tab, F12 screenshots) is what Steam injects into the games it starts, so
+/// LaunchHeim loads it the same way Steam does (<see cref="AddSteamOverlay"/>).
 /// </para>
 /// <para>
 /// On Windows Doorstop is not preloaded but found by the game: it is a <c>winhttp.dll</c> proxy that
@@ -53,6 +61,13 @@ public sealed class LaunchException(string message) : Exception(message);
 /// <c>doorstop_config.ini</c> that keeps it disabled, and each launch switches it on and points it at
 /// the instance with Doorstop 4's command-line options. r2modman does the same. The game folder then
 /// holds two extra files, but still no mods, and a launch from Steam stays vanilla.
+/// </para>
+/// <para>
+/// Because those options are plain arguments, Windows can start the game through Steam:
+/// <c>steam.exe -applaunch 892970 &lt;arguments&gt;</c>, as r2modman does. Steam injects its overlay into
+/// what it starts and nothing else; a Valheim started directly on Windows had no overlay and no F12
+/// screenshots (found 2026-10-08). The game then isn't LaunchHeim's child, so LaunchHeim finds its
+/// process by name. Valheim's launch options in Steam's game properties apply too, as with any Steam start.
 /// </para>
 /// </remarks>
 public static class GameLauncher
@@ -71,13 +86,18 @@ public static class GameLauncher
   /// </summary>
   public static readonly string[] HostOnlyVariables = ["QT_PLUGIN_PATH", "QML2_IMPORT_PATH", "QT_QPA_PLATFORM", "QT_QPA_PLATFORMTHEME", "QT_QUICK_CONTROLS_STYLE", "QT_QUICK_CONTROLS_MATERIAL_VARIANT"];
 
+  /// <param name="steamDirectory">
+  /// The Steam client's folder (<see cref="SteamLibraryLocator.ClientDirectory"/>), for its overlay on
+  /// Linux and <c>steam.exe</c> on Windows. Without it the game starts directly, with no overlay.
+  /// </param>
   public static LaunchPlan Plan(
     string gameDirectory,
     string? instanceDirectory,
     string extraArguments,
     IReadOnlyDictionary<string, string?> currentEnvironment,
     GamePlatform? platform = null,
-    IReadOnlyList<string>? joinArguments = null)
+    IReadOnlyList<string>? joinArguments = null,
+    string? steamDirectory = null)
   {
     var target = platform ?? GamePlatforms.Current;
     var executable = Path.Combine(gameDirectory, SteamLibraryLocator.ExecutableFor(target));
@@ -102,9 +122,20 @@ public static class GameLauncher
       var arguments = WindowsDoorstopArguments(gameDirectory, instanceDirectory);
       arguments.AddRange(SplitArguments(extraArguments));
       arguments.AddRange(joinArguments ?? []);
+      var steam = steamDirectory is null ? null : Path.Combine(steamDirectory, SteamLibraryLocator.WindowsClient);
+      if (steam is not null && File.Exists(steam))
+      {
+        // steam.exe hands the launch to the running client and exits; SteamClient made sure one runs.
+        return new LaunchPlan(steam, steamDirectory!, ["-applaunch", SteamLibraryLocator.ValheimAppId, .. arguments], environment)
+        {
+          SteamStartsGame = executable,
+        };
+      }
+
       return new LaunchPlan(executable, gameDirectory, arguments, environment);
     }
 
+    AddSteamOverlay(environment, steamDirectory, currentEnvironment);
     if (instanceDirectory is null)
     {
       // A preload left over in the user's session would otherwise mod the "vanilla" launch.
@@ -254,7 +285,41 @@ public static class GameLauncher
 
     var doorstopDirectory = Path.GetDirectoryName(doorstop)!;
     environment["LD_LIBRARY_PATH"] = Prepend(doorstopDirectory, currentEnvironment.GetValueOrDefault("LD_LIBRARY_PATH"));
-    environment["LD_PRELOAD"] = Prepend(Path.GetFileName(doorstop), currentEnvironment.GetValueOrDefault("LD_PRELOAD"));
+    // In front of Steam's overlay, if AddSteamOverlay added it: the order a start_game_bepinex.sh in
+    // Steam's launch options gives, which is what BepInEx is tested with.
+    environment["LD_PRELOAD"] = Prepend(Path.GetFileName(doorstop), environment.GetValueOrDefault("LD_PRELOAD") ?? currentEnvironment.GetValueOrDefault("LD_PRELOAD"));
+  }
+
+  /// <summary>Loads Steam's overlay into the game the way Steam does for the games it starts on Linux.</summary>
+  /// <remarks>
+  /// <para>
+  /// Steam preloads <c>gameoverlayrenderer.so</c>, which draws the overlay into OpenGL games and talks to
+  /// the client, and switches on its Vulkan layer (<c>VK_LAYER_VALVE_steam_overlay</c>, installed as an
+  /// implicit layer in <c>~/.local/share/vulkan/implicit_layer.d</c>) for Vulkan, which Valheim uses on
+  /// Linux. Both find the game by <c>SteamGameId</c>/<c>SteamOverlayGameId</c>. Steam also preloads the
+  /// 32-bit build, which a 64-bit game only refuses with a warning, so it is left out.
+  /// </para>
+  /// <para>
+  /// Skipped when the overlay is already preloaded: LaunchHeim itself started from Steam (as a
+  /// non-Steam game) passes Steam's environment on. A Steam without the library (another layout, or none
+  /// found) only costs the overlay.
+  /// </para>
+  /// </remarks>
+  private static void AddSteamOverlay(
+    Dictionary<string, string?> environment,
+    string? steamDirectory,
+    IReadOnlyDictionary<string, string?> currentEnvironment)
+  {
+    var preload = currentEnvironment.GetValueOrDefault("LD_PRELOAD");
+    var overlay = steamDirectory is null ? null : Path.Combine(steamDirectory, "ubuntu12_64", "gameoverlayrenderer.so");
+    if (overlay is null || !File.Exists(overlay) || (preload?.Contains("gameoverlayrenderer.so", StringComparison.Ordinal) ?? false))
+    {
+      return;
+    }
+
+    environment["LD_PRELOAD"] = Prepend(overlay, preload);
+    environment["ENABLE_VK_LAYER_VALVE_steam_overlay_1"] = "1";
+    environment["SteamOverlayGameId"] = SteamLibraryLocator.ValheimAppId;
   }
 
   private static string Prepend(string value, string? existing) =>

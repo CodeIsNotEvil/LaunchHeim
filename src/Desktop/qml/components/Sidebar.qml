@@ -55,6 +55,14 @@ Rectangle {
     }
 
     NavButton {
+      text: "Screenshots"
+      iconName: "image"
+      active: App.currentPage === "screenshots"
+      Layout.fillWidth: true
+      onClicked: App.navigate("screenshots")
+    }
+
+    NavButton {
       text: "Settings"
       iconName: "settings"
       active: App.currentPage === "settings"
@@ -207,7 +215,7 @@ Rectangle {
           }
 
           Label {
-            text: App.isGameRunning ? App.runningName : statusCard.waiting ? "Log in if asked" : Vm.settings.gameFound ? App.lastPlayName : "Set the folder in Settings"
+            text: App.isGameRunning ? App.runningName : statusCard.waiting ? App.steamStatusDetail : Vm.settings.gameFound ? App.lastPlayName : "Set the folder in Settings"
             color: Theme.textMuted
             font.pointSize: Theme.small
             elide: Text.ElideRight
