@@ -39,9 +39,14 @@ jobs:
           fi
           python3 Scripts/changelog.py check Applications/LaunchHeim/CHANGELOG.md "$tag"
 
+  # On a tag the Windows files must be signed with the code signing certificate (packaging/README.md
+  # "Code signing"); dry runs without the secret stay unsigned.
   windows:
     needs: version
     uses: ./.github/workflows/launchheim-windows.yml
+    with:
+      release: ${{ startsWith(github.ref, 'refs/tags/launchheim-v') }}
+    secrets: inherit
 
   # LaunchHeim Companion carries LaunchHeim's version, so the same tag releases it. On a tag it must be
   # signed with the release key (android/README.md "Releases"); dry runs use a throwaway key.
@@ -128,7 +133,11 @@ jobs:
           | Fedora, RHEL 9/10 (EPEL) | \`launchheim-${version}-1.x86_64.rpm\` | \`sudo dnf install ./<file>\` |
           | Android 8+ (companion app) | \`LaunchHeimCompanion-${version}.apk\` | open it on the phone and allow installing from that app |
 
-          The packages aren't signed, so \`pacman -U <url>\` fails looking for a \`.sig\`; install the downloaded file.
+          \`LaunchHeim.exe\` and LaunchHeim's own DLLs in the Windows zip are signed by \`CN=CodeIsNotEvil\`, certificate
+          thumbprint \`284F5384B189984492629622EDC4A40646C5D8F6\`. The certificate is self-signed, so Windows still
+          calls the publisher unknown; the thumbprint is what shows the files are ours and unchanged.
+
+          The Linux packages aren't signed, so \`pacman -U <url>\` fails looking for a \`.sig\`; install the downloaded file.
           Check a download with \`sha256sum -c --ignore-missing\` and these lines:
 
           \`\`\`
