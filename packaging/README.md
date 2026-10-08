@@ -145,6 +145,59 @@ There's no installer yet. The Windows build is a portable folder:
 It's built by `windows/build.ps1` (see the app README's Windows section), which needs MSVC, so it can't
 be built from Linux.
 
+### Code signing
+
+`LaunchHeim.exe`, `LaunchHeim.dll`, `LaunchHeim.Core.dll`, `QmlNet.dll` and `LaunchHeimAppIcon.dll`
+carry an Authenticode signature from a **self-signed** certificate, so anyone can see who built them
+and that nothing changed them since:
+
+| | |
+|---|---|
+| Subject | `CN=CodeIsNotEvil` (RSA 4096, code signing only, not a CA) |
+| Thumbprint | `284F5384B189984492629622EDC4A40646C5D8F6` |
+| Valid | 2026-10-08 to 2036-10-05 |
+| Public certificate | [`windows/launchheim-codesign.cer`](windows/launchheim-codesign.cer) |
+
+Windows doesn't know the certificate, so SmartScreen and the file's properties still say the
+publisher is unknown, and "Windows protected your PC" still needs *More info → Run anyway*. Only a
+certificate from a commercial CA (or Microsoft's Trusted Signing) changes that. What it does give:
+
+```powershell
+# True for an untouched file from a LaunchHeim build (in the unzipped folder)
+(Get-AuthenticodeSignature .\LaunchHeim\LaunchHeim.exe).SignerCertificate.Thumbprint -eq "284F5384B189984492629622EDC4A40646C5D8F6"
+```
+
+Explorer shows the same under *Properties → Digital Signatures → Details → View Certificate →
+Details → Thumbprint*. A file someone modified reports `HashMismatch` instead. To make Windows
+show "CodeIsNotEvil" as a verified publisher on your own PC, import the `.cer` into *Trusted Root
+Certification Authorities* and *Trusted Publishers* (`certlm.msc`). It's marked as no CA, so it
+can't vouch for anything but files it signed itself.
+
+Only what `build.ps1` compiles is signed. Qt's DLLs and the Visual C++ runtime stay as their makers
+shipped them, and .NET's files already have Microsoft's signature. Signatures are time stamped
+(DigiCert, Sectigo as the fallback), so they stay valid after the certificate expires.
+
+`build.ps1` signs when `LAUNCHHEIM_SIGNING_PFX` names the `.pfx` and `LAUNCHHEIM_SIGNING_PASSWORD`
+holds its password. It refuses a `.pfx` whose certificate isn't the committed `.cer`, and checks
+every signature afterwards. In CI the `.pfx` and its password are the secrets
+`LAUNCHHEIM_WINDOWS_SIGNING_PFX` (base64) and `LAUNCHHEIM_WINDOWS_SIGNING_PASSWORD`. Builds without
+them are unsigned, and a tagged release fails without them. The key was made once with OpenSSL:
+
+```fish
+openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -subj "/CN=CodeIsNotEvil" \
+  -addext "basicConstraints=critical,CA:FALSE" -addext "keyUsage=critical,digitalSignature" \
+  -addext "extendedKeyUsage=critical,codeSigning" -addext "subjectKeyIdentifier=hash" \
+  -keyout key.pem -out launchheim-codesign.cer
+openssl pkcs12 -export -name "LaunchHeim code signing" -inkey key.pem -in launchheim-codesign.cer -out launchheim-codesign.pfx
+base64 -w0 launchheim-codesign.pfx | gh secret set LAUNCHHEIM_WINDOWS_SIGNING_PFX
+gh secret set LAUNCHHEIM_WINDOWS_SIGNING_PASSWORD
+```
+
+It's a separate key from the Android companion's APK key: losing one shouldn't cost the other.
+A new key means a new thumbprint, so replace `windows/launchheim-codesign.cer` and the thumbprint
+here, on the download page (`site/src/download.html`) and in the release notes
+(`launchheim-release.yml`).
+
 ## Building the packages
 
 ```fish
@@ -176,7 +229,7 @@ git push origin launchheim-v0.5.2
 The tag starts `.github/workflows/launchheim-release.yml`:
 1. It checks that the tag matches `<Version>` in `Directory.Build.props` and that `CHANGELOG.md` has
    a section for it. That section opens the release notes, and the download page shows every version.
-2. It builds the Windows zip (through the Windows workflow, smoke test included), plus the Arch
+2. It builds the Windows zip (through the Windows workflow, signed and smoke-tested), plus the Arch
    package, the .deb and the .rpm (`build-packages.sh deb rpm arch` on Ubuntu), and the Android
    companion's APK, signed with the release key (`android/README.md` "Releases").
 3. It installs the .deb and .rpm in Debian and Fedora containers.

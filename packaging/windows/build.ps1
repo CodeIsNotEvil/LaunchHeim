@@ -11,7 +11,10 @@
      native/app_icon.cpp, which gives the window and the taskbar button the LaunchHeim icon.
   3. Copies the Qt 5.15 it was built against next to LaunchHeim.exe (windeployqt), plus the Visual C++
      runtime, so the folder runs on any Windows 10 or 11 without installing anything.
-  4. Zips it, and with -Smoke starts it offscreen and saves a screenshot of every page.
+  4. Signs LaunchHeim.exe and the DLLs this build compiled with the self-signed LaunchHeim certificate,
+     when LAUNCHHEIM_SIGNING_PFX names its .pfx (password in LAUNCHHEIM_SIGNING_PASSWORD). See
+     packaging/README.md, "Code signing".
+  5. Zips it, and with -Smoke starts it offscreen and saves a screenshot of every page.
 
   The GitHub workflow .github/workflows/launchheim-windows.yml runs exactly this script.
 
@@ -27,6 +30,9 @@ param(
   # The Qt 5.15 kit, the folder that contains bin\qmake.exe.
   [string]$QtDir = $(if ($env:QT_ROOT_DIR) { $env:QT_ROOT_DIR } elseif ($env:Qt5_DIR) { $env:Qt5_DIR } else { 'C:\Qt\5.15.2\msvc2019_64' }),
   [string]$OutputDir = (Join-Path $PSScriptRoot '..\dist'),
+  # The code signing .pfx. Its password is read from LAUNCHHEIM_SIGNING_PASSWORD only, so it never
+  # sits on a command line or in the shell history. Without a .pfx the build is unsigned.
+  [string]$SigningPfx = $env:LAUNCHHEIM_SIGNING_PFX,
   [switch]$SkipTests,
   [switch]$Smoke
 )
@@ -121,7 +127,58 @@ $crt = Get-ChildItem -Directory (Join-Path $env:VCToolsRedistDir 'x64') -Filter 
 if (-not $crt) { throw "The Visual C++ runtime was not found in $env:VCToolsRedistDir." }
 Copy-Item (Join-Path $crt.FullName '*.dll') $package
 
-# 4. Zip, then optionally a smoke test
+# 4. Authenticode signatures, so anyone can see these files come from LaunchHeim's build and weren't
+# changed since. Only what this build compiled is signed: Qt's DLLs and the Visual C++ runtime stay as
+# their makers shipped them, and .NET's own files already carry Microsoft's signature.
+if ($SigningPfx) {
+  # The committed certificate is what the download page and the release notes tell people to expect,
+  # so a .pfx holding any other key (a stale secret, a test key) fails here instead of shipping.
+  $expected = [Security.Cryptography.X509Certificates.X509Certificate2]::new((Join-Path $PSScriptRoot 'launchheim-codesign.cer'))
+  # EphemeralKeySet: only the thumbprint is needed here, so the key isn't written to the user's key store.
+  $actual = [Security.Cryptography.X509Certificates.X509Certificate2]::new($SigningPfx, $env:LAUNCHHEIM_SIGNING_PASSWORD,
+    [Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet)
+  if ($actual.Thumbprint -ne $expected.Thumbprint) {
+    throw "$SigningPfx holds certificate $($actual.Thumbprint), not $($expected.Thumbprint) from launchheim-codesign.cer."
+  }
+
+  # On PATH in a Developer PowerShell (and after msvc-dev-cmd in CI), otherwise in the newest Windows SDK.
+  $signtool = (Get-Command signtool.exe -ErrorAction SilentlyContinue).Source
+  if (-not $signtool) {
+    $signtool = Get-ChildItem (Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin\*\x64\signtool.exe') -ErrorAction SilentlyContinue |
+      Sort-Object FullName | Select-Object -Last 1 -ExpandProperty FullName
+  }
+  if (-not $signtool) { throw 'signtool.exe was not found. It comes with the Windows SDK.' }
+
+  $ownFiles = 'LaunchHeim.exe', 'LaunchHeim.dll', 'LaunchHeim.Core.dll', 'QmlNet.dll', 'LaunchHeimAppIcon.dll' |
+    ForEach-Object { Join-Path $package $_ }
+  # The time stamp keeps a signature valid after the certificate expires (2036). A second server in case
+  # the first is down; signing again simply replaces a signature from a failed attempt. Not Invoke-Checked:
+  # its error message would print the password.
+  $signed = $false
+  foreach ($timestampServer in 'http://timestamp.digicert.com', 'http://timestamp.sectigo.com') {
+    & $signtool sign /fd sha256 /f $SigningPfx /p $env:LAUNCHHEIM_SIGNING_PASSWORD /tr $timestampServer /td sha256 `
+      /d LaunchHeim /du 'https://codeisnotevil.github.io/MyMonoRepo/' @ownFiles
+    if ($LASTEXITCODE -eq 0) { $signed = $true; break }
+    Write-Host "Signing with the time stamp server $timestampServer failed."
+  }
+  if (-not $signed) { throw 'signtool could not sign the files.' }
+
+  # Windows doesn't trust a self-signed certificate, so the status is UnknownError rather than Valid. What
+  # matters is that the signature covers the file as shipped (no HashMismatch), is ours, and is time stamped.
+  foreach ($file in $ownFiles) {
+    $signature = Get-AuthenticodeSignature $file
+    if ($signature.Status -in 'NotSigned', 'HashMismatch', 'NotSupportedFileFormat' -or
+      $signature.SignerCertificate.Thumbprint -ne $expected.Thumbprint -or -not $signature.TimeStamperCertificate) {
+      throw "$file has no valid LaunchHeim signature: $($signature.Status) $($signature.StatusMessage)"
+    }
+  }
+  Write-Host "Signed $($ownFiles.Count) files with certificate $($expected.Thumbprint)"
+}
+else {
+  Write-Host 'Not signed: no LAUNCHHEIM_SIGNING_PFX.'
+}
+
+# 5. Zip, then optionally a smoke test
 $zip = Join-Path $OutputDir "LaunchHeim-$version-win-x64.zip"
 Remove-Item -Force $zip -ErrorAction SilentlyContinue
 Compress-Archive -Path $package -DestinationPath $zip

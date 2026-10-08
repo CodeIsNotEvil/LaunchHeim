@@ -7,6 +7,14 @@ Format: a `## <version> - <yyyy-mm-dd>` heading per release (the version must ma
 `src/Desktop/LaunchHeim.Desktop.csproj`), then `### Added`, `### Changed` or `### Fixed` with one
 bullet per change.
 
+## 0.5.3 - 2026-10-08
+
+### Added
+- The Windows version is signed: `LaunchHeim.exe` and LaunchHeim's own DLLs carry a signature from
+  `CodeIsNotEvil`, certificate thumbprint `284F5384B189984492629622EDC4A40646C5D8F6`. It shows the
+  files come from LaunchHeim's build and weren't changed since. The certificate is self-signed, so
+  Windows still calls the publisher unknown. The download page shows how to check it.
+
 ## 0.5.2 - 2026-10-06
 
 ### Added

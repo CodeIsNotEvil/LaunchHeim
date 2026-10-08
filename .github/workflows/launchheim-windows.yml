@@ -1,5 +1,7 @@
 # Builds the Windows version of LaunchHeim with packaging/windows/build.ps1, runs the Core tests on
-# Windows, starts the app offscreen and keeps the zip plus screenshots as an artifact.
+# Windows, starts the app offscreen and keeps the zip plus screenshots as an artifact. With the
+# LAUNCHHEIM_WINDOWS_SIGNING_* secrets, LaunchHeim.exe and its own DLLs are signed (packaging/README.md,
+# "Code signing").
 # The Windows build needs MSVC, so this is where it gets built and tested; see
 # Applications/LaunchHeim/packaging/README.md.
 name: LaunchHeim Windows
@@ -16,6 +18,11 @@ on:
   workflow_dispatch:
   # The release workflow (launchheim-release.yml) builds the Windows zip through this one.
   workflow_call:
+    inputs:
+      release:
+        description: Fail without the code signing certificate, since a published zip must always be signed.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -23,6 +30,9 @@ permissions:
 jobs:
   windows:
     runs-on: windows-2022
+    env:
+      # Secrets can't be used in a step's `if` directly.
+      HAS_SIGNING_KEY: ${{ secrets.LAUNCHHEIM_WINDOWS_SIGNING_PFX != '' }}
     defaults:
       run:
         working-directory: Applications/LaunchHeim
@@ -44,8 +54,30 @@ jobs:
         with:
           arch: x64
 
+      # Builds without the secret (forks, or before it was set up) stay unsigned, which is fine for
+      # trying them. A release refuses that: the download page tells people to expect the signature.
+      - name: A release needs the signing certificate
+        if: inputs.release && env.HAS_SIGNING_KEY != 'true'
+        shell: pwsh
+        run: |
+          Write-Host '::error::The LAUNCHHEIM_WINDOWS_SIGNING_* secrets are missing. See Applications/LaunchHeim/packaging/README.md, "Code signing".'
+          exit 1
+
+      - name: Signing certificate
+        if: env.HAS_SIGNING_KEY == 'true'
+        shell: pwsh
+        env:
+          PFX_BASE64: ${{ secrets.LAUNCHHEIM_WINDOWS_SIGNING_PFX }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP 'launchheim-codesign.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_BASE64))
+          "LAUNCHHEIM_SIGNING_PFX=$pfx" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      # signtool.exe is on PATH through msvc-dev-cmd (the Windows SDK's bin folder).
       - name: Build, test and smoke-test
         shell: pwsh
+        env:
+          LAUNCHHEIM_SIGNING_PASSWORD: ${{ secrets.LAUNCHHEIM_WINDOWS_SIGNING_PASSWORD }}
         run: ./packaging/windows/build.ps1 -Smoke
 
       - uses: actions/upload-artifact@v4

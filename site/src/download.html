@@ -175,6 +175,12 @@ nano .env        # set POSTGRES_PASSWORD</code></pre></li>
           <code>True</code> when the file is intact.</p>
 <pre><code>(Get-FileHash .\{{ lh_windows_file }}).Hash -eq "{{ lh_windows_sha256 }}"</code></pre>
         <!-- end -->
+        <!-- The thumbprint of packaging/windows/launchheim-codesign.cer; change it with the certificate. -->
+        <p>Releases after 0.5.2 are signed by <code>CodeIsNotEvil</code> with a self-signed certificate.
+          Windows doesn't know it, so it still calls the publisher unknown, and "Windows protected your
+          PC" needs <em>More info → Run anyway</em>. The signature shows the files are ours and
+          unchanged; in the unzipped folder this prints <code>True</code>:</p>
+<pre><code>(Get-AuthenticodeSignature .\LaunchHeim\LaunchHeim.exe).SignerCertificate.Thumbprint -eq "284F5384B189984492629622EDC4A40646C5D8F6"</code></pre>
       </details>
       <!-- end -->
       <!-- if:lh_arch_url -->
