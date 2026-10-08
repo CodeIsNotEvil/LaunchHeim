@@ -162,8 +162,8 @@ accounts) and CurseForge (API key).
   and kills that command (2026-10-05).
 
 ## Open
-- Code signing (2026-10-08): the `LAUNCHHEIM_WINDOWS_SIGNING_*` secrets must be set before the next
-  tag, or the release fails. signtool on the runner hasn't been seen signing yet.
+- Code signing (2026-10-08): signs fine in CI (secrets set, PR #29 run 37808678350). Not yet looked
+  at on a real Windows PC: the Digital Signatures tab and the SmartScreen prompt for the signed zip.
 - LaunchHeim Companion (2026-10-05): not yet tried between a real phone and the desktop on the same
   Wi-Fi (multicast discovery, the /24 fallback, Android 14+ background behaviour). Checked on an
   emulator through adb forwarding and with C#↔Kotlin tests on localhost. CurseForge on the phone is
