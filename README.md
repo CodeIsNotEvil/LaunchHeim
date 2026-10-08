@@ -291,7 +291,10 @@ The same QML UI runs on Windows. The differences:
 - **nxm://** is registered per user under `HKCU\Software\Classes\nxm` (Settings → Register). No
   administrator rights are needed.
 - **Theme.** Breeze Light or Dark to match Windows' app mode, with LaunchHeim's orange accent and Kode Mono. It's read
-  at start.
+  at start. Windows draws the title bar itself, light unless a window asks for dark, so
+  `native/app_icon.cpp` asks DWM for a dark frame (`DWMWA_USE_IMMERSIVE_DARK_MODE`) on every window
+  as it is created, the console included, whenever the theme is dark. The Windows workflow checks it
+  with the runner switched to dark mode (`test-windows-dark-frame.png` in the artifact).
 
 Building needs Visual Studio 2022 with C++, Qt 5.15.2 `msvc2019_64`, the .NET 10 SDK and git:
 `packaging\windows\build.ps1 -QtDir C:\Qt\5.15.2\msvc2019_64` (add `-Smoke` to take screenshots). The

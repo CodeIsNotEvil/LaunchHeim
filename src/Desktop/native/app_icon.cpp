@@ -1,6 +1,7 @@
 // Gives LaunchHeim's windows its icon in the title bar and the taskbar. Qml.Net has no binding for
 // QGuiApplication's window icon or desktop file name, and Qt 5's QML can't set a window icon, so this
-// small library makes the two calls for C# (Hosting/AppIcon.cs).
+// small library makes the two calls for C# (Hosting/AppIcon.cs). On Windows it also gives the windows
+// a dark title bar in dark mode (launchheim_set_dark_frames, below).
 //
 // Both are needed, because the desktops look for the icon in different places:
 // - The window icon is what X11 (_NET_WM_ICON) and Windows (WM_SETICON) show. Without it Windows shows
@@ -20,6 +21,15 @@
 #include <QtGui/QGuiApplication>
 #include <QtGui/QIcon>
 
+#ifdef Q_OS_WIN
+#include <QtCore/QEvent>
+#include <QtCore/QObject>
+#include <QtGui/QWindow>
+#include <QtGui/qevent.h>
+#include <windows.h>
+#include <dwmapi.h>
+#endif
+
 // Needs the QGuiApplication, and has to run before the window is created: Wayland reads the app_id
 // once, when the window first appears. Returns how many icon sizes were loaded.
 // Strings are UTF-16 (C#'s own encoding and QString's), because .NET can't marshal an array of UTF-8 strings.
@@ -37,3 +47,59 @@ extern "C" Q_DECL_EXPORT int launchheim_set_app_icon(const QChar* desktopFileNam
   QGuiApplication::setWindowIcon(icon);
   return icon.availableSizes().size();
 }
+
+#ifdef Q_OS_WIN
+// Windows draws a window's title bar and its buttons itself, light unless the window asks for dark with
+// DWMWA_USE_IMMERSIVE_DARK_MODE. Qt 5.15 only asks with -platform windows:darkmode=1, which follows
+// Windows' setting at the time each window is created, not LaunchHeim's theme. Asking here keeps the
+// frame in step with the QML theme (Theming/WindowsColorScheme.cs), which is read once at start.
+namespace {
+// 20 since Windows 10 20H1; 1809 to 1909 knew the same switch as 19. Older Windows has neither and
+// keeps the light frame.
+constexpr DWORD DarkModeAttribute = 20;
+constexpr DWORD DarkModeAttributeBefore20H1 = 19;
+
+void setDarkFrame(QWindow* window, bool dark) {
+  const BOOL value = dark ? TRUE : FALSE;
+  const HWND hwnd = reinterpret_cast<HWND>(window->winId());
+  if (FAILED(DwmSetWindowAttribute(hwnd, DarkModeAttribute, &value, sizeof(value)))) {
+    DwmSetWindowAttribute(hwnd, DarkModeAttributeBefore20H1, &value, sizeof(value));
+  }
+}
+
+// Sees every window's native handle the moment it exists, before its first frame, so the title bar
+// never shows light first. That covers windows QML creates later too, such as the console.
+class DarkFrameFilter : public QObject {
+public:
+  explicit DarkFrameFilter(bool dark) : m_dark(dark) {}
+
+  bool eventFilter(QObject* watched, QEvent* event) override {
+    if (event->type() == QEvent::PlatformSurface
+        && static_cast<QPlatformSurfaceEvent*>(event)->surfaceEventType() == QPlatformSurfaceEvent::SurfaceCreated) {
+      if (auto* window = qobject_cast<QWindow*>(watched)) {
+        setDarkFrame(window, m_dark);
+      }
+    }
+
+    return false;
+  }
+
+private:
+  bool m_dark;
+};
+}
+
+// Needs the QGuiApplication; call it before the QML window is loaded. Windows that already exist are
+// switched right away. Returns how many that were.
+extern "C" Q_DECL_EXPORT int launchheim_set_dark_frames(int dark) {
+  QCoreApplication::instance()->installEventFilter(new DarkFrameFilter(dark != 0));
+  const auto windows = QGuiApplication::topLevelWindows();
+  for (QWindow* window : windows) {
+    if (window->handle()) {
+      setDarkFrame(window, dark != 0);
+    }
+  }
+
+  return windows.size();
+}
+#endif

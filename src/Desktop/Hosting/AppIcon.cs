@@ -5,10 +5,14 @@ namespace CINE.LaunchHeim.Desktop.Hosting;
 
 /// <summary>
 /// Shows LaunchHeim's logo in the window's title bar and the taskbar instead of the desktop's placeholder,
-/// through <c>native/app_icon.cpp</c>. See that file for why each desktop needs it.
+/// and on Windows matches the title bar to the theme, through <c>native/app_icon.cpp</c>. See that file
+/// for why each is needed.
 /// </summary>
 public static class AppIcon
 {
+  [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+  private delegate int SetDarkFramesDelegate(int dark);
+
   [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
   private delegate int SetAppIconDelegate(
     [MarshalAs(UnmanagedType.LPWStr)] string desktopFileName,
@@ -37,5 +41,24 @@ public static class AppIcon
     {
       Log.Warning("None of the icons in packaging/icons could be loaded, so the window has no app icon.");
     }
+  }
+
+  /// <summary>Gives every LaunchHeim window a dark title bar on Windows when the theme is dark.</summary>
+  /// <remarks>
+  /// Windows draws the title bar light unless a window asks otherwise, whatever the app mode, so in dark
+  /// mode LaunchHeim had a white bar over its dark page. Call it before the QML window is loaded; it also
+  /// covers windows opened later (the console). Without the library the bar only stays light.
+  /// </remarks>
+  [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+  public static void SetDarkFrames(bool dark)
+  {
+    if (!NativeLibrary.TryLoad(Path.Combine(AppContext.BaseDirectory, "LaunchHeimAppIcon.dll"), out var library)
+      || !NativeLibrary.TryGetExport(library, "launchheim_set_dark_frames", out var export))
+    {
+      Log.Warning("LaunchHeimAppIcon.dll could not be loaded, so the title bar keeps Windows' light colors.");
+      return;
+    }
+
+    Marshal.GetDelegateForFunctionPointer<SetDarkFramesDelegate>(export)(dark ? 1 : 0);
   }
 }
