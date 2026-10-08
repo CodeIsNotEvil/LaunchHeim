@@ -199,23 +199,18 @@ if ($Smoke) {
     $personalize = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
     if (-not (Test-Path $personalize)) { New-Item -Force $personalize | Out-Null }
     Set-ItemProperty $personalize -Name AppsUseLightTheme -Value 0 -Type DWord
-    Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
+    # Only the two Windows calls in C#: in PowerShell 7 the inline C# can't see System.Drawing, which
+    # PowerShell itself loads fine (Add-Type -AssemblyName), so the capture is done out here.
+    Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
 public static class DarkFrameProbe {
   [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left, Top, Right, Bottom; }
   [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hwnd, int attribute, out int value, int size);
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd, out Rect rect);
-  public static void Capture(IntPtr hwnd, string file) {
-    Rect r; GetWindowRect(hwnd, out r);
-    using (var bitmap = new System.Drawing.Bitmap(r.Right - r.Left, r.Bottom - r.Top))
-    using (var graphics = System.Drawing.Graphics.FromImage(bitmap)) {
-      graphics.CopyFromScreen(r.Left, r.Top, 0, 0, bitmap.Size);
-      bitmap.Save(file, System.Drawing.Imaging.ImageFormat.Png);
-    }
-  }
 }
 '@
+    Add-Type -AssemblyName System.Drawing
     $log = Join-Path $OutputDir 'test-windows-dark-frame.log'
     $env:LAUNCHHEIM_SCREENSHOT = Join-Path $OutputDir 'test-windows-dark.png'
     $env:LAUNCHHEIM_SCREENSHOT_PAGE = 'library'
@@ -236,7 +231,15 @@ public static class DarkFrameProbe {
       $result = [DarkFrameProbe]::DwmGetWindowAttribute($hwnd, 20, [ref]$dark, 4)
       Write-Host "Dark title bar: DwmGetWindowAttribute returned $result, value $dark"
       if ($result -eq 0 -and $dark -eq 0) { Write-Host '::error::the title bar is light in dark mode'; $failed = $true }
-      try { [DarkFrameProbe]::Capture($hwnd, (Join-Path $OutputDir 'test-windows-dark-frame.png')) }
+      try {
+        $rect = New-Object DarkFrameProbe+Rect
+        [DarkFrameProbe]::GetWindowRect($hwnd, [ref]$rect) | Out-Null
+        $bitmap = [System.Drawing.Bitmap]::new($rect.Right - $rect.Left, $rect.Bottom - $rect.Top)
+        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+        $graphics.CopyFromScreen($rect.Left, $rect.Top, 0, 0, $bitmap.Size)
+        $bitmap.Save((Join-Path $OutputDir 'test-windows-dark-frame.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+        $graphics.Dispose(); $bitmap.Dispose()
+      }
       catch { Write-Host "Could not copy the window off the screen: $_" }
     }
     if (-not $process.WaitForExit(60000)) { $process.Kill() }
