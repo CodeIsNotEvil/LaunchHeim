@@ -134,7 +134,7 @@ Item {
       SettingsSection {
         iconName: "phone"
         title: "Phone sync"
-        description: "LaunchHeim Companion for Android keeps your mod lists on the phone, browses Thunderstore and shows who's online on your servers. It talks to LaunchHeim over the local network with the LocalSend protocol, which the LocalSend app understands too. Sending to the phone works either way; receiving needs this switch."
+        description: "LaunchHeim Companion for Android keeps your mod lists on the phone, browses Thunderstore and shows who's online on your servers. It talks to LaunchHeim over the local network with the LocalSend protocol, which the LocalSend app understands too. Send an instance from its page and the server list from Play; that works either way. Receiving needs this switch."
         Layout.fillWidth: true
 
         LhSwitch {
@@ -147,7 +147,51 @@ Item {
           spacing: 10
           Icon { iconName: Vm.phone.running ? "check" : "info"; color: Vm.phone.running ? Theme.positive : Theme.textMuted }
           Label { text: Vm.phone.statusText; elide: Text.ElideRight; Layout.fillWidth: true }
-          LhButton { text: "Send to phone…"; iconName: "phone"; onClicked: Vm.phone.openSend("") }
+        }
+
+        // ufw drops what phones send unless it has a rule (Firewall.cs). The command is a field so it
+        // can be selected and copied.
+        ColumnLayout {
+          visible: Vm.phone.firewallCommand.length > 0
+          spacing: 6
+          Layout.fillWidth: true
+
+          RowLayout {
+            spacing: 10
+            Layout.fillWidth: true
+            Icon { iconName: "alert"; color: Theme.neutral }
+            Label {
+              text: "The ufw firewall drops what phones send, so they can't find or reach LaunchHeim. Allow phone sync in a terminal:"
+              wrapMode: Text.Wrap
+              Layout.fillWidth: true
+            }
+          }
+
+          RowLayout {
+            spacing: 8
+            Layout.fillWidth: true
+            LhTextField {
+              text: Vm.phone.firewallCommand
+              readOnly: true
+              selectByMouse: true
+              Layout.fillWidth: true
+            }
+            LhButton { text: "Check again"; iconName: "refresh"; kind: "ghost"; onClicked: Vm.phone.checkFirewall() }
+          }
+        }
+
+        RowLayout {
+          visible: Vm.phone.canAllowFirewall && Vm.phone.running
+          spacing: 10
+          Layout.fillWidth: true
+          Icon { iconName: "info"; color: Theme.textMuted }
+          Label {
+            text: "If Windows Firewall blocked LaunchHeim when it first asked, phones can't send to this PC."
+            color: Theme.textMuted
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
+          }
+          LhButton { text: "Allow in Windows Firewall"; iconName: "check"; onClicked: Vm.phone.allowFirewall() }
         }
 
         RowLayout {

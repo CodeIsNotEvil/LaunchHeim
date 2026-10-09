@@ -5,39 +5,20 @@ import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
 import "../components"
 
-// Sends instances (as .r2z packs) and Valheim's server list to the companion app, or to any LocalSend
-// device. Opened from the library (everything preselected) or an instance page (only that instance).
+// Sends one thing to the companion app, or to any LocalSend device: an instance as an .r2z pack (from
+// its page) or Valheim's server list (from the Play page). The view model knows which.
 LhDialog {
   id: dialog
 
   readonly property var phone: Vm.phone
-  property var selected: ({})
   property string peerId: ""
-  property bool servers: true
 
-  title: "Send to phone"
+  title: phone.sendTitle
   width: 560
   visible: phone.sendVisible
   closePolicy: phone.sending ? Popup.NoAutoClose : Popup.CloseOnEscape
   onClosed: if (phone.sendVisible) phone.closeSend()
-
-  onOpened: {
-    var picked = {}
-    for (var i = 0; i < Vm.instances.length; i++) {
-      var id = Vm.instances[i].id
-      picked[id] = phone.sendTarget.length === 0 || phone.sendTarget === id
-    }
-    selected = picked
-    servers = phone.sendTarget.length === 0
-    peerId = ""
-  }
-
-  function selectedIds() {
-    var ids = []
-    for (var id in selected)
-      if (selected[id]) ids.push(id)
-    return ids
-  }
+  onOpened: peerId = ""
 
   // The first LaunchHeim phone found is picked, which is the usual case of one phone.
   Connections {
@@ -53,7 +34,13 @@ LhDialog {
     spacing: 12
 
     Label {
-      text: "Open LaunchHeim Companion on your phone, on the same network. Edited mod lists come back the same way, and LaunchHeim asks before changing an instance."
+      text: dialog.phone.sendText
+      wrapMode: Text.Wrap
+      Layout.fillWidth: true
+    }
+
+    Label {
+      text: "Open LaunchHeim Companion on your phone, on the same network."
       wrapMode: Text.Wrap
       color: Theme.textMuted
       Layout.fillWidth: true
@@ -68,7 +55,7 @@ LhDialog {
 
     Label {
       visible: Vm.peers.length === 0
-      text: "Looking for devices… If your phone doesn't show up, check that the companion is open and that both are on the same Wi-Fi. Some networks keep devices apart (guest Wi-Fi, client isolation)."
+      text: "Looking for devices… If your phone doesn't show up, check that the companion is open and that both are on the same Wi-Fi. Some networks keep devices apart (guest Wi-Fi, client isolation), and a firewall on this PC may drop the phone's answers (Settings → Phone sync)."
       wrapMode: Text.Wrap
       color: Theme.textMuted
       Layout.fillWidth: true
@@ -101,34 +88,6 @@ LhDialog {
       }
     }
 
-    Label { text: "Send"; font.bold: true; Layout.topMargin: 4 }
-
-    ListView {
-      model: Vm.instances
-      clip: true
-      interactive: contentHeight > height
-      implicitHeight: Math.min(contentHeight, 200)
-      Layout.fillWidth: true
-
-      delegate: CheckBox {
-        width: ListView.view.width
-        text: modelData.name + "  ·  " + modelData.summary
-        checked: dialog.selected[modelData.id] === true
-        onToggled: {
-          var copy = Object.assign({}, dialog.selected)
-          copy[modelData.id] = checked
-          dialog.selected = copy
-        }
-      }
-    }
-
-    CheckBox {
-      text: "Server list from Valheim's Favorites and Recent, to see who's online"
-      checked: dialog.servers
-      onToggled: dialog.servers = checked
-      Layout.fillWidth: true
-    }
-
     Label {
       visible: text.length > 0
       text: dialog.phone.sendStatus
@@ -147,8 +106,8 @@ LhDialog {
         text: dialog.phone.sending ? "Sending…" : "Send"
         kind: "primary"
         iconName: "export"
-        enabled: !dialog.phone.sending && dialog.peerId.length > 0 && (dialog.servers || dialog.selectedIds().length > 0)
-        onClicked: dialog.phone.send(dialog.peerId, dialog.selectedIds().join("\u001f"), dialog.servers)
+        enabled: !dialog.phone.sending && dialog.peerId.length > 0
+        onClicked: dialog.phone.send(dialog.peerId)
       }
     }
   }

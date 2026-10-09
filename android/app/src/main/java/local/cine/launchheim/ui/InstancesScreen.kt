@@ -60,7 +60,7 @@ fun InstancesScreen(vm: MainViewModel, onOpen: (String) -> Unit, onOpenFile: () 
       EmptyState(
         Icons.Default.Inventory2,
         "No mod lists yet",
-        "Send your instances from LaunchHeim on the PC (Library → Send to phone), open a .r2z modpack, or start a new list and add mods from Browse.",
+        "Send an instance from LaunchHeim on the PC (the phone button on its page), open a .r2z modpack, or start a new list and add mods from Browse.",
         Modifier.padding(padding).padding(top = 48.dp),
       )
     } else {
