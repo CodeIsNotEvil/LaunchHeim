@@ -78,6 +78,9 @@ accounts) and CurseForge (API key).
   "Open".
 
 ## Gotchas
+- CurseForge's API offers no Valheim to third-party keys (2026-10-09): a valid key lists 38 games
+  without Valheim and Valheim searches are refused. The CurseForge source can't work as built; it
+  says so instead of blaming the key. Nexus wants the key it lists for Vortex.
 - A PC that shows up on the phone for a few seconds and then vanishes, with sends failing, is a
   firewall dropping incoming traffic, not a LocalSend bug: LaunchHeim's own announcements go out, the
   phone's answers and uploads don't come in. CachyOS turns ufw on with a dropping default (2026-10-09).

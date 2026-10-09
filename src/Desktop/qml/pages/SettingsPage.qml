@@ -65,7 +65,7 @@ Item {
       SettingsSection {
         iconName: "key"
         title: "Nexus Mods"
-        description: "Browsing works without an account. Installing needs your personal API key from <a href=\"https://www.nexusmods.com/users/myaccount?tab=api\">your Nexus account</a>. Premium members download directly; free accounts confirm each download on the Nexus page, which then hands it to LaunchHeim."
+        description: "Browsing needs no account. To install, copy the key Nexus lists for <b>Vortex</b> on <a href=\"https://www.nexusmods.com/users/myaccount?tab=api\">your API keys page</a>."
         Layout.fillWidth: true
 
         SecretField {
@@ -111,7 +111,7 @@ Item {
       SettingsSection {
         iconName: "key"
         title: "CurseForge"
-        description: "CurseForge only answers apps that send an API key. Create one for free in the <a href=\"https://console.curseforge.com/\">CurseForge for Studios console</a>. Some authors disable downloads outside the website; LaunchHeim then opens the page instead."
+        description: "Needs a free API key from the <a href=\"https://console.curseforge.com/#/api-keys\">CurseForge console</a>. Some authors only allow downloads on the website; LaunchHeim then opens the page."
         Layout.fillWidth: true
 
         SecretField {
@@ -124,7 +124,8 @@ Item {
         Label {
           visible: text.length > 0
           text: page.settings.curseForgeStatus
-          color: text.indexOf("Could not") === 0 ? Theme.negative : Theme.positive
+          // Anything but the success line is a problem, worded by the catalog.
+          color: text === "The key works." ? Theme.positive : Theme.negative
           wrapMode: Text.Wrap
           Layout.fillWidth: true
         }

@@ -26,7 +26,7 @@ public sealed class CurseForgeCatalog(HttpClient http, Func<string?> apiKey) : I
   public ModSource Source => ModSource.CurseForge;
 
   public string? SetupHint => string.IsNullOrWhiteSpace(apiKey())
-    ? "CurseForge only answers apps with an API key. Create one at console.curseforge.com and paste it in Settings."
+    ? "CurseForge only answers apps with an API key. Create one at console.curseforge.com/#/api-keys and paste it in Settings."
     : null;
 
   public IReadOnlyList<ModSort> SupportedSorts { get; } =
@@ -155,7 +155,10 @@ public sealed class CurseForgeCatalog(HttpClient http, Func<string?> apiKey) : I
       }
     }
 
-    throw new CatalogException("CurseForge does not list Valheim for this API key.");
+    // The key itself is fine when this is reached: CurseForge answered the list of games. On 2026-10-09 a
+    // working key got 38 games and no Valheim, and searches for Valheim mods were refused (403), so
+    // CurseForge offers Valheim to no third-party app. Saying so beats blaming the key.
+    throw new CatalogException("CurseForge accepts the key but doesn't offer Valheim mods to other apps, so they can't be searched or installed from LaunchHeim.");
   }
 
   private async Task<JsonNode> GetAsync(string url, CancellationToken cancellationToken)

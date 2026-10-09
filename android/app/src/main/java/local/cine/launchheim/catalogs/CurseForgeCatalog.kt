@@ -34,7 +34,7 @@ class CurseForgeCatalog(private val http: OkHttpClient, private val apiKey: () -
   override val source = ModSource.CurseForge
 
   override val setupHint: String?
-    get() = if (apiKey().isBlank()) "CurseForge only answers apps with an API key. Create a free one at console.curseforge.com and paste it in Settings." else null
+    get() = if (apiKey().isBlank()) "CurseForge only answers apps with an API key. Create a free one at console.curseforge.com/#/api-keys and paste it in Settings." else null
 
   override suspend fun search(text: String, sort: ModSort, page: Int, pageSize: Int, includeNsfw: Boolean): RemotePage {
     val game = gameId()
@@ -80,7 +80,9 @@ class CurseForgeCatalog(private val http: OkHttpClient, private val apiKey: () -
       if (games.size < 50) break
       index += 50
     }
-    throw CatalogException("CurseForge does not list Valheim for this API key.")
+    // The key is fine when this is reached: CurseForge answered the list of games, without Valheim (a
+    // working key got 38 games on 2026-10-09). The desktop's CurseForgeCatalog.cs says the same.
+    throw CatalogException("CurseForge accepts the key but doesn't offer Valheim mods to other apps, so they can't be searched or installed from LaunchHeim.")
   }
 
   private suspend fun get(url: String): JsonObject = withContext(Dispatchers.IO) {

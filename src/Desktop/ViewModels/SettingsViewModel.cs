@@ -1,3 +1,4 @@
+using CINE.LaunchHeim.Core.Catalogs;
 using CINE.LaunchHeim.Core.Catalogs.CurseForge;
 using CINE.LaunchHeim.Core.Game;
 using CINE.LaunchHeim.Core.Mods;
@@ -241,6 +242,11 @@ public sealed class SettingsViewModel : ViewModel
     {
       await Task.Run(() => ((CurseForgeCatalog)_app.Catalogs.CurseForge).ValidateAsync(CancellationToken.None));
       CurseForgeStatus = "The key works.";
+    }
+    catch (CatalogException ex)
+    {
+      // Already says what's wrong, including the case of a good key and no Valheim on CurseForge.
+      CurseForgeStatus = ex.Message;
     }
     catch (Exception ex)
     {
