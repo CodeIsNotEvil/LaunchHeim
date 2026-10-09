@@ -259,3 +259,9 @@ summary { cursor: pointer; font-weight: 700; }
 .site-footer { border-top: 1px solid var(--border); color: var(--muted); font-size: .85rem; }
 .site-footer .wrap { padding-top: 1.25rem; padding-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; }
 .site-footer p { margin: 0; }
+
+/* Long-form text (the privacy policy): a readable line length and room between sections. */
+.policy { max-width: 48rem; }
+.policy h2 { font-size: 1.2rem; margin: 1.75rem 0 .5rem; }
+.policy ul { padding-left: 1.2rem; }
+.policy li { margin: .35rem 0; }

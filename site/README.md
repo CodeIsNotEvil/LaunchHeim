@@ -1,7 +1,8 @@
 # Site
 
 The GitHub Pages site at https://codeisnotevil.github.io/MyMonoRepo/: a page promoting the apps
-(`src/index.html`) and a download page with install guides (`src/download.html`), in the apps' own
+(`src/index.html`), a download page with install guides (`src/download.html`) and LaunchHeim's privacy
+policy (`src/privacy.html`, which the Microsoft Store listing links to; keep it true to the code), in the apps' own
 look (Kode Mono, `#DE5833`, light and dark with the system). Plain HTML and CSS, no JavaScript and
 nothing loaded from other sites.
 
