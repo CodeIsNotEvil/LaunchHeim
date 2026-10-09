@@ -13,6 +13,11 @@ RowLayout {
     spacing: 2
     Layout.fillWidth: true
 
+    // The sentence under the title only shows while the pointer is over the title or the place where the
+    // sentence goes, so a page opens with less text. Its space stays reserved (opacity, not visible), so
+    // the page doesn't jump when it appears.
+    HoverHandler { id: hover }
+
     // Both labels fill, otherwise this nested layout could not grow and the actions would not sit at
     // the right edge (a layout is never wider than its children allow).
     Label {
@@ -27,8 +32,11 @@ RowLayout {
       id: subtitleLabel
       color: Theme.textMuted
       visible: text.length > 0
+      opacity: hover.hovered ? 1 : 0
       wrapMode: Text.Wrap
       Layout.fillWidth: true
+
+      Behavior on opacity { NumberAnimation { duration: 150 } }
     }
   }
 
