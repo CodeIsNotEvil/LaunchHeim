@@ -27,6 +27,7 @@ Item {
       readonly property var configFiles: Net.toVariantList(inst.configFiles)
 
       RenameDialog { id: renameDialog; instance: root.inst }
+      ShareDialog { id: shareDialog; instance: root.inst }
       ConfirmDialog {
         id: deleteDialog
         title: "Delete instance?"
@@ -130,6 +131,12 @@ Item {
           }
 
           IconButton {
+            iconName: "share"
+            tip: "Share with a friend: a modpack file for Discord or Steam"
+            onClicked: shareDialog.open()
+          }
+
+          IconButton {
             iconName: "more"
             tip: "More"
             onClicked: menu.popup()
@@ -140,6 +147,7 @@ Item {
               MenuItem { text: "Check for updates"; onTriggered: root.inst.checkUpdates() }
               MenuItem { text: "Export as modpack…"; onTriggered: exportDialog.open() }
               MenuItem { text: "Send to phone…"; onTriggered: Vm.phone.openSend(root.inst.id) }
+              MenuItem { text: "Share with a friend…"; onTriggered: shareDialog.open() }
               MenuSeparator {}
               MenuItem { text: "Open console"; onTriggered: root.inst.openConsole() }
               MenuItem { text: "Open instance folder"; onTriggered: root.inst.openFolder() }

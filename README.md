@@ -178,6 +178,16 @@ a warning, and mods a site only hands out through its website (Nexus without Pre
 opt-outs) are listed to install from Browse mods. The pack's configs are copied last, over the mods'
 defaults.
 
+**Sharing with a friend.** The share button on an instance's page writes its pack to
+`<cache>/tmp/share/<instance>/` (cleared on every start) and offers it three ways, with no Discord or
+Steam integration: as a tile to drag into a chat, as a file on the clipboard (Copy file), or in the
+file manager. A pack is usually a few KB, well under Discord's 10 MB limit without Nitro; only packed
+local mods make it bigger, and the dialog says so. Dragging is the dependable way: Discord's Linux
+client has been reported to ignore pasted files, and whether Steam's chat takes an `.r2z` at all is
+unverified. QML can only copy text, so `native/app_icon.cpp` (`launchheim_copy_files`) puts the file
+on the clipboard as `text/uri-list` (Qt makes CF_HDROP of it on Windows) plus GNOME's
+`x-special/gnome-copied-files`, like a file manager's Copy.
+
 **Phone sync.** [LaunchHeim Companion](android/README.md), the Android app, keeps mod lists on the
 phone, browses Thunderstore, Nexus and CurseForge and shows who's online on the servers. Its APK is
 released with every `launchheim-v*` tag. LaunchHeim talks to it with the
