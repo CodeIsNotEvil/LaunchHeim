@@ -10,6 +10,16 @@ public sealed class Instance
 
   public string Name { get; set; } = "";
 
+  /// <summary>
+  /// The id a pack carried (<c>launchheim.json</c> <c>instanceId</c>) when this instance was imported from
+  /// it and no instance here had that id: the companion app's own id for a list made on the phone, or
+  /// another PC's instance. Packs of this instance carry it instead of <see cref="Id"/>, so the device the
+  /// list came from recognises it, and a pack coming back with it updates this instance instead of
+  /// importing another copy. The phone never learns <see cref="Id"/> otherwise, since nothing is sent back
+  /// when a pack is imported. Null for instances made here.
+  /// </summary>
+  public string? LinkId { get; set; }
+
   public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
   public DateTimeOffset? LastPlayedAt { get; set; }

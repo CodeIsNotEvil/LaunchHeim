@@ -68,6 +68,8 @@ public sealed partial class InstanceStore(AppPaths paths)
     var copy = JsonFile.Read<Instance>(Path.Combine(DirectoryOf(source), ManifestFile)) ?? throw new InvalidOperationException("The instance manifest is missing.");
     copy.Id = NewId(name);
     copy.Name = name.Trim();
+    // A copy is a new list: packs from the phone keep updating the original.
+    copy.LinkId = null;
     copy.CreatedAt = DateTimeOffset.UtcNow;
     copy.LastPlayedAt = null;
 

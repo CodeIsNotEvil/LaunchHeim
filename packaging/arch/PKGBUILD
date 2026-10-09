@@ -24,6 +24,8 @@ provides=('launchheim')
 conflicts=('launchheim')
 # .NET assemblies carry no native debug info worth splitting, and stripping the apphost is pointless.
 options=('!strip' '!debug')
+# The ufw profile (stage.sh) is the one file under /etc; pacman keeps a user's edits to it.
+backup=('etc/ufw/applications.d/launchheim')
 source=("mymonorepo::git+${LAUNCHHEIM_GIT:-https://github.com/CodeIsNotEvil/MyMonoRepo.git}")
 sha256sums=('SKIP')
 

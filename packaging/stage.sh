@@ -7,6 +7,11 @@
 #   /usr/share/applications/              the desktop entry, which also claims nxm:// links
 #   /usr/share/icons/hicolor/scalable/    the icon
 #   /usr/share/metainfo/                  AppStream data for software centres
+#   /etc/ufw/applications.d/launchheim    a ufw profile for phone sync (`sudo ufw allow LaunchHeim`)
+#   /usr/lib/firewalld/services/          the same as a firewalld service
+#
+# Both firewall files only describe the ports; nothing is opened until someone allows them. They ship in
+# every package because Arch, Debian and Fedora can each run either firewall.
 #
 # Usage: stage.sh <publish-dir> <package-root> [libdir]
 # libdir defaults to /usr/lib; Fedora and RHEL pass /usr/lib64.
@@ -26,3 +31,6 @@ install -Dm644 "$packaging/launchheim.desktop" "$root/usr/share/applications/lau
 install -Dm644 "$packaging/launchheim.svg" "$root/usr/share/icons/hicolor/scalable/apps/launchheim.svg"
 install -Dm644 "$packaging/io.github.codeisnotevil.LaunchHeim.metainfo.xml" \
   "$root/usr/share/metainfo/io.github.codeisnotevil.LaunchHeim.metainfo.xml"
+# firewalld reads /usr/lib/firewalld on every distribution, lib64 ones included.
+install -Dm644 "$packaging/firewall/ufw-launchheim" "$root/etc/ufw/applications.d/launchheim"
+install -Dm644 "$packaging/firewall/launchheim.xml" "$root/usr/lib/firewalld/services/launchheim.xml"

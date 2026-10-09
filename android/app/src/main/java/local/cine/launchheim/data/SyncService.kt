@@ -66,9 +66,11 @@ class SyncService(
   }
 
   /**
-   * A pack that came from a LaunchHeim instance the phone already has replaces it, matched by the
-   * desktop instance's id. A list started on the phone has no such id until the PC has imported it and
-   * sent it back, so a pack with an unknown id also replaces a phone-made list of the same name.
+   * A pack of a list the phone already has replaces it, matched by its `instanceId`: the desktop
+   * instance's id, or the phone's own id for a list made here, which LaunchHeim keeps for the instance
+   * it imported ([buildPack]). The phone's own id also matches a list that only travelled through the
+   * share sheet and so was never marked as linked. Lists sent by an older companion went without any id,
+   * so a pack with an unknown id still replaces a phone-made list of the same name.
    */
   private fun importPack(file: File, origin: String?, fallbackName: String = file.nameWithoutExtension): Outcome {
     val contents = try {
@@ -78,7 +80,7 @@ class SyncService(
     }
 
     val manifest = contents.manifest
-    val existing = instances.instances.value.firstOrNull { manifest.instanceId != null && it.manifest.instanceId == manifest.instanceId }
+    val existing = instances.instances.value.firstOrNull { manifest.instanceId != null && (it.manifest.instanceId == manifest.instanceId || it.id == manifest.instanceId) }
       ?: instances.instances.value.firstOrNull { it.manifest.instanceId == null && it.origin == null && manifest.instanceId != null && it.name.equals(manifest.name, true) }
 
     val instance = PhoneInstance(
@@ -95,11 +97,18 @@ class SyncService(
     return Outcome.Imported(instance, replaced = existing != null, lostChanges = existing?.changedSinceSync == true)
   }
 
-  /** Writes the instance as a `.r2z` that LaunchHeim and r2modman import, for sending or sharing. */
+  /**
+   * Writes the instance as a `.r2z` that LaunchHeim and r2modman import, for sending or sharing.
+   *
+   * A list made here has no desktop instance id yet, so its pack carries the phone's own id instead.
+   * LaunchHeim keeps it on the instance it imports (`Instance.LinkId`) and puts it in every pack of that
+   * instance, so the next pack from either side updates the list instead of importing another copy.
+   * The phone's id never changes, so the same id goes out however often the pack is built.
+   */
   suspend fun buildPack(instance: PhoneInstance): File = withContext(Dispatchers.IO) {
     shareDirectory.mkdirs()
     val file = File(shareDirectory, LocalSendNode.safeName(instance.name, "modpack") + PackFile.EXTENSION)
-    val manifest = instance.manifest.copy(
+    val manifest = linked(instance).manifest.copy(
       exportedBy = "LaunchHeim Companion $appVersion",
       exportedAt = Instant.now().toString(),
     )
@@ -110,9 +119,13 @@ class SyncService(
   suspend fun send(node: LocalSendNode, peer: Peer, instance: PhoneInstance): SendResult {
     val pack = buildPack(instance)
     val result = node.send(peer, listOf(OutgoingFile(pack, pack.name, "application/zip")))
-    if (result == SendResult.Sent) instances.save(instance.copy(changedSinceSync = false))
+    // Only now is the list linked: the PC has it under that id.
+    if (result == SendResult.Sent) instances.save(linked(instance).copy(changedSinceSync = false))
     return result
   }
+
+  private fun linked(instance: PhoneInstance): PhoneInstance =
+    if (instance.manifest.instanceId != null) instance else instance.copy(manifest = instance.manifest.copy(instanceId = instance.id))
 
   companion object {
     // Packs list mods and carry configs; a few hundred MB would be local mods nobody meant to send.

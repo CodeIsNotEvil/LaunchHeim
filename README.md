@@ -181,15 +181,21 @@ defaults.
 **Phone sync.** [LaunchHeim Companion](android/README.md), the Android app, keeps mod lists on the
 phone, browses Thunderstore, Nexus and CurseForge and shows who's online on the servers. Its APK is
 released with every `launchheim-v*` tag. LaunchHeim talks to it with the
-LocalSend protocol (`Core/LocalSend`): Library → Send to phone (or an instance's Send to phone) finds
-devices on the LAN and sends the chosen instances as `.r2z` packs plus Valheim's server list as
-`launchheim-servers.json`. Receiving is off until Settings → Phone sync switches it on, since it opens
-a port (53317, or the next free one when the LocalSend app has it). Every transfer is accepted in a
+LocalSend protocol (`Core/LocalSend`). The phone button on an instance's page sends that instance as
+an `.r2z` pack, and **Send to phone** above the Play page's server list sends Valheim's server list as
+`launchheim-servers.json`; each finds devices on the LAN first. Receiving is off until Settings →
+Phone sync switches it on, since it opens a port (53317, or the next free one when the LocalSend app
+has it). A firewall must let that port in (packaging README, "Phone sync and the firewall"); the
+packages ship a ufw profile and a firewalld service, Settings shows the ufw command when ufw would
+drop the phone, and on Windows it can add the firewall rule. Every transfer is accepted in a
 dialog, and only `.r2z` files are taken. A pack carries the id of the instance it was exported from
 (`launchheim.json` `instanceId`), so one that comes back edited is compared with that instance and the
 changes are shown: Update instance removes, installs (at the pack's versions) and switches mods, and
 leaves configs and launch options alone; a dependency the list doesn't name stays while a mod in it
-needs it. Any other pack is imported as a new instance. The HTTP server
+needs it. A list made on the phone carries the phone's own id; LaunchHeim imports it as a new
+instance and keeps that id (`Instance.LinkId`), puts it in that instance's packs instead of the
+folder name, and so updates the instance the next time instead of importing another copy. Any other
+pack is imported as a new instance. The HTTP server
 is a small one on `TcpListener`, because `HttpListener` needs administrator rights on Windows for
 anything but localhost.
 

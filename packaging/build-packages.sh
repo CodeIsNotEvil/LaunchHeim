@@ -43,6 +43,8 @@ build_deb() {
   chmod 644 "$work/deb/usr/share/doc/launchheim/copyright"
   install -d "$work/deb/DEBIAN"
   install -m755 packaging/deb/postinst "$work/deb/DEBIAN/postinst"
+  # dpkg only keeps a user's edits to files under /etc that are listed as conffiles.
+  install -m644 packaging/deb/conffiles "$work/deb/DEBIAN/conffiles"
   sed -e "s/@VERSION@/$version/" -e "s/@INSTALLED_SIZE@/$(du -sk --exclude=DEBIAN "$work/deb" | cut -f1)/" \
     packaging/deb/control.in > "$work/deb/DEBIAN/control"
 

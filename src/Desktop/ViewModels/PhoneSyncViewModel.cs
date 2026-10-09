@@ -28,6 +28,7 @@ public sealed class PhoneSyncViewModel : ViewModel, IDisposable
   private bool _sending;
   private string _sendStatus = "";
   private string _sendTarget = "";
+  private string _firewallCommand = "";
   private IncomingOffer? _offer;
   private PendingUpdate? _update;
 
@@ -74,6 +75,17 @@ public sealed class PhoneSyncViewModel : ViewModel, IDisposable
     ? Enabled ? "Could not start. Another program may be using the network port." : "Off"
     : $"Visible as “{Alias}”, port {_node.Port}";
 
+  /// <summary>
+  /// The terminal command that lets phones through ufw, while receiving is on and ufw would drop them;
+  /// otherwise empty (<see cref="Firewall.UfwCommand"/>).
+  /// </summary>
+  [NotifySignal]
+  public string FirewallCommand { get => _firewallCommand; private set => Set(ref _firewallCommand, value); }
+
+  /// <summary>Windows Firewall can't be read without an administrator, so the button is always offered there.</summary>
+  [NotifySignal]
+  public bool CanAllowFirewall => OperatingSystem.IsWindows();
+
   [NotifySignal]
   public List<PeerViewModel> Peers { get => _peers; private set => Set(ref _peers, value); }
 
@@ -89,9 +101,19 @@ public sealed class PhoneSyncViewModel : ViewModel, IDisposable
   [NotifySignal]
   public string SendStatus { get => _sendStatus; private set => Set(ref _sendStatus, value); }
 
-  /// <summary>The instance the dialog was opened for, or empty when it was opened for all of them.</summary>
+  /// <summary>The instance the dialog sends, or empty when it sends the server list.</summary>
   [NotifySignal]
   public string SendTarget { get => _sendTarget; private set => Set(ref _sendTarget, value); }
+
+  [NotifySignal]
+  public string SendTitle => SendInstance is { } instance ? $"Send {instance.Name} to a phone" : "Send the server list to a phone";
+
+  [NotifySignal]
+  public string SendText => SendInstance is not null
+    ? "The companion app keeps a copy of this mod list to edit. Sent again, it updates that copy instead of adding another, and an edited list sent back from the phone updates this instance after you've seen the changes."
+    : "Valheim's Favorites and Recent servers, so the companion app can show who's online. It replaces the list the phone had.";
+
+  private InstanceViewModel? SendInstance => _sendTarget.Length == 0 ? null : _app.InstanceList.FirstOrDefault(i => i.Id == _sendTarget);
 
   [NotifySignal]
   public bool OfferVisible => _offer is not null;
@@ -140,10 +162,17 @@ public sealed class PhoneSyncViewModel : ViewModel, IDisposable
 
   public void Scan() => _node.Scan();
 
-  /// <param name="instanceId">The instance to preselect, or empty to preselect all.</param>
-  public void OpenSend(string instanceId)
+  /// <summary>
+  /// Opens the send dialog for one instance (its page) or, with an empty id, for the server list (the
+  /// Play page). One thing per dialog, from where it lives, rather than one dialog with every instance
+  /// and the server list to tick.
+  /// </summary>
+  /// <param name="instanceId">The instance to send. Qml.Net turns an empty string into null.</param>
+  public void OpenSend(string? instanceId)
   {
     SendTarget = instanceId ?? "";
+    Raise(nameof(SendTitle));
+    Raise(nameof(SendText));
     SendStatus = "";
     SendVisible = true;
     StartNode();
@@ -159,23 +188,23 @@ public sealed class PhoneSyncViewModel : ViewModel, IDisposable
     }
   }
 
-  /// <param name="instanceIds">
-  /// The instances to send, separated by U+001F (QML hands over one string). Qml.Net turns an empty
-  /// string into null, which is what arrives when only the server list is sent, so both mean none.
-  /// </param>
-  public async void Send(string? peerId, string? instanceIds, bool servers)
+  /// <summary>Sends what the dialog was opened for (<see cref="SendTarget"/>) to <paramref name="peerId"/>.</summary>
+  public async void Send(string? peerId)
   {
     if (Sending || _node.Peers.FirstOrDefault(p => p.Id == peerId) is not { } peer)
     {
       return;
     }
 
-    var ids = (instanceIds ?? "").Split('\u001f', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
-    var instances = _app.InstanceList.Where(i => ids.Contains(i.Id)).ToList();
-    if (instances.Count == 0 && !servers)
+    var instance = SendInstance;
+    if (instance is null && _sendTarget.Length > 0)
     {
+      SendStatus = "That instance is gone.";
       return;
     }
+
+    List<InstanceViewModel> instances = instance is null ? [] : [instance];
+    var servers = instance is null;
 
     Sending = true;
     SendStatus = $"Waiting for {peer.Info.Alias} to accept…";
@@ -291,6 +320,7 @@ public sealed class PhoneSyncViewModel : ViewModel, IDisposable
 
     Running = _node.IsRunning;
     Raise(nameof(StatusText));
+    CheckFirewall();
   }
 
   private void StopNode()
@@ -298,6 +328,35 @@ public sealed class PhoneSyncViewModel : ViewModel, IDisposable
     _node.Stop();
     Running = false;
     Raise(nameof(StatusText));
+    CheckFirewall();
+  }
+
+  /// <summary>Looks at ufw again, after the command was run in a terminal.</summary>
+  public void CheckFirewall() =>
+    FirewallCommand = Running && OperatingSystem.IsLinux() ? Firewall.UfwCommand() ?? "" : "";
+
+  /// <summary>Adds the Windows Firewall rule, after Windows asks for an administrator.</summary>
+  public async void AllowFirewall()
+  {
+    try
+    {
+      var program = Environment.ProcessPath ?? throw new InvalidOperationException("LaunchHeim's own path is unknown.");
+      if (await Firewall.AllowOnWindowsAsync(program) is { } error)
+      {
+        Log.Info($"Windows Firewall was not changed: {error}");
+        _app.Toast("error", "Windows Firewall was not changed", error);
+        return;
+      }
+
+      Log.Info($"Windows Firewall now lets phones reach {program}.");
+      _app.Toast("success", "Windows Firewall allows phone sync", "Phones on your network can reach LaunchHeim now.");
+    }
+    catch (Exception ex)
+    {
+      // async void from QML: anything that escapes takes the app down.
+      Log.Error("Changing Windows Firewall failed", ex);
+      _app.Toast("error", "Windows Firewall was not changed", ex.Message);
+    }
   }
 
   private void RefreshPeers()
@@ -349,7 +408,8 @@ public sealed class PhoneSyncViewModel : ViewModel, IDisposable
         continue;
       }
 
-      var target = contents.Manifest.InstanceId is { } id ? _app.InstanceList.FirstOrDefault(i => i.Id == id) : null;
+      var linked = PackService.FindLinked(_app.InstanceList.Select(i => i.Model), contents.Manifest.InstanceId);
+      var target = linked is null ? null : _app.InstanceList.FirstOrDefault(i => i.Model == linked);
       if (target is null)
       {
         await _app.ImportPackFile(file);

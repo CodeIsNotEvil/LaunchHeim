@@ -1,0 +1,8 @@
+# ufw application profile for LaunchHeim's phone sync (LocalSend protocol). Installed by the pacman, deb
+# and rpm packages as /etc/ufw/applications.d/launchheim; switch it on with `sudo ufw allow LaunchHeim`.
+# UDP 53317 is LocalSend's multicast discovery. TCP is its HTTP server: 53317, or one of the next nine
+# when the LocalSend app already has it (MiniHttpServer.Start), so the range covers both apps at once.
+[LaunchHeim]
+title=LaunchHeim phone sync
+description=Receive mod lists from LaunchHeim Companion and other LocalSend devices on the local network
+ports=53317/udp|53317:53326/tcp

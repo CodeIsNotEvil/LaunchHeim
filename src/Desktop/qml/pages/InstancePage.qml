@@ -122,6 +122,13 @@ Item {
             onClicked: root.inst.openConsole()
           }
 
+          // Up here with Play rather than in the mods toolbar: it sends the whole instance, not its mods.
+          IconButton {
+            iconName: "phone"
+            tip: "Send to phone: edit this mod list in LaunchHeim Companion"
+            onClicked: Vm.phone.openSend(root.inst.id)
+          }
+
           IconButton {
             iconName: "more"
             tip: "More"
@@ -198,7 +205,6 @@ Item {
 
               LhButton { text: "Install from file"; iconName: "file"; kind: "ghost"; onClicked: fileDialog.open() }
               LhButton { text: "Export"; iconName: "export"; kind: "ghost"; enabled: root.inst.modCount > 0; onClicked: exportDialog.open() }
-              LhButton { text: "Send to phone"; iconName: "phone"; kind: "ghost"; onClicked: Vm.phone.openSend(root.inst.id) }
               LhButton { text: "Check for updates"; iconName: "refresh"; kind: "ghost"; onClicked: root.inst.checkUpdates() }
               LhButton {
                 visible: root.inst.updateCount > 0

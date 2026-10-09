@@ -89,9 +89,19 @@ Item {
       RowLayout {
         spacing: 10
         Layout.topMargin: 6
+        Layout.fillWidth: true
 
         Label { text: "Servers"; font.pointSize: Theme.heading; font.bold: true }
         Badge { visible: Vm.play.serverCount > 0; text: Vm.play.serverCount; tint: Theme.neutral }
+        Item { Layout.fillWidth: true }
+        // The companion app shows who's online on these. An empty string means the server list.
+        LhButton {
+          visible: Vm.play.serverCount > 0
+          text: "Send to phone"
+          iconName: "phone"
+          kind: "ghost"
+          onClicked: Vm.phone.openSend("")
+        }
       }
 
       Label {

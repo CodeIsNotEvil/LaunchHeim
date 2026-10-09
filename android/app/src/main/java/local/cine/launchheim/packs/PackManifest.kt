@@ -52,7 +52,9 @@ data class PackManifest(
   val name: String = "",
   /**
    * The desktop instance the pack was exported from. When the phone sends the pack back, LaunchHeim
-   * updates that instance instead of importing a copy. Null for packs made on the phone or by r2modman.
+   * updates that instance instead of importing a copy. A list made on the phone gets the phone's own id
+   * when it's first sent ([local.cine.launchheim.data.SyncService.buildPack]), which LaunchHeim then
+   * keeps for the instance it imports. Null for r2modman packs and lists that were never sent.
    */
   val instanceId: String? = null,
   val exportedBy: String = "",

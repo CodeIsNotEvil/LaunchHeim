@@ -226,6 +226,37 @@ A new key means a new thumbprint, so replace `windows/launchheim-codesign.cer` a
 here, on the download page (`site/src/download.html`) and in the release notes
 (`launchheim-release.yml`).
 
+## Phone sync and the firewall
+
+Receiving from LaunchHeim Companion (Settings → Phone sync) needs incoming traffic from the LAN:
+UDP 53317 for LocalSend's discovery and TCP 53317 for its server, or one of the next nine ports when
+the LocalSend app already has 53317. A firewall that drops it makes the PC show up on the phone for a
+few seconds (LaunchHeim's own announcements still go out) and then vanish, and every send from the
+phone fails. Settings → Phone sync notices ufw doing that and shows the command.
+
+- **ufw** (on by default in CachyOS). The packages install a profile,
+  `/etc/ufw/applications.d/launchheim`:
+
+  ```sh
+  sudo ufw allow LaunchHeim                       # or only from the LAN:
+  sudo ufw allow from 192.168.178.0/24 to any app LaunchHeim
+  ```
+
+  Without the package (install.sh, a dev build), name the ports:
+  `sudo ufw allow 53317/udp && sudo ufw allow 53317:53326/tcp`.
+- **firewalld** (Fedora, RHEL). The packages install the service
+  `/usr/lib/firewalld/services/launchheim.xml`. Fedora Workstation's default zone already lets ports
+  above 1024 in; other zones need:
+
+  ```sh
+  sudo firewall-cmd --permanent --add-service=launchheim && sudo firewall-cmd --reload
+  ```
+- **Windows Firewall.** The setup allows `LaunchHeim.exe` when it installs for all users. Otherwise
+  Windows asks the first time phone sync listens; if that prompt was cancelled, Windows blocks
+  LaunchHeim silently. **Allow in Windows Firewall** in Settings → Phone sync removes such rules and
+  adds an allowing one after an administrator prompt. Both rules cover every network profile, because
+  Windows 11 puts new networks in Public.
+
 ## Building the packages
 
 ```fish

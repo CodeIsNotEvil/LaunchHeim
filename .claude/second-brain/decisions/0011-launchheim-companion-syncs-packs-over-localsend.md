@@ -1,7 +1,7 @@
 ---
 tags: [decision, launchheim, android]
 created: 2026-10-05
-updated: 2026-10-05
+updated: 2026-10-09
 status: active
 supersedes:
 ---
@@ -39,6 +39,12 @@ without a server or an account.
 - `ModListEditor.kt` must keep doing what `ModService` does (newest dependencies, orphan removal,
   enabling cascades, BepInEx always present), and the Thunderstore search must match
   `ThunderstoreCatalog.Search`. Changing one side means changing the other.
+- The phone never learns a desktop instance's id (its folder name) unless the PC sends the instance.
+  So `instanceId` is a link either side can create (2026-10-09): a list made on the phone carries the
+  phone's own id, LaunchHeim keeps it as `Instance.LinkId` on the instance it imports and exports it
+  instead of `Id`. Before that, every send of a phone-made list imported another copy.
+- A firewall must let UDP 53317 and TCP 53317-53326 in. The packages ship a ufw profile and a firewalld
+  service; Settings shows the ufw command or adds the Windows rule (2026-10-09).
 - `launchheim.json` stays readable by both: kotlinx.serialization with unknown keys ignored on the
   phone, System.Text.Json on the desktop. The desktop reads `exportedAt` as a `DateTimeOffset` and
   rejects the whole pack over an empty string, so the phone always stamps it.

@@ -14,9 +14,13 @@ which Settings → Third-party licenses shows.
 ## Use
 
 1. In LaunchHeim on the PC: Settings → Phone sync, switch on receiving (only needed for the way back).
+   If the PC runs a firewall that drops incoming traffic (ufw on CachyOS, Windows Firewall after a
+   cancelled prompt), the same section says how to let the phone through; see "Phone sync and the
+   firewall" in [the packaging README](../packaging/README.md).
 2. Open the app on the phone, on the same Wi-Fi.
-3. In LaunchHeim: Library → Send to phone (or an instance's Send to phone), pick the phone, and accept
-   on the phone. Instances arrive as mod lists, Valheim's server list comes along.
+3. In LaunchHeim: the phone button on an instance's page sends that instance, **Send to phone** above
+   the server list on the Play page sends Valheim's server list. Pick the phone and accept there. An
+   instance the phone has already is updated, not added again.
 4. On the phone, add, remove, update or switch off mods, then the send button on the list. LaunchHeim
    shows what changed and installs it into the instance when you click Update instance.
 
@@ -26,7 +30,8 @@ Lists can also be started on the phone (New list) or opened from an `.r2z` file 
 Away from the PC (on the bus, say) nothing needs the PC: the Thunderstore list is cached on the phone,
 and Nexus and CurseForge are searched over mobile data. Back home, send the list. A list that came from
 an instance offers **Update instance** on the PC (or **Import as a copy**); a list started on the phone,
-or one made with **Duplicate as a new list**, becomes a new instance.
+or one made with **Duplicate as a new list**, becomes a new instance the first time and updates that
+instance every time after.
 
 ## Build
 
@@ -135,8 +140,12 @@ desktop instance), `export.r2x` and the configs. The phone keeps the original fi
 lists into a copy when it sends one, so configs and local mod files go back unchanged. LaunchHeim
 matches a returning pack to its instance by `instanceId`, lists the changes, and on Update instance
 removes, installs and switches mods; configs and launch options on the PC stay as they are. A list
-made on the phone has no `instanceId` and becomes a new instance. When the PC later sends that
-instance back, the phone replaces its own list of the same name instead of keeping two.
+made on the phone has no desktop instance, so its pack carries the phone's own id
+(`SyncService.buildPack`). LaunchHeim imports it as a new instance and keeps that id as the
+instance's `linkId`, which its packs then carry instead of the folder name; so the next pack from
+either side updates instead of adding a copy, and the phone never needs to learn the PC's id. Lists
+sent by older companions had no id at all; for those the phone still replaces its own list of
+the same name when the PC sends the instance back.
 
 **LocalSend.** Each side announces itself by multicast (`224.0.0.167:53317`), answers others with
 `POST /register`, and receives with `/prepare-upload` and `/upload`. If nothing answers within a few
