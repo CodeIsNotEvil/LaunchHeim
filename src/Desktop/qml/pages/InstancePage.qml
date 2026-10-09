@@ -28,7 +28,7 @@ Item {
 
       RenameDialog { id: renameDialog; instance: root.inst }
       ShareDialog { id: shareDialog; instance: root.inst }
-      InstanceIconDialog { id: iconDialog; instance: root.inst }
+      IconDialog { id: iconDialog; target: root.inst }
       ConfirmDialog {
         id: deleteDialog
         title: "Delete instance?"

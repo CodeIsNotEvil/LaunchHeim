@@ -4,41 +4,45 @@ import QtQuick.Layouts 1.15
 import Qt.labs.platform 1.1 as Platform
 import "../components"
 
-// Changes how an instance's icon looks: a color from Theme.instanceColors, its letters, or a picture in
-// place of the letters. Everything is a draft shown in the preview until Save; empty color or letters
-// mean automatic (from the id and the name).
+// Changes how an icon looks: a color from Theme.instanceColors, its letters, or a picture in place of
+// the letters. Everything is a draft shown in the preview until Save; empty color or letters mean
+// automatic. The target is an target or a server or world on the Play page; both view models offer
+// customColor, customInitials, automaticColor, automaticInitials, iconUrl and setIcon. A server's or
+// world's automatic look is its symbol on the accent, which it says with an empty automaticColor.
 LhDialog {
   id: dialog
 
-  property var instance: null
+  property var target: null
+  readonly property bool plainWhenAutomatic: target !== null && target.automaticColor.length === 0
+  readonly property string glyph: target && target.glyph !== undefined ? target.glyph : ""
 
   // The draft.
   property string draftColor: ""
   property string pictureUrl: ""
   property bool removePicture: false
 
-  readonly property string shownColor: draftColor.length > 0 ? draftColor : (instance ? instance.automaticColor : Theme.accent)
-  readonly property string shownPicture: pictureUrl.length > 0 ? pictureUrl : (removePicture || !instance ? "" : instance.iconUrl)
+  readonly property string shownColor: draftColor.length > 0 ? draftColor : (target && !plainWhenAutomatic ? target.automaticColor : Theme.accent)
+  readonly property string shownPicture: pictureUrl.length > 0 ? pictureUrl : (removePicture || !target ? "" : target.iconUrl)
 
   title: "Change icon"
   width: 560
 
   onOpened: {
-    draftColor = instance ? instance.customColor : ""
-    lettersField.text = instance ? instance.customInitials : ""
+    draftColor = target ? target.customColor : ""
+    lettersField.text = target ? target.customInitials : ""
     pictureUrl = ""
     removePicture = false
   }
 
   function save() {
-    if (instance)
-      instance.setIcon(draftColor, lettersField.text, pictureUrl, removePicture)
+    if (target)
+      target.setIcon(draftColor, lettersField.text, pictureUrl, removePicture)
     dialog.close()
   }
 
   Platform.FileDialog {
     id: pictureDialog
-    title: "Choose a picture for the icon"
+    title: dialog.target ? "Choose a picture for " + dialog.target.name : ""
     folder: Platform.StandardPaths.writableLocation(Platform.StandardPaths.PicturesLocation)
     nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif *.bmp)"]
     onAccepted: { dialog.pictureUrl = file.toString(); dialog.removePicture = false }
@@ -55,7 +59,9 @@ LhDialog {
     width: 30
     height: 30
     radius: width / 2
-    color: value.length > 0 ? value : (dialog.instance ? dialog.instance.automaticColor : Theme.accent)
+    // Automatic shows what automatic gives: the instance's color, or the plain accent of a server.
+    readonly property bool plain: value.length === 0 && dialog.plainWhenAutomatic
+    color: value.length > 0 ? value : plain ? Theme.accentSoft : (dialog.target ? dialog.target.automaticColor : Theme.accent)
     border.width: selected ? 3 : 0
     border.color: Theme.text
 
@@ -63,7 +69,7 @@ LhDialog {
       anchors.centerIn: parent
       visible: swatch.value.length === 0
       text: "A"
-      color: "white"
+      color: swatch.plain ? Theme.accent : "white"
       font.family: Theme.fontFamily
       font.bold: true
     }
@@ -93,7 +99,9 @@ LhDialog {
         width: 96
         height: 96
         tint: dialog.shownColor
-        initials: lettersField.text.trim().length > 0 ? lettersField.text.trim().slice(0, 3) : (dialog.instance ? dialog.instance.automaticInitials : "")
+        plain: dialog.draftColor.length === 0 && dialog.plainWhenAutomatic
+        glyph: dialog.glyph
+        initials: lettersField.text.trim().length > 0 ? lettersField.text.trim().slice(0, 3) : (dialog.target ? dialog.target.automaticInitials : "")
         imageSource: dialog.shownPicture
       }
 
@@ -137,7 +145,9 @@ LhDialog {
     Label { text: "Letters"; font.bold: true }
     LhTextField {
       id: lettersField
-      placeholderText: (dialog.instance ? dialog.instance.automaticInitials : "") + " (from the name)"
+      placeholderText: dialog.target && dialog.target.automaticInitials.length > 0
+        ? dialog.target.automaticInitials + " (from the name)"
+        : "None: the " + (dialog.glyph === "link" ? "server" : "world") + " symbol"
       maximumLength: 3
       selectByMouse: true
       Layout.preferredWidth: 220

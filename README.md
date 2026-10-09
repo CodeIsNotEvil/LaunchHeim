@@ -113,7 +113,8 @@ servers from the game's Favorites and Recent lists. Backups and Steam-friend or 
 which have no address, are left out. Nothing there is ever changed. For each server or world the
 user picks a character and a setup (vanilla or an instance), and LaunchHeim remembers both, plus a
 server's password, in `settings.json` (`playChoices`), so the next Play needs no choices. Clicking
-a row's tile sets a picture for it (PNG, JPEG, WebP, GIF or BMP), which is copied into
+a row's tile opens the icon dialog (see "Instance icons"): a color, letters, or a picture (PNG, JPEG,
+WebP, GIF or BMP). The picture is copied into
 `play-images/` in the data folder and named in `settings.json` (`playImages`); each copy gets a new
 random name because QML's `Image` caches by URL and would keep showing a replaced picture.
 
@@ -189,6 +190,9 @@ or a picture shown instead (PNG, JPEG, WebP, GIF or BMP up to 8 MB). The picture
 instance folder as `launchheim-icon-<random>.<ext>`, a new name each time because QML's Image caches by
 URL, so it goes along when the instance is duplicated or its folder copied. `instance.json` keeps
 `color`, `initials` and `iconFile`; each is null for automatic (`Core/Instances/InstanceIcon.cs`).
+Servers and worlds on the Play page get the same dialog (`IconDialog.qml`) from their tile. Their
+automatic look stays the link or rune symbol on the faint accent; a color and letters of their own
+are kept in settings.json's `playIcons`, the picture in `playImages` as before.
 
 **Sharing with a friend.** The share button on an instance's page writes its pack to
 `<cache>/tmp/share/<instance>/` (cleared on every start) and offers it three ways, with no chat
