@@ -111,7 +111,7 @@ Item {
       SettingsSection {
         iconName: "key"
         title: "CurseForge"
-        description: "Needs a free API key from the <a href=\"https://console.curseforge.com/#/api-keys\">CurseForge console</a>. Some authors only allow downloads on the website; LaunchHeim then opens the page."
+        description: "CurseForge doesn't let other apps download Valheim mods. Get them on <a href=\"https://www.curseforge.com/valheim/search?page=1&amp;pageSize=20&amp;sortBy=relevancy\">CurseForge</a> and drag the file onto an open instance. The key, from the <a href=\"https://console.curseforge.com/#/api-keys\">CurseForge console</a>, is for when that changes."
         Layout.fillWidth: true
 
         SecretField {

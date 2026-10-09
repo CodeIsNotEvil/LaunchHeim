@@ -158,7 +158,7 @@ public sealed class CurseForgeCatalog(HttpClient http, Func<string?> apiKey) : I
     // The key itself is fine when this is reached: CurseForge answered the list of games. On 2026-10-09 a
     // working key got 38 games and no Valheim, and searches for Valheim mods were refused (403), so
     // CurseForge offers Valheim to no third-party app. Saying so beats blaming the key.
-    throw new CatalogException("CurseForge accepts the key but doesn't offer Valheim mods to other apps, so they can't be searched or installed from LaunchHeim.");
+    throw new CatalogException("CurseForge accepts the key but doesn't offer Valheim mods to other apps. Download them on curseforge.com and drag the file onto an open instance.");
   }
 
   private async Task<JsonNode> GetAsync(string url, CancellationToken cancellationToken)
