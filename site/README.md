@@ -27,6 +27,12 @@ The build fails when a rendered page links to an `#anchor` it doesn't have, or o
 than it closes. Balanced `if`/`end` markers alone didn't catch a template that lost a stretch in the
 middle (2026-10-01), and the download page went live mixing the two apps.
 
+Deployments also carry LaunchHeim's Windows setups of the three newest releases, at
+`downloads/launchheim/<version>/LaunchHeim-<version>-win-x64-setup.exe` (`--mirror-installers`, checked
+against GitHub's SHA-256). The Microsoft Store takes the installer by URL and refuses one that redirects,
+which GitHub's release links always do. After a release, enter the new version's URL in Partner
+Center; the file at a versioned URL never changes.
+
 `.github/workflows/site.yml` builds it on pull requests and deploys it from `main`, after every
 release (the release workflows start it, because releases made by a workflow trigger nothing on
 their own) and on demand.

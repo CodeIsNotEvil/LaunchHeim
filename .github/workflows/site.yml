@@ -43,10 +43,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Deployments also carry LaunchHeim's Windows setups, which the Microsoft Store downloads from
+      # here because GitHub's release links redirect. Pull requests skip the download (about 140 MB).
       - name: Build the site
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 site/build.py _site --require-releases-api
+          MIRROR: ${{ github.event_name != 'pull_request' && '--mirror-installers' || '' }}
+        run: python3 site/build.py _site --require-releases-api $MIRROR
 
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request'
