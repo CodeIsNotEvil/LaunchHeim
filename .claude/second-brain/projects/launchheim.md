@@ -1,7 +1,7 @@
 ---
 tags: [project, dotnet, qml, gaming]
 created: 2026-09-26
-updated: 2026-10-08
+updated: 2026-10-09
 status: active
 ---
 # LaunchHeim
@@ -47,6 +47,12 @@ accounts) and CurseForge (API key).
   Compose). It edits mod lists, browses Thunderstore and shows player counts; packs and the server list
   travel over LocalSend, and a returning pack updates its instance after a confirmation
   ([[0011-launchheim-companion-syncs-packs-over-localsend]]). Its README has the SDK setup.
+- Phone sync and firewalls (2026-10-09): the packages ship a ufw profile and a firewalld service for
+  UDP 53317 and TCP 53317-53326; Settings → Phone sync shows the ufw command when ufw would drop
+  phones and adds the Windows Firewall rule on Windows (`Core/LocalSend/Firewall.cs`). Each send button
+  sends one thing: an instance from its page, the server list from Play. A list made on the phone
+  carries the phone's id, which LaunchHeim keeps as `Instance.LinkId`, so it updates instead of
+  duplicating ([[0011-launchheim-companion-syncs-packs-over-localsend]]).
 - Update reminder (2026-10-06): GitHub's releases API, newest `launchheim-v*` by version, at start
   and every 12 hours; a sidebar line and a dialog with per-install commands (`Core/Updates`). The
   install kind comes from the package build's switch plus `/etc/os-release`, the Windows zip, or
@@ -67,6 +73,9 @@ accounts) and CurseForge (API key).
   "Open".
 
 ## Gotchas
+- A PC that shows up on the phone for a few seconds and then vanishes, with sends failing, is a
+  firewall dropping incoming traffic, not a LocalSend bug: LaunchHeim's own announcements go out, the
+  phone's answers and uploads don't come in. CachyOS turns ufw on with a dropping default (2026-10-09).
 - NetNativeLibLoader, pulled in by Qml.Net, is LGPL-3.0-or-later (Firwood Software), not MIT like
   Qml.Net. It ships in every build. Check transitive NuGet licenses, not only direct ones (2026-09-30).
 - windeployqt also copies `vc_redist.x64.exe` (about 25 MB) into the Windows zip, although build.ps1
@@ -175,8 +184,10 @@ accounts) and CurseForge (API key).
 ## Open
 - Code signing (2026-10-08): signs fine in CI (secrets set, PR #29 run 37808678350). Not yet looked
   at on a real Windows PC: the Digital Signatures tab and the SmartScreen prompt for the signed zip.
-- LaunchHeim Companion (2026-10-05): not yet tried between a real phone and the desktop on the same
-  Wi-Fi (multicast discovery, the /24 fallback, Android 14+ background behaviour). Checked on an
+- Phone sync on Windows (2026-10-09): the firewall rule (setup's netsh, Settings' elevated PowerShell)
+  is untested on a real PC; CI only builds it.
+- LaunchHeim Companion (2026-10-05): tried between the owner's phone and the desktop on 2026-10-09
+  (works once ufw allows it); Android 14+ background behaviour still unchecked. Checked on an
   emulator through adb forwarding and with C#↔Kotlin tests on localhost. CurseForge on the phone is
   only covered by parsing tests (no key on the test machine). Also open: the release key secrets (a
   tag fails without them since 2026-10-05), registering with Google's developer verification before
