@@ -28,6 +28,7 @@ Item {
 
       RenameDialog { id: renameDialog; instance: root.inst }
       ShareDialog { id: shareDialog; instance: root.inst }
+      InstanceIconDialog { id: iconDialog; instance: root.inst }
       ConfirmDialog {
         id: deleteDialog
         title: "Delete instance?"
@@ -76,6 +77,20 @@ Item {
             height: 84
             initials: root.inst.initials
             tint: root.inst.color
+            imageSource: root.inst.iconUrl
+
+            // Clicking the icon changes it.
+            MouseArea {
+              id: avatarMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: iconDialog.open()
+            }
+
+            ToolTip.visible: avatarMouse.containsMouse
+            ToolTip.text: "Change icon"
+            ToolTip.delay: 500
           }
 
           // A RowLayout can't shrink below its children's minimums and pushes past the window instead, which
@@ -154,6 +169,7 @@ Item {
               MenuItem { text: "Export as modpack…"; onTriggered: exportDialog.open() }
               MenuItem { text: "Send to phone…"; onTriggered: Vm.phone.openSend(root.inst.id) }
               MenuItem { text: "Share with a friend…"; onTriggered: shareDialog.open() }
+              MenuItem { text: "Change icon…"; onTriggered: iconDialog.open() }
               MenuSeparator {}
               MenuItem { text: "Open console"; onTriggered: root.inst.openConsole() }
               MenuItem { text: "Open instance folder"; onTriggered: root.inst.openFolder() }

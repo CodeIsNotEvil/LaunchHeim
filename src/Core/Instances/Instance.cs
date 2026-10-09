@@ -20,6 +20,18 @@ public sealed class Instance
   /// </summary>
   public string? LinkId { get; set; }
 
+  /// <summary>The icon's color as <c>#rrggbb</c>, picked by the user, or null for one derived from the id.</summary>
+  public string? Color { get; set; }
+
+  /// <summary>The icon's letters, up to three, or null for the name's initials.</summary>
+  public string? Initials { get; set; }
+
+  /// <summary>
+  /// A picture shown instead of the letters: a file in the instance folder (<see cref="InstanceIcon"/>),
+  /// so it goes along when the folder is copied, duplicated or backed up. Null for none.
+  /// </summary>
+  public string? IconFile { get; set; }
+
   public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
   public DateTimeOffset? LastPlayedAt { get; set; }

@@ -9,9 +9,6 @@ namespace CINE.LaunchHeim.Desktop.ViewModels;
 
 public sealed class InstanceViewModel : ViewModel
 {
-  // Muted versions of the Breeze accent palette, so cards are told apart without shouting.
-  private static readonly string[] Palette = ["#3daee9", "#1abc9c", "#9b59b6", "#f67400", "#da4453", "#27ae60", "#fdbc4b", "#2980b9", "#e93d8f"];
-
   private readonly AppViewModel _app;
   private readonly SemaphoreSlim _gate = new(1, 1);
   private List<InstalledModViewModel> _mods = [];
@@ -37,22 +34,30 @@ public sealed class InstanceViewModel : ViewModel
   [NotifySignal]
   public string Name => Model.Name;
 
-  public string Initials
-  {
-    get
-    {
-      var words = Model.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-      return words.Length switch
-      {
-        0 => "?",
-        1 => words[0][..Math.Min(2, words[0].Length)].ToUpperInvariant(),
-        _ => $"{words[0][0]}{words[1][0]}".ToUpperInvariant(),
-      };
-    }
-  }
+  // The icon: the user's color, letters and picture where set (the appearance dialog), else automatic.
+  [NotifySignal]
+  public string Initials => InstanceIcon.InitialsOf(Model);
 
   [NotifySignal]
-  public string Color => Palette[(int)((uint)StableHash(Model.Id) % Palette.Length)];
+  public string Color => InstanceIcon.ColorOf(Model);
+
+  /// <summary>The picture shown instead of the letters as a file:// URL, or empty.</summary>
+  [NotifySignal]
+  public string IconUrl => InstanceIcon.PicturePath(_app.Instances, Model) is { } path ? new Uri(path).AbsoluteUri : "";
+
+  // What the appearance dialog starts from: the user's own choices (empty for automatic), and what
+  // automatic would give.
+  [NotifySignal]
+  public string CustomColor => Model.Color ?? "";
+
+  [NotifySignal]
+  public string CustomInitials => Model.Initials ?? "";
+
+  [NotifySignal]
+  public string AutomaticColor => InstanceIcon.AutomaticColor(Model.Id);
+
+  [NotifySignal]
+  public string AutomaticInitials => InstanceIcon.AutomaticInitials(Model.Name);
 
   [NotifySignal]
   public string Directory => _app.Instances.DirectoryOf(Model);
@@ -302,6 +307,44 @@ public sealed class InstanceViewModel : ViewModel
     _app.Instances.Save(Model);
     Raise(nameof(Name));
     Raise(nameof(PackFileName));
+    // Automatic letters follow the name.
+    Raise(nameof(Initials));
+    Raise(nameof(AutomaticInitials));
+    _app.InstancesChanged();
+  }
+
+  /// <summary>Saves the icon chosen in the appearance dialog. Empty color or letters mean automatic.</summary>
+  /// <param name="pictureUrl">A new picture's file:// URL, or empty to keep the current one.</param>
+  /// <param name="removePicture">Drop the picture and show the letters again.</param>
+  public void SetIcon(string? color, string? initials, string? pictureUrl, bool removePicture)
+  {
+    // Qml.Net hands an empty string over as null, so every parameter is taken as nullable.
+    try
+    {
+      if (!string.IsNullOrEmpty(pictureUrl))
+      {
+        InstanceIcon.SetPicture(_app.Instances, Model, AppViewModel.LocalPath(pictureUrl));
+      }
+      else if (removePicture)
+      {
+        InstanceIcon.RemovePicture(_app.Instances, Model);
+      }
+    }
+    catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+    {
+      _app.Toast("error", "The picture could not be used", ex.Message);
+    }
+
+    Model.Color = InstanceIcon.NormalizeColor(color);
+    Model.Initials = InstanceIcon.NormalizeInitials(initials);
+    _app.Instances.Save(Model);
+    Log.Info($"Icon of {Model.Name}: color {Model.Color ?? "automatic"}, letters {Model.Initials ?? "automatic"}, picture {Model.IconFile ?? "none"}.");
+    foreach (var name in (string[])[nameof(Color), nameof(Initials), nameof(IconUrl), nameof(CustomColor), nameof(CustomInitials)])
+    {
+      Raise(name);
+    }
+
+    // The sidebar and the library cards read the instance list.
     _app.InstancesChanged();
   }
 
@@ -491,20 +534,5 @@ public sealed class InstanceViewModel : ViewModel
           .Select(f => new ConfigFileViewModel(f, Directory))
           .ToList()
       : [];
-  }
-
-  // string.GetHashCode is randomized per process; the card color must stay the same across starts.
-  private static int StableHash(string value)
-  {
-    unchecked
-    {
-      var hash = 23;
-      foreach (var c in value)
-      {
-        hash = hash * 31 + c;
-      }
-
-      return hash;
-    }
   }
 }

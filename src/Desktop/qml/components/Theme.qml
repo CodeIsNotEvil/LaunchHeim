@@ -45,6 +45,24 @@ QtObject {
   readonly property real title: fontPointSize * 2.1
   readonly property real heading: fontPointSize * 1.35
 
+  // The colors an instance's icon can be given (Change icon). Muted, so they sit well next to the accent
+  // and the Plasma or Windows colors; dark enough for white letters, also at the bottom of the icon's
+  // gradient, which is 1.45 times darker. The first is LaunchHeim's own accent.
+  readonly property var instanceColors: [
+    { name: "Ember", color: "#de5833" },
+    { name: "Amber", color: "#e08e2b" },
+    { name: "Gold", color: "#c9a227" },
+    { name: "Moss", color: "#6a9a3a" },
+    { name: "Pine", color: "#2f8a5b" },
+    { name: "Fjord", color: "#1f9c95" },
+    { name: "Frost", color: "#3d9ad1" },
+    { name: "Steel", color: "#4f6fae" },
+    { name: "Dusk", color: "#7b5cb8" },
+    { name: "Heather", color: "#b4568f" },
+    { name: "Blood", color: "#b83b3b" },
+    { name: "Iron", color: "#6c7a86" }
+  ]
+
   function sourceColor(source) {
     switch (source) {
     case "thunderstore": return "#23c4a0"

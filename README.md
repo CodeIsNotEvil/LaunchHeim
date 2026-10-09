@@ -182,6 +182,14 @@ a warning, and mods a site only hands out through its website (Nexus without Pre
 opt-outs) are listed to install from Browse mods. The pack's configs are copied last, over the mods'
 defaults.
 
+**Instance icons.** An instance's icon is its initials on a color picked from its id. Clicking the
+icon on its page (or Change icon… in the menu) picks one of twelve colors (`Theme.instanceColors`,
+muted to sit next to the accent and dark enough for white letters), up to three letters of your own,
+or a picture shown instead (PNG, JPEG, WebP, GIF or BMP up to 8 MB). The picture is copied into the
+instance folder as `launchheim-icon-<random>.<ext>`, a new name each time because QML's Image caches by
+URL, so it goes along when the instance is duplicated or its folder copied. `instance.json` keeps
+`color`, `initials` and `iconFile`; each is null for automatic (`Core/Instances/InstanceIcon.cs`).
+
 **Sharing with a friend.** The share button on an instance's page writes its pack to
 `<cache>/tmp/share/<instance>/` (cleared on every start) and offers it three ways, with no chat
 integration: as a tile to drag anywhere that takes files, as a file on the clipboard (Copy file), or
