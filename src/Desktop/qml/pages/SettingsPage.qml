@@ -33,7 +33,6 @@ Item {
 
       PageHeader {
         title: "Settings"
-        subtitle: "LaunchHeim follows " + page.settings.themeSource + " automatically."
         Layout.fillWidth: true
       }
 

@@ -45,7 +45,6 @@ Item {
 
       PageHeader {
         title: "Library"
-        subtitle: "Your modded Valheim setups. Each one has its own BepInEx, mods and configs."
         Layout.fillWidth: true
 
         LhButton {

@@ -20,7 +20,6 @@ Item {
 
     PageHeader {
       title: "Browse mods"
-      subtitle: "Search Thunderstore, Nexus Mods and CurseForge. Dependencies and BepInEx are installed for you."
       Layout.fillWidth: true
 
       Label { text: "Install into"; color: Theme.textMuted }
