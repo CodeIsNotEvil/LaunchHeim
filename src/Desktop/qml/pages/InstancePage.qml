@@ -132,7 +132,7 @@ Item {
 
           IconButton {
             iconName: "share"
-            tip: "Share with a friend: a modpack file for Discord or Steam"
+            tip: "Share with a friend: the modpack as a file to drag or paste"
             onClicked: shareDialog.open()
           }
 

@@ -201,8 +201,8 @@ public sealed class InstanceViewModel : ViewModel
     });
   }
 
-  // Discord's upload limit without Nitro. A pack only lists its mods, so only local mods (whose files
-  // travel inside) or unusually large configs get near it.
+  // A common upload limit in chats (Discord's without Nitro). A pack only lists its mods, so only local
+  // mods (whose files travel inside) or unusually large configs get near it.
   private const long ShareLimitBytes = 10L * 1024 * 1024;
 
   /// <summary>
@@ -220,10 +220,10 @@ public sealed class InstanceViewModel : ViewModel
   public string ShareSummary { get => _shareSummary; private set => Set(ref _shareSummary, value); }
 
   /// <summary>
-  /// Writes the instance as a modpack to hand to a friend over Discord or Steam: under the cache's tmp
-  /// folder, which every start clears, named after the instance so the friend sees what it is. There's
-  /// no Discord or Steam integration; the dialog lets the file be dragged into a chat, copied, or shown in
-  /// the file manager. The friend imports it with Import modpack, or in r2modman.
+  /// Writes the instance as a modpack to hand to a friend: under the cache's tmp folder, which every
+  /// start clears, named after the instance so the friend sees what it is. There's no chat integration;
+  /// the dialog lets the file be dragged anywhere that takes files, copied, or shown in the file manager.
+  /// The friend imports it with Import modpack, or in r2modman.
   /// </summary>
   public async void PrepareShare()
   {
@@ -238,7 +238,7 @@ public sealed class InstanceViewModel : ViewModel
       var summary = $"{Path.GetFileName(path)} · {FormatSize(size)} · {report.Mods} mod(s), {report.ConfigFiles} config file(s)";
       if (size > ShareLimitBytes)
       {
-        summary += $"\nOver Discord's 10 MB limit without Nitro, because of the {report.LocalMods} local mod(s) packed into it.";
+        summary += $"\nOver 10 MB, more than many chats take, because of the {report.LocalMods} local mod(s) packed into it.";
       }
 
       if (report.NotInR2modman.Count > 0)
@@ -268,7 +268,7 @@ public sealed class InstanceViewModel : ViewModel
 
     if (FileClipboard.TryCopy(_shareFile))
     {
-      _app.Toast("success", $"Copied {Path.GetFileName(_shareFile)}", "Paste it into a Discord or Steam chat. If the chat doesn't take it, drag the file in instead.");
+      _app.Toast("success", $"Copied {Path.GetFileName(_shareFile)}", "Paste it into a chat or a folder. Where pasting doesn't work, drag the file in instead.");
     }
     else
     {

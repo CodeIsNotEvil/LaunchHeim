@@ -3,10 +3,11 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import "../components"
 
-// Hands an instance to a friend as a modpack file over Discord or Steam, without any integration: the
-// file is written to the cache when the dialog opens, then dragged into a chat, copied to the clipboard,
-// or shown in the file manager. Dragging is the dependable way: Discord's Linux client has been known to
-// ignore files pasted from the clipboard, and every chat app takes a dropped file.
+// Hands an instance to a friend as a modpack file, without any integration: the file is written to the
+// cache when the dialog opens, then dragged anywhere that takes a file (a chat, a file manager), copied
+// to the clipboard, or shown in the file manager. No app is named: dragging and pasting work wherever
+// files are accepted (the owner checked Discord and the file manager on 2026-10-09), and Steam's chat,
+// the obvious other place, only takes images and videos.
 LhDialog {
   id: dialog
 
@@ -22,7 +23,7 @@ LhDialog {
     spacing: 14
 
     Label {
-      text: "Send this modpack to a friend over Discord or Steam. It holds the mod list and your configs; the mods themselves are downloaded on their side when they import it with Import modpack in LaunchHeim, or in r2modman."
+      text: "Send this modpack to a friend. It holds the mod list and your configs; the mods themselves are downloaded on their side when they import it with Import modpack in LaunchHeim, or in r2modman."
       wrapMode: Text.Wrap
       Layout.fillWidth: true
     }
@@ -58,7 +59,7 @@ LhDialog {
           spacing: 2
           Layout.fillWidth: true
           Label {
-            text: dialog.ready ? "Drag this into a Discord or Steam chat" : "Preparing…"
+            text: dialog.ready ? "Drag this into a chat or a folder" : "Preparing…"
             font.bold: true
             elide: Text.ElideRight
             Layout.fillWidth: true
@@ -75,7 +76,7 @@ LhDialog {
     }
 
     Label {
-      text: "Or copy the file and paste it into the chat. If a chat won't take it, Show in folder opens it in your file manager to drag or attach from there."
+      text: "Or copy the file and paste it where it should go. Show in folder opens it in your file manager."
       color: Theme.textMuted
       wrapMode: Text.Wrap
       Layout.fillWidth: true

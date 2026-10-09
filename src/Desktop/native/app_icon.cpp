@@ -28,7 +28,7 @@
 #include <QtGui/QIcon>
 
 // Puts files on the clipboard the way a file manager's Copy does, so they can be pasted into a chat
-// (Discord, Steam) or a folder. Needs the QGuiApplication and its thread. Returns how many were put there.
+// or a folder. Needs the QGuiApplication and its thread. Returns how many were put there.
 // Strings are UTF-16, as for launchheim_set_app_icon.
 //
 // text/uri-list is what Qt, KDE and Chromium-based apps read. Qt turns it into CF_HDROP on Windows,

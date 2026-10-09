@@ -179,12 +179,12 @@ opt-outs) are listed to install from Browse mods. The pack's configs are copied 
 defaults.
 
 **Sharing with a friend.** The share button on an instance's page writes its pack to
-`<cache>/tmp/share/<instance>/` (cleared on every start) and offers it three ways, with no Discord or
-Steam integration: as a tile to drag into a chat, as a file on the clipboard (Copy file), or in the
-file manager. A pack is usually a few KB, well under Discord's 10 MB limit without Nitro; only packed
-local mods make it bigger, and the dialog says so. Dragging is the dependable way: Discord's Linux
-client has been reported to ignore pasted files, and whether Steam's chat takes an `.r2z` at all is
-unverified. QML can only copy text, so `native/app_icon.cpp` (`launchheim_copy_files`) puts the file
+`<cache>/tmp/share/<instance>/` (cleared on every start) and offers it three ways, with no chat
+integration: as a tile to drag anywhere that takes files, as a file on the clipboard (Copy file), or
+in the file manager. The dialog names no app: both ways work wherever files are accepted (checked with
+Discord and the file manager), while Steam's chat only takes images and videos. A pack is usually a
+few KB, well under the 10 MB many chats allow; only packed local mods make it bigger, and the dialog
+says so. QML can only copy text, so `native/app_icon.cpp` (`launchheim_copy_files`) puts the file
 on the clipboard as `text/uri-list` (Qt makes CF_HDROP of it on Windows) plus GNOME's
 `x-special/gnome-copied-files`, like a file manager's Copy.
 
