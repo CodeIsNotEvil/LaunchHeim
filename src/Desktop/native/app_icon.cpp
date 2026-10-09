@@ -1,9 +1,11 @@
 // Gives LaunchHeim's windows its icon in the title bar and the taskbar. Qml.Net has no binding for
 // QGuiApplication's window icon or desktop file name, and Qt 5's QML can't set a window icon, so this
 // small library makes the two calls for C# (Hosting/AppIcon.cs). On Windows it also gives the windows
-// a dark title bar in dark mode (launchheim_set_dark_frames, below).
+// a dark title bar in dark mode (launchheim_set_dark_frames, below). It also puts files on the
+// clipboard (launchheim_copy_files, Hosting/FileClipboard.cs), which QML can't either: it only reaches
+// the clipboard as text, through a TextEdit.
 //
-// Both are needed, because the desktops look for the icon in different places:
+// Both icon calls are needed, because the desktops look for the icon in different places:
 // - The window icon is what X11 (_NET_WM_ICON) and Windows (WM_SETICON) show. Without it Windows shows
 //   its stock application icon: Qt only looks for an icon resource named IDI_ICON1 in the exe, and the
 //   .NET SDK embeds <ApplicationIcon> under a number, so Explorer shows the logo but the window doesn't.
@@ -17,9 +19,40 @@
 // Qt but not Qml.Net: by the time C# loads it, Qt is already loaded, from the system or the downloaded
 // runtime, and the loader reuses that copy.
 
+#include <QtCore/QList>
+#include <QtCore/QMimeData>
 #include <QtCore/QString>
+#include <QtCore/QUrl>
+#include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QIcon>
+
+// Puts files on the clipboard the way a file manager's Copy does, so they can be pasted into a chat
+// or a folder. Needs the QGuiApplication and its thread. Returns how many were put there.
+// Strings are UTF-16, as for launchheim_set_app_icon.
+//
+// text/uri-list is what Qt, KDE and Chromium-based apps read. Qt turns it into CF_HDROP on Windows,
+// which is what Explorer's Copy puts there. GNOME's file manager and GTK apps look for their own
+// x-special/gnome-copied-files instead. Plain text is left out on purpose: an app that takes text first
+// would paste the path rather than the file.
+extern "C" Q_DECL_EXPORT int launchheim_copy_files(const QChar* const* files, int count) {
+  QList<QUrl> urls;
+  QByteArray gnome("copy");
+  for (int i = 0; i < count; i++) {
+    const QUrl url = QUrl::fromLocalFile(QString(files[i]));
+    urls.append(url);
+    gnome.append('\n').append(url.toEncoded());
+  }
+
+  auto* data = new QMimeData();
+  data->setUrls(urls);
+#ifndef Q_OS_WIN
+  data->setData(QStringLiteral("x-special/gnome-copied-files"), gnome);
+#endif
+  // The clipboard takes ownership of the QMimeData.
+  QGuiApplication::clipboard()->setMimeData(data);
+  return urls.size();
+}
 
 #ifdef Q_OS_WIN
 #include <QtCore/QEvent>

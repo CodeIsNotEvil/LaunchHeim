@@ -60,8 +60,8 @@ public static class AppIcon
     Marshal.GetDelegateForFunctionPointer<SetDarkFramesDelegate>(export)(dark ? 1 : 0);
   }
 
-  /// <summary>The native library, or null with Windows' or the loader's reason in the log.</summary>
-  private static IntPtr? Load()
+  /// <summary>The native library (also used by <see cref="FileClipboard"/>), or null with Windows' or the loader's reason in the log.</summary>
+  internal static IntPtr? Load()
   {
     var file = Path.Combine(AppContext.BaseDirectory, OperatingSystem.IsWindows() ? "LaunchHeimAppIcon.dll" : "libLaunchHeimAppIcon.so");
     try

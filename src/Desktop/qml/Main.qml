@@ -3,6 +3,7 @@ import LaunchHeim 1.0
 import QtQuick.Controls 2.15
 import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
+import QtQuick.Window 2.15
 import "components"
 import "pages"
 import "dialogs"
@@ -12,10 +13,23 @@ ApplicationWindow {
   id: window
 
   visible: true
-  width: 1320
+  // Wide enough for the instance page's header and toolbar on one line each. Below that the stats wrap
+  // and the filter field narrows. The minimum is the sidebar (245), the page margins (64), the header's
+  // buttons and avatar (654) and the title column's 200 (InstancePage.qml), so nothing is pushed off
+  // the right edge. It still fits a 1280-pixel screen such as the Steam Deck's.
+  width: 1400
   height: 820
-  minimumWidth: 980
+  minimumWidth: 1180
   minimumHeight: 620
+  // A smaller screen gets a window that fits it rather than one hanging over its edge. Once, at start, so
+  // a later screen change doesn't resize the window.
+  // The offscreen platform of the screenshot mode reports an 800x600 screen; screenshots keep the default.
+  Component.onCompleted: {
+    if (screenshotPath.length > 0)
+      return
+    width = Math.max(minimumWidth, Math.min(width, Screen.desktopAvailableWidth))
+    height = Math.max(minimumHeight, Math.min(height, Screen.desktopAvailableHeight))
+  }
   title: App.currentPage === "instance" && Vm.selected ? Vm.selected.name + " — LaunchHeim" : "LaunchHeim"
   color: Theme.window
 

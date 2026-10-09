@@ -19,6 +19,8 @@ public sealed class InstanceViewModel : ViewModel
   private bool _isBusy;
   private bool _bepInExConsole;
   private string _filter = "";
+  private string _shareFile = "";
+  private string _shareSummary = "";
 
   public InstanceViewModel(AppViewModel app, Instance instance)
   {
@@ -198,6 +200,96 @@ public sealed class InstanceViewModel : ViewModel
       _app.Toast("success", "Modpack exported", message, "Show", Path.GetDirectoryName(path) ?? "");
     });
   }
+
+  // A common upload limit in chats (Discord's without Nitro). A pack only lists its mods, so only local
+  // mods (whose files travel inside) or unusually large configs get near it.
+  private const long ShareLimitBytes = 10L * 1024 * 1024;
+
+  /// <summary>
+  /// The pack written for sharing with a friend (<see cref="PrepareShare"/>), or empty while it's being
+  /// written or when that failed. The share dialog drags it into a chat as a file:// URL.
+  /// </summary>
+  [NotifySignal]
+  public string ShareFile { get => _shareFile; private set { Set(ref _shareFile, value); Raise(nameof(ShareUrl)); } }
+
+  [NotifySignal]
+  public string ShareUrl => _shareFile.Length == 0 ? "" : new Uri(_shareFile).AbsoluteUri;
+
+  /// <summary>What's in the shared pack and how big it is, or why it couldn't be written.</summary>
+  [NotifySignal]
+  public string ShareSummary { get => _shareSummary; private set => Set(ref _shareSummary, value); }
+
+  /// <summary>
+  /// Writes the instance as a modpack to hand to a friend: under the cache's tmp folder, which every
+  /// start clears, named after the instance so the friend sees what it is. There's no chat integration;
+  /// the dialog lets the file be dragged anywhere that takes files, copied, or shown in the file manager.
+  /// The friend imports it with Import modpack, or in r2modman.
+  /// </summary>
+  public async void PrepareShare()
+  {
+    ShareFile = "";
+    ShareSummary = "Writing the modpack…";
+    try
+    {
+      var path = Path.Combine(_app.Paths.CacheDirectory, "tmp", "share", Model.Id, PackFileName);
+      System.IO.Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+      var report = await Task.Run(() => _app.Packs.Export(Model, path));
+      var size = new FileInfo(path).Length;
+      var summary = $"{Path.GetFileName(path)} · {FormatSize(size)} · {report.Mods} mod(s), {report.ConfigFiles} config file(s)";
+      if (size > ShareLimitBytes)
+      {
+        summary += $"\nOver 10 MB, more than many chats take, because of the {report.LocalMods} local mod(s) packed into it.";
+      }
+
+      if (report.NotInR2modman.Count > 0)
+      {
+        summary += $"\nA friend using r2modman won't get {string.Join(", ", report.NotInR2modman)}; LaunchHeim installs them.";
+      }
+
+      ShareSummary = summary;
+      ShareFile = path;
+      Log.Info($"Wrote {path} to share ({size} bytes).");
+    }
+    catch (Exception ex)
+    {
+      // async void from QML: anything that escapes takes the app down.
+      Log.Error($"Writing {Model.Name} for sharing failed", ex);
+      ShareSummary = "The modpack could not be written: " + ex.Message;
+    }
+  }
+
+  /// <summary>Puts the shared pack on the clipboard as a file, for pasting into a chat.</summary>
+  public void CopyShare()
+  {
+    if (_shareFile.Length == 0)
+    {
+      return;
+    }
+
+    if (FileClipboard.TryCopy(_shareFile))
+    {
+      _app.Toast("success", $"Copied {Path.GetFileName(_shareFile)}", "Paste it into a chat or a folder. Where pasting doesn't work, drag the file in instead.");
+    }
+    else
+    {
+      _app.Toast("error", "The file could not be copied", "Drag it into the chat, or use Show in folder.");
+    }
+  }
+
+  public void ShowShare()
+  {
+    if (_shareFile.Length > 0)
+    {
+      _ = DesktopShell.ShowInFolder(_shareFile);
+    }
+  }
+
+  private static string FormatSize(long bytes) => bytes switch
+  {
+    < 1024 => $"{bytes} B",
+    < 1024 * 1024 => $"{bytes / 1024.0:0.#} KB",
+    _ => $"{bytes / (1024.0 * 1024):0.#} MB",
+  };
 
   public void Rename(string name)
   {

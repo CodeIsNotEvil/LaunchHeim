@@ -53,6 +53,11 @@ accounts) and CurseForge (API key).
   sends one thing: an instance from its page, the server list from Play. A list made on the phone
   carries the phone's id, which LaunchHeim keeps as `Instance.LinkId`, so it updates instead of
   duplicating ([[0011-launchheim-companion-syncs-packs-over-localsend]]).
+- Sharing with a friend (2026-10-09): the share button on an instance's page writes its `.r2z` and
+  offers it as a drag tile, Copy file (the native helper puts it on the clipboard as a file manager
+  would) and Show in folder. No chat integration and no app named in the UI: it works wherever files
+  are accepted (checked with Discord and the file manager), while Steam's chat only takes images and
+  videos.
 - Update reminder (2026-10-06): GitHub's releases API, newest `launchheim-v*` by version, at start
   and every 12 hours; a sidebar line and a dialog with per-install commands (`Core/Updates`). The
   install kind comes from the package build's switch plus `/etc/os-release`, the Windows zip, or

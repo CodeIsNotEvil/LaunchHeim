@@ -27,6 +27,7 @@ Item {
       readonly property var configFiles: Net.toVariantList(inst.configFiles)
 
       RenameDialog { id: renameDialog; instance: root.inst }
+      ShareDialog { id: shareDialog; instance: root.inst }
       ConfirmDialog {
         id: deleteDialog
         title: "Delete instance?"
@@ -77,9 +78,14 @@ Item {
             tint: root.inst.color
           }
 
+          // A RowLayout can't shrink below its children's minimums and pushes past the window instead, which
+          // cut off the buttons on the right. So the title column may shrink (the name elides) and the stats
+          // are a Flow, which wraps onto further lines rather than holding the header wide. 200 keeps the
+          // longest stat ("BepInEx 5.4.2351") clear of Add mods; Main.qml's minimumWidth leaves room for it.
           ColumnLayout {
             spacing: 4
             Layout.fillWidth: true
+            Layout.minimumWidth: 200
 
             ElidedTitle {
               text: root.inst.name
@@ -92,8 +98,9 @@ Item {
               Badge { visible: root.inst.isRunning; text: "Running"; tint: Theme.positive; solid: true }
             }
 
-            RowLayout {
+            Flow {
               spacing: 14
+              Layout.fillWidth: true
               Stat { iconName: "check"; visible: root.inst.hasLoader; text: "BepInEx " + root.inst.loaderVersion }
               Stat { iconName: "package"; text: root.inst.modCount + " mods, " + root.inst.enabledModCount + " enabled" }
               Stat { iconName: "clock"; text: root.inst.lastPlayedText }
@@ -130,6 +137,12 @@ Item {
           }
 
           IconButton {
+            iconName: "share"
+            tip: "Share with a friend: the modpack as a file to drag or paste"
+            onClicked: shareDialog.open()
+          }
+
+          IconButton {
             iconName: "more"
             tip: "More"
             onClicked: menu.popup()
@@ -140,6 +153,7 @@ Item {
               MenuItem { text: "Check for updates"; onTriggered: root.inst.checkUpdates() }
               MenuItem { text: "Export as modpack…"; onTriggered: exportDialog.open() }
               MenuItem { text: "Send to phone…"; onTriggered: Vm.phone.openSend(root.inst.id) }
+              MenuItem { text: "Share with a friend…"; onTriggered: shareDialog.open() }
               MenuSeparator {}
               MenuItem { text: "Open console"; onTriggered: root.inst.openConsole() }
               MenuItem { text: "Open instance folder"; onTriggered: root.inst.openFolder() }
@@ -187,11 +201,15 @@ Item {
               spacing: 10
               Layout.fillWidth: true
 
+              // Gives way before the buttons do, so none of them is pushed off the page.
               SearchField {
                 placeholderText: "Filter installed mods"
                 text: root.inst.filter
                 onTextChanged: root.inst.filter = text
+                Layout.fillWidth: true
                 Layout.preferredWidth: 320
+                Layout.maximumWidth: 320
+                Layout.minimumWidth: 160
               }
 
               BusyIndicator {
