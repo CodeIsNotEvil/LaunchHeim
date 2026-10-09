@@ -15,12 +15,16 @@ What it does:
   apps, so GitHub's single "latest release" link can't be used. Before an app has a release, <!-- if:key --> ... <!-- else --> ... <!-- end -->
   blocks show build instructions instead.
 
+With --mirror-installers it also publishes the newest LaunchHeim Windows setups under downloads/,
+because the Microsoft Store needs an installer URL that doesn't redirect (mirror_windows_setups).
+
 The workflow .github/workflows/site.yml runs this on every change to the site or a changelog and
 whenever a release is published, so the download links follow new releases without editing the pages.
 
 Placeholders: {{ key }} is escaped text, {{{ key }}} is HTML that build.py generated itself.
 """
 import argparse
+import hashlib
 import html
 import json
 import os
@@ -89,6 +93,43 @@ def fetch_releases(require: bool) -> list[dict]:
 def newest(releases: list[dict], prefix: str) -> dict | None:
   # The API lists newest first. Drafts and pre-releases are not offered as downloads.
   return next((r for r in releases if r["tag_name"].startswith(prefix) and not r["draft"] and not r["prerelease"]), None)
+
+
+# How many LaunchHeim releases keep their Windows setup on the site (see mirror_windows_setups).
+MIRRORED_SETUPS = 3
+
+
+def mirror_windows_setups(releases: list[dict], output: Path) -> list[str]:
+  """Copies the Windows setup of the newest LaunchHeim releases onto the site.
+
+  The Microsoft Store takes an EXE installer by URL and refuses one that redirects, and GitHub's release
+  download links always redirect (to a short-lived signed address on another host). GitHub Pages serves
+  files directly, so the setups are published at downloads/launchheim/<version>/<file>: versioned, so a
+  URL handed to the Store never changes its file. The last few are kept rather than only the newest, so
+  a submission still in review keeps working when the next release deploys the site. Each download is
+  checked against the SHA-256 GitHub stores for it. Returns the published paths.
+  """
+  published = []
+  launchheim = [r for r in releases if r["tag_name"].startswith("launchheim-v") and not r["draft"] and not r["prerelease"]]
+  for release in launchheim[:MIRRORED_SETUPS]:
+    asset = next((a for a in release["assets"] if a["name"].endswith(LAUNCHHEIM_FILES["windows_setup"])), None)
+    if asset is None:
+      continue
+    version = release["tag_name"].removeprefix("launchheim-v")
+    relative = Path("downloads", "launchheim", version, asset["name"])
+    target = output / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    request = urllib.request.Request(asset["browser_download_url"], headers={"User-Agent": "CodeIsNotEvil-site-build"})
+    digest = hashlib.sha256()
+    with urllib.request.urlopen(request, timeout=300) as response, target.open("wb") as file:
+      while chunk := response.read(1024 * 1024):
+        digest.update(chunk)
+        file.write(chunk)
+    algorithm, _, expected = (asset.get("digest") or "").partition(":")
+    if algorithm == "sha256" and expected and digest.hexdigest() != expected:
+      raise SystemExit(f"{asset['name']} does not match the SHA-256 GitHub stores for it.")
+    published.append(relative.as_posix())
+  return published
 
 
 def release_values(release: dict | None, key: str, prefix: str, files: dict[str, str]) -> dict[str, str]:
@@ -196,6 +237,8 @@ def main() -> None:
   parser.add_argument("output", nargs="?", type=Path, default=ROOT / "site" / "_site")
   parser.add_argument("--require-releases-api", action="store_true", help="fail instead of falling back when GitHub can't be reached")
   parser.add_argument("--releases-json", type=Path, help="read releases from this file (the API's format) instead, to preview the page")
+  parser.add_argument("--mirror-installers", action="store_true",
+                      help=f"publish the Windows setups of the {MIRRORED_SETUPS} newest LaunchHeim releases under downloads/ (for the Microsoft Store)")
   args = parser.parse_args()
 
   releases = json.loads(args.releases_json.read_text()) if args.releases_json else fetch_releases(args.require_releases_api)
@@ -227,6 +270,10 @@ def main() -> None:
     shutil.copy2(source, target)
   # Served as-is: no Jekyll processing of the output.
   (args.output / ".nojekyll").touch()
+
+  if args.mirror_installers:
+    for path in mirror_windows_setups(releases, args.output):
+      print(f"Mirrored https://codeisnotevil.github.io/MyMonoRepo/{path}")
 
   found = ", ".join(f"{k.removesuffix('_version')} {v}" for k, v in values.items() if k.endswith("_version")) or "none"
   print(f"Built {args.output} (releases: {found})")
