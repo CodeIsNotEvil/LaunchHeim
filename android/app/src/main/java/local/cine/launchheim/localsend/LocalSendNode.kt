@@ -412,7 +412,10 @@ class LocalSendNode(
         }
       }
     } catch (e: IOException) {
-      return@withContext SendResult.Failed("Could not reach ${peer.info.alias}: ${e.message}")
+      // A PC firewall that drops incoming connections looks exactly like this, and LaunchHeim's settings
+      // say how to open it (ufw on CachyOS, Windows Firewall after a cancelled prompt).
+      val hint = if (peer.info.isLaunchHeim) " Is phone sync on in LaunchHeim, and does the PC's firewall let it through? LaunchHeim's Settings → Phone sync shows how." else ""
+      return@withContext SendResult.Failed("Could not reach ${peer.info.alias}: ${e.message}.$hint")
     }
 
     try {

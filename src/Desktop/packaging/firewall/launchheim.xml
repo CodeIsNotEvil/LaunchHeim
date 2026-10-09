@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- firewalld service for LaunchHeim's phone sync, installed as /usr/lib/firewalld/services/launchheim.xml.
+     packaging/README.md ("Phone sync and the firewall") has the firewall-cmd lines that switch it on
+     (an XML comment can't hold their double dashes). The ports are explained in ufw-launchheim. -->
+<service>
+  <short>LaunchHeim</short>
+  <description>Receive mod lists from LaunchHeim Companion and other LocalSend devices on the local network.</description>
+  <port protocol="udp" port="53317"/>
+  <port protocol="tcp" port="53317-53326"/>
+</service>

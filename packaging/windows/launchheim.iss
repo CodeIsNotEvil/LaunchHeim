@@ -97,10 +97,22 @@ Type: files; Name: "{autoprograms}\LaunchHeim.lnk"; Tasks: not startmenu
 Type: files; Name: "{autodesktop}\LaunchHeim.lnk"; Tasks: not desktopicon
 
 [Run]
+; Phone sync needs incoming connections (Firewall.cs). An all-users install runs as an administrator, so
+; it allows LaunchHeim.exe in Windows Firewall itself, for every network profile because Windows 11
+; puts new networks in Public. Rules already there for the exe go first: a block rule left by a
+; cancelled "Allow access" prompt would win over the allow rule. A per-user install has no administrator;
+; there Windows asks on the first start with phone sync on, and Settings -> Phone sync can do it later.
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=all program=""{app}\LaunchHeim.exe"""; Flags: runhidden; StatusMsg: "Allowing phone sync in Windows Firewall..."; Check: IsAdminInstallMode
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""LaunchHeim phone sync"" dir=in action=allow program=""{app}\LaunchHeim.exe"" enable=yes profile=any"; Flags: runhidden; StatusMsg: "Allowing phone sync in Windows Firewall..."; Check: IsAdminInstallMode
 ; The "Launch LaunchHeim" tick on the last page. A silent setup skips it unless /relaunch=yes, which
 ; LaunchHeim's "Update now" passes so it's back when the update is done. As the user who started the
 ; setup, not as the administrator an all-users install elevated to.
 Filename: "{app}\LaunchHeim.exe"; Description: "{cm:LaunchProgram,LaunchHeim}"; Flags: nowait postinstall runasoriginaluser; Check: ShouldLaunch
+
+[UninstallRun]
+; Removes the rule the setup or Settings -> Phone sync added. Without an administrator (a per-user
+; install whose rule came from Settings) netsh fails quietly and the rule stays, pointing at a removed exe.
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=all program=""{app}\LaunchHeim.exe"""; Flags: runhidden; RunOnceId: "RemoveFirewallRule"
 
 [Code]
 function ShouldLaunch: Boolean;

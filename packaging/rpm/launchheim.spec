@@ -51,6 +51,13 @@ tar -xf %{SOURCE0} -C %{buildroot}
 %{_datadir}/applications/launchheim.desktop
 %{_datadir}/icons/hicolor/scalable/apps/launchheim.svg
 %{_datadir}/metainfo/io.github.codeisnotevil.LaunchHeim.metainfo.xml
+# Neither firewall is required, so the directories are owned here too, as Fedora asks.
+%dir %{_sysconfdir}/ufw
+%dir %{_sysconfdir}/ufw/applications.d
+%config(noreplace) %{_sysconfdir}/ufw/applications.d/launchheim
+%dir %{_prefix}/lib/firewalld
+%dir %{_prefix}/lib/firewalld/services
+%{_prefix}/lib/firewalld/services/launchheim.xml
 
 %changelog
 * Thu Oct 08 2026 CodeIsNotEvil <noreply@github.com> - 0.5.4-1
