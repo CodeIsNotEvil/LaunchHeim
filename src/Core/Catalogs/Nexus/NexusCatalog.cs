@@ -162,7 +162,7 @@ public sealed class NexusCatalog(HttpClient http, Func<string?> apiKey) : IModCa
     var filePage = new Uri($"https://www.nexusmods.com/{GameDomain}/mods/{modId}?tab=files&file_id={file.Id}&nmm=1");
     if (!HasApiKey)
     {
-      return new BrowserRequired(filePage, "Downloading from Nexus needs your personal API key. Add it in Settings, or use \"Mod Manager Download\" on the Nexus page.");
+      return new BrowserRequired(filePage, "Downloading from Nexus needs your API key (the one Nexus lists for Vortex). Add it in Settings, or use \"Mod Manager Download\" on the Nexus page.");
     }
 
     var links = await DownloadLinksAsync(modId, file.Id, query: "", cancellationToken);

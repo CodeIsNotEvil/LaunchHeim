@@ -33,7 +33,6 @@ Item {
 
       PageHeader {
         title: "Settings"
-        subtitle: "LaunchHeim follows " + page.settings.themeSource + " automatically."
         Layout.fillWidth: true
       }
 
@@ -66,7 +65,7 @@ Item {
       SettingsSection {
         iconName: "key"
         title: "Nexus Mods"
-        description: "Browsing works without an account. Installing needs your personal API key from <a href=\"https://www.nexusmods.com/users/myaccount?tab=api\">your Nexus account</a>. Premium members download directly; free accounts confirm each download on the Nexus page, which then hands it to LaunchHeim."
+        description: "Browsing needs no account. To install, copy the key Nexus lists for <b>Vortex</b> on <a href=\"https://www.nexusmods.com/users/myaccount?tab=api\">your API keys page</a>."
         Layout.fillWidth: true
 
         SecretField {
@@ -112,7 +111,7 @@ Item {
       SettingsSection {
         iconName: "key"
         title: "CurseForge"
-        description: "CurseForge only answers apps that send an API key. Create one for free in the <a href=\"https://console.curseforge.com/\">CurseForge for Studios console</a>. Some authors disable downloads outside the website; LaunchHeim then opens the page instead."
+        description: "CurseForge doesn't let other apps download Valheim mods. Get them on <a href=\"https://www.curseforge.com/valheim/search?page=1&amp;pageSize=20&amp;sortBy=relevancy\">CurseForge</a> and drag the file onto an open instance. The key, from the <a href=\"https://console.curseforge.com/#/api-keys\">CurseForge console</a>, is for when that changes."
         Layout.fillWidth: true
 
         SecretField {
@@ -125,7 +124,8 @@ Item {
         Label {
           visible: text.length > 0
           text: page.settings.curseForgeStatus
-          color: text.indexOf("Could not") === 0 ? Theme.negative : Theme.positive
+          // Anything but the success line is a problem, worded by the catalog.
+          color: text === "The key works." ? Theme.positive : Theme.negative
           wrapMode: Text.Wrap
           Layout.fillWidth: true
         }

@@ -59,7 +59,6 @@ Item {
 
       PageHeader {
         title: "Play"
-        subtitle: "Join a server or load a world from Valheim's lists. LaunchHeim remembers the character and setup for each one."
         Layout.fillWidth: true
 
         LhButton {

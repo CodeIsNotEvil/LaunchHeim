@@ -19,9 +19,6 @@ Item {
 
     PageHeader {
       title: "Screenshots"
-      subtitle: Vm.screenshots.count > 0
-        ? Vm.screenshots.count + (Vm.screenshots.count === 1 ? " screenshot" : " screenshots") + " taken with Steam (F12 in the game). Steam keeps them in " + Vm.screenshots.folder
-        : "Pictures you take with Steam while playing Valheim (F12 by default) show up here."
       Layout.fillWidth: true
 
       LhButton {

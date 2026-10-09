@@ -451,6 +451,43 @@ Item {
           }
         }
       }
+
+      // Mod files dropped on the open instance install into it, as Install from file does: a zip
+      // downloaded by hand (CurseForge offers Valheim mods to no other app), or a plugin dll. Several at
+      // once queue one after another. Last in the item, so it lies over the page while something is dragged.
+      DropArea {
+        id: dropArea
+        anchors.fill: parent
+        keys: ["text/uri-list"]
+        onEntered: drag.accepted = drag.hasUrls
+        onDropped: {
+          // Only files on this computer; a link dragged from a browser has nothing to install yet.
+          var files = drop.urls.filter(function(url) { return url.toString().indexOf("file:") === 0 })
+          for (var i = 0; i < files.length; i++)
+            root.inst.installFile(files[i].toString())
+          if (files.length > 0)
+            drop.acceptProposedAction()
+        }
+
+        Rectangle {
+          anchors.fill: parent
+          anchors.margins: 12
+          visible: dropArea.containsDrag
+          radius: 12
+          // Nearly opaque, so the message isn't read over the mod list under it.
+          color: Theme.alpha(Theme.window, 0.93)
+          border.color: Theme.accent
+          border.width: 2
+
+          Column {
+            anchors.centerIn: parent
+            spacing: 10
+            Icon { iconName: "download"; size: 36; color: Theme.accent; anchors.horizontalCenter: parent.horizontalCenter }
+            Label { text: "Drop to install into " + root.inst.name; font.bold: true; font.pointSize: Theme.heading; anchors.horizontalCenter: parent.horizontalCenter }
+            Label { text: "Mod archives (.zip, .7z, .rar) and plugin .dll files"; color: Theme.textMuted; anchors.horizontalCenter: parent.horizontalCenter }
+          }
+        }
+      }
     }
   }
 }

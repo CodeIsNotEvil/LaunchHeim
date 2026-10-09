@@ -152,16 +152,20 @@ removes dependencies that were only pulled in for it. Disabling renames its asse
 - *Thunderstore* has no search API for third-party apps, so the whole Valheim package list is
   downloaded (about 17 MB compressed), trimmed to a few MB, cached for 6 hours and searched in memory.
   A stale copy is used offline. Updates are only checked for Thunderstore mods, because that is free.
-- *Nexus Mods* browsing works anonymously through the GraphQL API. Downloading needs a personal API
-  key. Even then, only Premium accounts get direct links. Free accounts click "Mod Manager Download"
+- *Nexus Mods* browsing works anonymously through the GraphQL API. Downloading needs an API key: the
+  one Nexus lists for Vortex on the account's API keys page. Even then, only Premium accounts get direct links. Free accounts click "Mod Manager Download"
   on the website, which opens an `nxm://` link that LaunchHeim receives.
-- *CurseForge* needs an API key from console.curseforge.com for everything, including search. Files
-  whose authors opted out of third-party distribution open the website instead.
+- *CurseForge* needs an API key from console.curseforge.com/#/api-keys for everything, including search.
+  Files whose authors opted out of third-party distribution open the website instead. As of 2026-10-09
+  this doesn't help for Valheim: a working key gets 38 games from `/v1/games` and Valheim isn't one,
+  and Valheim searches are refused. LaunchHeim says so instead of blaming the key, and Settings links
+  to CurseForge's Valheim search for downloading by hand. The implementation stays for when that changes.
 
 **Importing.** "Import game folder" turns a BepInEx install made directly in the game folder into an
 instance. It copies the game folder's files and never changes them. Plugins with a Thunderstore
 `manifest.json` are recognised so they can be updated later. "Install from file" on an instance takes
-a mod downloaded by hand (a Thunderstore zip, an r2modman export or a plain dll). A zip's `manifest.json`
+a mod downloaded by hand (a Thunderstore zip, an r2modman export or a plain dll); so does dropping
+files onto the open instance page, several at once. A zip's `manifest.json`
 gives the mod its name and dependencies.
 
 **Modpacks.** An instance exports as an `.r2z` file (instance page → Export) and a pack imports as

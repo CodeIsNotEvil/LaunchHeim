@@ -84,7 +84,7 @@ fun SettingsScreen(vm: MainViewModel, onLicenses: () -> Unit) {
         headlineContent = { Text("CurseForge API key") },
         supportingContent = {
           Text(
-            if (settings.curseForgeApiKey.isBlank()) "Not set. CurseForge answers no app without one; create a free key at console.curseforge.com."
+            if (settings.curseForgeApiKey.isBlank()) "Not set. CurseForge answers no app without one; create a free key at console.curseforge.com/#/api-keys."
             else "Set. Nexus Mods needs none for browsing.",
           )
         },
@@ -114,7 +114,7 @@ fun SettingsScreen(vm: MainViewModel, onLicenses: () -> Unit) {
   if (editingKey) {
     FieldsDialog(
       "CurseForge API key",
-      listOf("Key from console.curseforge.com" to settings.curseForgeApiKey),
+      listOf("Key from console.curseforge.com/#/api-keys" to settings.curseForgeApiKey),
       "Save",
       onConfirm = { values -> vm.updateSettings { it.copy(curseForgeApiKey = values[0].trim()) } },
       onDismiss = { editingKey = false },
