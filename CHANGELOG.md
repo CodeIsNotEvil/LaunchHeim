@@ -7,6 +7,32 @@ Format: a `## <version> - <yyyy-mm-dd>` heading per release (the version must ma
 `src/Desktop/LaunchHeim.Desktop.csproj`), then `### Added`, `### Changed` or `### Fixed` with one
 bullet per change.
 
+## 0.6.0 - 2026-10-09
+
+### Added
+- Give an instance its own icon: click it to pick one of twelve colors, change its letters, or use
+  a picture. Servers and worlds on the Play page get the same choices.
+- Share an instance with a friend: the share button on its page gives you the modpack file to drag
+  or paste into a chat or a folder.
+- Drop mod files (.zip, .7z, .rar or .dll) onto an open instance to install them.
+- The Linux packages bring firewall rules for phone sync: `sudo ufw allow LaunchHeim`, or the
+  `launchheim` firewalld service. Settings → Phone sync says when ufw is blocking your phone, and on
+  Windows it can allow LaunchHeim in the firewall for you.
+
+### Changed
+- Send an instance to the phone from its page, and the server list from the Play page.
+- Pages open with just their title, without the explanation underneath.
+- Settings says which Nexus key to copy (the one Nexus lists for Vortex), in fewer words.
+- The window opens a little wider, so nothing on an instance's page is cut off, and fits smaller
+  screens.
+
+### Fixed
+- A mod list made on the phone now updates its instance when you send it again, instead of being
+  imported as a new instance every time.
+- A CurseForge key no longer looks broken: CurseForge doesn't offer Valheim mods to other apps, and
+  Settings now says so and links to CurseForge for downloading them by hand.
+- When the phone can't reach the PC, it now points at the PC's firewall.
+
 ## 0.5.4 - 2026-10-08
 
 ### Added
