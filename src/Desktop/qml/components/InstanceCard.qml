@@ -48,6 +48,7 @@ Card {
     height: 60
     initials: card.instance.initials
     tint: card.instance.color
+    imageSource: card.instance.iconUrl
     border.width: 3
     border.color: card.color
   }

@@ -53,6 +53,8 @@ accounts) and CurseForge (API key).
   sends one thing: an instance from its page, the server list from Play. A list made on the phone
   carries the phone's id, which LaunchHeim keeps as `Instance.LinkId`, so it updates instead of
   duplicating ([[0011-launchheim-companion-syncs-packs-over-localsend]]).
+- Instance icons (2026-10-09): color from a curated palette, own letters, or a picture in the instance
+  folder (README "Instance icons").
 - Sharing with a friend (2026-10-09): the share button on an instance's page writes its `.r2z` and
   offers it as a drag tile, Copy file (the native helper puts it on the clipboard as a file manager
   would) and Show in folder. No chat integration and no app named in the UI: it works wherever files

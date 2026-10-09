@@ -120,6 +120,7 @@ Item {
             height: 112
             initials: hero.instance ? hero.instance.initials : ""
             tint: hero.instance ? hero.instance.color : Theme.accent
+            imageSource: hero.instance ? hero.instance.iconUrl : ""
           }
 
           ColumnLayout {
