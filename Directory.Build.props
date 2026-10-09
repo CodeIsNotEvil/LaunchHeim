@@ -15,7 +15,7 @@
       Desktop's assembly carries it. It used to sit in the Desktop csproj only, so Core fell back to
       1.0.0. The launchheim-v* tag must match it, and CHANGELOG.md needs a section for it.
     -->
-    <Version>0.5.4</Version>
+    <Version>0.6.0</Version>
   </PropertyGroup>
 
   <!--

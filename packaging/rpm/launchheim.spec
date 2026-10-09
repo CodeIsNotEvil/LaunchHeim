@@ -60,6 +60,9 @@ tar -xf %{SOURCE0} -C %{buildroot}
 %{_prefix}/lib/firewalld/services/launchheim.xml
 
 %changelog
+* Fri Oct 09 2026 CodeIsNotEvil <noreply@github.com> - 0.6.0-1
+- Instance, server and world icons, sharing with friends, drag-and-drop installs, firewall rules for phone sync (see CHANGELOG.md)
+
 * Thu Oct 08 2026 CodeIsNotEvil <noreply@github.com> - 0.5.4-1
 - Steam overlay in launched games, a Screenshots page, dark title bar on Windows (see CHANGELOG.md)
 

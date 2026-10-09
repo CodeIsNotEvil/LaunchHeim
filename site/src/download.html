@@ -264,17 +264,24 @@ nano .env        # set POSTGRES_PASSWORD</code></pre></li>
           <li>Open the download link above on the phone and open the file when it's done.</li>
           <li>Android asks to allow installing apps from your browser (or file manager) the first time.
             Allow it, go back, and install.</li>
-          <li>On the PC, turn on <strong>Settings → Phone sync</strong>, then <strong>Library → Send to
-            phone</strong>. Keep both on the same Wi-Fi.</li>
+          <li>On the PC, turn on <strong>Settings → Phone sync</strong>, then press the phone button on an
+            instance's page. Keep both on the same Wi-Fi. If the phone can't find the PC, Settings → Phone
+            sync shows how to let it through the firewall.</li>
         </ol>
         <!-- if:lh_android_sha256 -->
         <p>To check the file on a PC first:</p>
 <pre><code>curl -LO {{ lh_android_url }}
 echo "{{ lh_android_sha256 }}  {{ lh_android_file }}" | sha256sum -c</code></pre>
         <!-- end -->
-        <p>To update, install the new APK over the old one; your lists are kept. Apps such as
-          <a href="https://obtainium.imranr.dev/">Obtainium</a> can watch the GitHub releases and
-          update it for you.</p>
+        <p>To update, install the new APK over the old one; your lists are kept. Or let
+          <a href="https://obtainium.imranr.dev/">Obtainium</a> do it:</p>
+        <ol class="steps">
+          <li>In Obtainium, tap <strong>Add App</strong> and enter <code>{{ repo_url }}</code> as the source URL.</li>
+          <li>Set <strong>Filter release titles by regular expression</strong> to <code>^LaunchHeim</code>.
+            The repository also releases GroceryTracker, which has no APK.</li>
+          <li>Tap <strong>Add</strong>. Obtainium recognises the installed companion and installs new
+            versions when they come out.</li>
+        </ol>
       </details>
       <!-- end -->
       <!-- else -->
@@ -305,18 +312,25 @@ echo "{{ lh_android_sha256 }}  {{ lh_android_file }}" | sha256sum -c</code></pre
           screenshot, and the <strong>Screenshots</strong> page shows them with a large preview and a
           button to their folder.</li>
         <li>Already modded by hand? <strong>Import game folder</strong> turns it into an instance and
-          leaves the original alone.</li>
-        <li>On the go: <strong>Send to phone</strong> puts your instances on the Android companion. Add
-          mods there, and when you're home, send the list back. LaunchHeim shows what changed and
-          updates the instance, or imports it as a new one.</li>
+          leaves the original alone. A mod you downloaded yourself goes in by dropping the file onto the
+          instance.</li>
+        <li>Playing with friends? The share button on an instance gives you its modpack file to drag into
+          a chat; they open it with <strong>Import modpack</strong>.</li>
+        <li>On the go: the phone button on an instance puts it on the Android companion. Add mods there,
+          and when you're home, send the list back. LaunchHeim shows what changed and updates the
+          instance.</li>
+        <li>Click an instance's icon to give it a color, letters or a picture; servers and worlds on the
+          Play page take the same.</li>
       </ol>
 
       <details>
         <summary>Nexus Mods and CurseForge</summary>
-        <p>Thunderstore works right away. For <strong>Nexus Mods</strong>, add your personal API key under
-          Settings and press <strong>Register</strong>, so the website's "Mod Manager Download" buttons
-          open LaunchHeim. Premium accounts can install straight from LaunchHeim. For
-          <strong>CurseForge</strong>, add a free API key from the CurseForge for Studios console.</p>
+        <p>Thunderstore works right away. For <strong>Nexus Mods</strong>, copy the API key Nexus lists for
+          Vortex on your API keys page into Settings and press <strong>Register</strong>, so the website's
+          "Mod Manager Download" buttons open LaunchHeim. Premium accounts can install straight from
+          LaunchHeim. <strong>CurseForge</strong> doesn't let other apps download Valheim mods: download
+          them on <a href="https://www.curseforge.com/valheim/search?page=1&amp;pageSize=20&amp;sortBy=relevancy">CurseForge</a>
+          and drop the file onto an instance.</p>
       </details>
       <details>
         <summary>What happens to my game folder?</summary>
