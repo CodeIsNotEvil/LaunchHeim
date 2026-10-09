@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LaunchHeim privacy policy · CodeIsNotEvil</title>
+  <meta name="description" content="What LaunchHeim, the Valheim mod launcher, does with your data: no accounts, no analytics, no telemetry.">
+  <link rel="icon" href="img/c-logo.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/KodeMono.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+  <!-- The privacy policy the Microsoft Store listing links to (2026-10-09). Keep it true to the code:
+       when LaunchHeim talks to a new service or stores something new, add it here and update the date. -->
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="./"><span class="glint glint-c"><img src="img/c-logo.svg" alt="" width="32" height="32"></span>CodeIsNotEvil</a>
+      <nav aria-label="Main">
+        <a href="./">Apps</a>
+        <a href="download.html">Downloads</a>
+        <a href="{{ repo_url }}">GitHub</a>
+        <a href="https://ko-fi.com/codeisnotevil">Ko-fi</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <h1>LaunchHeim privacy policy</h1>
+    <p class="lead">Last updated: 9 October 2026</p>
+
+    <article class="card policy">
+      <p>LaunchHeim is a free, open-source mod launcher for Valheim, developed by CodeIsNotEvil. This policy
+        explains what LaunchHeim does with your information.</p>
+      <p><strong>In short:</strong> LaunchHeim has no accounts, no analytics, no telemetry and no ads. The
+        developer receives no data from you. LaunchHeim only contacts other services when you use a
+        feature that needs them.</p>
+
+      <h2 id="stored">1. Data stored on your device</h2>
+      <p>LaunchHeim keeps everything it needs locally, in your user profile (on Windows
+        <code>%APPDATA%\LaunchHeim</code> and <code>%LOCALAPPDATA%\LaunchHeim</code>; on Linux
+        <code>~/.config/LaunchHeim</code>, <code>~/.local/share/LaunchHeim</code>,
+        <code>~/.local/state/LaunchHeim</code> and <code>~/.cache/LaunchHeim</code>):</p>
+      <ul>
+        <li><strong>Settings</strong>, including any Nexus Mods or CurseForge API keys you enter, passwords
+          you save for Valheim servers, and the choices you make per server or world.</li>
+        <li><strong>Instances:</strong> mods, configuration files, and the icons and pictures you pick.</li>
+        <li><strong>A log file</strong> that records what LaunchHeim did, such as installs, game launches
+          and errors, to help with troubleshooting. It contains file paths, which may include your user
+          name. Server passwords are removed before anything is written to the log.</li>
+      </ul>
+      <p>This data never leaves your device unless you send it somewhere yourself, for example by sharing
+        a modpack file or attaching the log to a bug report. Uninstalling LaunchHeim keeps your instances
+        and settings; delete the folders above to remove them.</p>
+
+      <h2 id="read">2. Files LaunchHeim reads but does not send</h2>
+      <p>To show your characters, worlds, servers and screenshots, and to start the game, LaunchHeim reads
+        Valheim's save files and server lists, Steam's library and log files, and your Steam screenshots.
+        It only reads them on your device and never uploads them.</p>
+
+      <h2 id="services">3. Online services LaunchHeim connects to</h2>
+      <p>LaunchHeim connects to the services below only to provide the feature named. Each connection
+        reveals your IP address and LaunchHeim's version (in the User-Agent header) to that service. Their
+        own privacy policies apply to what they do with it.</p>
+      <ul>
+        <li><strong>Thunderstore</strong> (thunderstore.io): the list of Valheim mods, mod downloads and
+          mod icons.</li>
+        <li><strong>Nexus Mods</strong> (nexusmods.com): browsing mods and, if you enter your API key,
+          downloading them. The key is sent only to Nexus Mods.</li>
+        <li><strong>CurseForge</strong> (curseforge.com): only if you enter an API key, which is then sent
+          only to CurseForge.</li>
+        <li><strong>GitHub</strong> (github.com): checking for new LaunchHeim versions at start and twice a
+          day, and downloading an update when you ask for one. These requests are anonymous.</li>
+        <li><strong>Valheim servers in your server lists:</strong> a status query to each server you see on
+          the Play page, to show how many players are online.</li>
+        <li><strong>Steam:</strong> LaunchHeim starts Steam on your computer to launch Valheim. It sends
+          nothing to Steam itself.</li>
+      </ul>
+
+      <h2 id="phone-sync">4. Phone sync on your local network</h2>
+      <p>This feature is off unless you switch it on in Settings, or while the "Send to phone" dialog is
+        open. LaunchHeim then announces itself on your local network with a device name (your computer's
+        name unless you change it) and a random identifier, so the LaunchHeim Companion app and LocalSend
+        can find it.</p>
+      <p>Mod lists and the server list are transferred directly between your devices over your local
+        network, without any internet service in between. Nothing is accepted without your confirmation.
+        These transfers are not encrypted, so use phone sync only on networks you trust. Server passwords
+        are never sent.</p>
+
+      <h2 id="sharing">5. Sharing with friends</h2>
+      <p>When you use "Share with a friend", LaunchHeim writes a modpack file to your device. You decide
+        where it goes, for example by dragging it into a chat. The file contains the instance's mod list and
+        its configuration files.</p>
+
+      <h2 id="children">6. Children</h2>
+      <p>LaunchHeim does not knowingly collect personal information from anyone, including children.</p>
+
+      <h2 id="changes">7. Changes</h2>
+      <p>If this policy changes, the new version will be published on this page with the date above. The
+        source code, where you can verify all of this, is on
+        <a href="{{ repo_url }}/tree/main/Applications/LaunchHeim">GitHub</a>.</p>
+
+      <h2 id="contact">8. Contact</h2>
+      <p>Questions about this policy: open an issue on
+        <a href="{{ repo_url }}/issues">GitHub</a> or email
+        <a href="mailto:codeisnotevil@gmail.com">codeisnotevil@gmail.com</a>.</p>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>© {{ year }} CodeIsNotEvil</p>
+      <p><a href="{{ repo_url }}">Source on GitHub</a> · <a href="privacy.html">LaunchHeim privacy policy</a></p>
+      <p>Set in <a href="fonts/OFL.txt">Kode Mono</a> (SIL Open Font License)</p>
+    </div>
+  </footer>
+</body>
+</html>
