@@ -19,9 +19,11 @@ public sealed class PackManifest
   public string Name { get; set; } = "";
 
   /// <summary>
-  /// The instance the pack was exported from. When the pack comes back (from the companion app, after
-  /// editing its mod list there), LaunchHeim offers to update that instance instead of importing a copy.
-  /// Older LaunchHeim and r2modman ignore it.
+  /// The instance the pack was exported from: its <see cref="Instance.LinkId"/> when it has one, else its
+  /// id. When the pack comes back (from the companion app, after editing its mod list there), LaunchHeim
+  /// offers to update that instance instead of importing a copy (<see cref="PackService.FindLinked"/>).
+  /// The companion fills it with its own id for a list made on the phone. Older LaunchHeim and r2modman
+  /// ignore it.
   /// </summary>
   public string? InstanceId { get; set; }
 
@@ -37,7 +39,7 @@ public sealed class PackManifest
   public static PackManifest From(Instance instance) => new()
   {
     Name = instance.Name,
-    InstanceId = instance.Id,
+    InstanceId = instance.LinkId ?? instance.Id,
     ExportedBy = $"LaunchHeim {AppInfo.Version}",
     LaunchArguments = instance.LaunchArguments,
     Mods = instance.Mods.Select(PackMod.From).ToList(),

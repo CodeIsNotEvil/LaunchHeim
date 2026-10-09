@@ -266,6 +266,67 @@ public class PackServiceTests : IDisposable
     Assert.Contains(contents.Manifest.Mods, m => m.Id == "Author-Mod");
   }
 
+  /// <summary>
+  /// A list made on the phone: its pack carries the companion's own id, which LaunchHeim never had. The
+  /// imported instance keeps it, so the phone's next pack updates it instead of importing another copy.
+  /// </summary>
+  [Fact]
+  public async Task A_pack_of_an_unknown_instance_links_its_import()
+  {
+    var source = await Modded();
+    source.LinkId = "phone-list";
+    var file = _temp.Combine("pack.r2z");
+    _packs.Export(source, file);
+    _store.Delete(source);
+
+    var copy = (await _packs.ImportAsync(file, null, CancellationToken.None)).Instance;
+
+    Assert.Equal("phone-list", copy.LinkId);
+    Assert.Equal("phone-list", _store.LoadAll().Single().LinkId);
+    Assert.Same(copy, PackService.FindLinked([copy], "phone-list"));
+    var again = _temp.Combine("again.r2z");
+    _packs.Export(copy, again);
+    Assert.Equal("phone-list", PackService.Read(again).Manifest.InstanceId);
+  }
+
+  [Fact]
+  public async Task A_copy_of_an_instance_here_stays_unlinked()
+  {
+    var source = await Modded();
+    var file = _temp.Combine("pack.r2z");
+    _packs.Export(source, file);
+
+    var copy = (await _packs.ImportAsync(file, null, CancellationToken.None)).Instance;
+
+    Assert.Null(copy.LinkId);
+    Assert.Equal(source.Id, PackService.FindLinked(_store.LoadAll(), source.Id)!.Id);
+  }
+
+  [Fact]
+  public void An_instance_id_wins_over_a_link()
+  {
+    var own = new Instance { Id = "survival" };
+    var imported = new Instance { Id = "survival-2", LinkId = "survival" };
+
+    Assert.Same(own, PackService.FindLinked([imported, own], "survival"));
+    Assert.Same(imported, PackService.FindLinked([imported], "survival"));
+    Assert.Null(PackService.FindLinked([own, imported], null));
+    Assert.Null(PackService.FindLinked([own, imported], "other"));
+  }
+
+  [Fact]
+  public async Task A_duplicate_is_not_linked()
+  {
+    var source = await Modded();
+    source.LinkId = "phone-list";
+    _store.Save(source);
+
+    var copy = _store.Duplicate(source, "Copy");
+
+    Assert.Null(copy.LinkId);
+    Assert.Equal("phone-list", source.LinkId);
+  }
+
   [Fact]
   public async Task An_unchanged_pack_changes_nothing()
   {

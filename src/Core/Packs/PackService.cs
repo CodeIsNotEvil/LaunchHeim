@@ -114,9 +114,13 @@ public sealed class PackService(InstanceStore store, ModService mods, AppPaths p
       ?? throw new InvalidDataException($"{Path.GetFileName(file)} is not a modpack: it has neither {ManifestEntry} nor r2modman's {R2x.EntryName}.");
 
     var name = string.IsNullOrWhiteSpace(manifest.Name) ? Path.GetFileNameWithoutExtension(file) : manifest.Name;
+    // Asked before the new folder exists, whose name could be the very id. A pack of an instance that is
+    // here already (Import as a copy) leaves the copy unlinked, so the next pack still finds the original.
+    var link = manifest.InstanceId is { Length: > 0 } id && FindLinked(store.LoadAll(), id) is null ? id : null;
     var instance = store.Create(name);
     try
     {
+      instance.LinkId = link;
       instance.LaunchArguments = manifest.LaunchArguments;
       var pins = manifest.Mods.Where(m => m.Source != ModSource.Local).Select(m => m.ToPin(inferDependency: fromR2modman)).ToList();
       var install = await mods.InstallPinnedAsync(instance, pins, progress, cancellationToken);
@@ -134,6 +138,21 @@ public sealed class PackService(InstanceStore store, ModService mods, AppPaths p
       store.Delete(instance);
       throw;
     }
+  }
+
+  /// <summary>
+  /// The instance a pack's <see cref="PackManifest.InstanceId"/> belongs to: the one with that id, or else
+  /// the one imported from a pack with it (<see cref="Instance.LinkId"/>). Null for a pack of no instance here.
+  /// </summary>
+  public static Instance? FindLinked(IEnumerable<Instance> instances, string? instanceId)
+  {
+    if (string.IsNullOrEmpty(instanceId))
+    {
+      return null;
+    }
+
+    var list = instances.ToList();
+    return list.FirstOrDefault(i => i.Id == instanceId) ?? list.FirstOrDefault(i => i.LinkId == instanceId);
   }
 
   /// <summary>Reads a pack's mod list straight from the zip, without unpacking or installing anything.</summary>
