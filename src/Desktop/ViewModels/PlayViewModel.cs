@@ -1,4 +1,5 @@
 using CINE.LaunchHeim.Core.Game;
+using CINE.LaunchHeim.Core.Instances;
 using CINE.LaunchHeim.Core.Logging;
 using CINE.LaunchHeim.Core.Saves;
 using CINE.LaunchHeim.Core.Storage;
@@ -283,6 +284,32 @@ public sealed class PlayViewModel : ViewModel
       destination.RaiseImage();
     }
   }
+
+  /// <summary>Saves what the icon dialog chose. Empty color and letters together mean the default icon.</summary>
+  internal void SetIcon(DestinationViewModel destination, string? color, string? initials, string? pictureUrl, bool removePicture)
+  {
+    if (!string.IsNullOrEmpty(pictureUrl))
+    {
+      SetImage(destination, AppViewModel.LocalPath(pictureUrl));
+    }
+    else if (removePicture)
+    {
+      RemoveImage(destination);
+    }
+
+    var icon = new PlayIcon { Color = InstanceIcon.NormalizeColor(color), Initials = InstanceIcon.NormalizeInitials(initials) };
+    if (icon.Color is null && icon.Initials is null)
+    {
+      _app.SettingsModel.PlayIcons.Remove(destination.Key);
+    }
+    else
+    {
+      _app.SettingsModel.PlayIcons[destination.Key] = icon;
+    }
+
+    _app.SaveSettings();
+    destination.RaiseImage();
+  }
 }
 
 /// <summary>One server or world on the Play page, with what it was last played with.</summary>
@@ -370,8 +397,32 @@ public sealed class DestinationViewModel : ViewModel
   public string ImageSource =>
     _play.Images.PathOf(_play.App.SettingsModel.PlayImages.GetValueOrDefault(Key)) is { } path ? new Uri(path).AbsoluteUri : "";
 
+  // The icon dialog (IconDialog.qml) works on instances and destinations alike, so these mirror
+  // InstanceViewModel's. Automatic is the server or world symbol on the accent: no color, no letters.
+  private PlayIcon? Icon => _play.App.SettingsModel.PlayIcons.GetValueOrDefault(Key);
+
   [NotifySignal]
-  public bool HasImage => ImageSource.Length > 0;
+  public string CustomColor => Icon?.Color ?? "";
+
+  [NotifySignal]
+  public string CustomInitials => Icon?.Initials ?? "";
+
+  [NotifySignal]
+  public string AutomaticColor => "";
+
+  [NotifySignal]
+  public string AutomaticInitials => "";
+
+  [NotifySignal]
+  public string IconUrl => ImageSource;
+
+  /// <summary>The symbol shown when there are no letters: a link for servers, the rune for worlds.</summary>
+  [NotifySignal]
+  public string Glyph => Kind == ServerKind ? "link" : "rune";
+
+  /// <summary>Saves the icon chosen in the dialog. Empty color or letters mean the default.</summary>
+  public void SetIcon(string? color, string? initials, string? pictureUrl, bool removePicture) =>
+    _play.SetIcon(this, color, initials, pictureUrl, removePicture);
 
   private PlayChoice? Choice => _play.App.SettingsModel.PlayChoices.GetValueOrDefault(Key);
 
@@ -429,12 +480,6 @@ public sealed class DestinationViewModel : ViewModel
   public void PlayWith(int characterIndex, int setupIndex, string password) =>
     _play.Launch(this, characterIndex, setupIndex, password ?? "");
 
-  /// <summary>Uses the image file the user picked (a file:// URL from the dialog) as its picture.</summary>
-  public void SetImage(string fileUrl) => _play.SetImage(this, AppViewModel.LocalPath(fileUrl));
-
-  /// <summary>Goes back to the server or world icon.</summary>
-  public void RemoveImage() => _play.RemoveImage(this);
-
   internal void RaiseChoice()
   {
     Raise(nameof(HasChoice));
@@ -456,7 +501,9 @@ public sealed class DestinationViewModel : ViewModel
   internal void RaiseImage()
   {
     Raise(nameof(ImageSource));
-    Raise(nameof(HasImage));
+    Raise(nameof(IconUrl));
+    Raise(nameof(CustomColor));
+    Raise(nameof(CustomInitials));
   }
 
   private int IndexOfCharacter(string fileName)

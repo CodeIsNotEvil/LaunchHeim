@@ -189,6 +189,9 @@ or a picture shown instead (PNG, JPEG, WebP, GIF or BMP up to 8 MB). The picture
 instance folder as `launchheim-icon-<random>.<ext>`, a new name each time because QML's Image caches by
 URL, so it goes along when the instance is duplicated or its folder copied. `instance.json` keeps
 `color`, `initials` and `iconFile`; each is null for automatic (`Core/Instances/InstanceIcon.cs`).
+Servers and worlds on the Play page get the same dialog (`IconDialog.qml`) from their tile. Their
+automatic look stays the link or rune symbol on the faint accent; a color and letters of their own
+are kept in settings.json's `playIcons`, the picture in `playImages` as before.
 
 **Sharing with a friend.** The share button on an instance's page writes its pack to
 `<cache>/tmp/share/<instance>/` (cleared on every start) and offers it three ways, with no chat

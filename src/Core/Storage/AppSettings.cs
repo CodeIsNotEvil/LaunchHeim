@@ -34,6 +34,12 @@ public sealed class AppSettings
   /// </summary>
   public Dictionary<string, string> PlayImages { get; set; } = [];
 
+  /// <summary>
+  /// A server's or world's own icon color and letters (Change icon), keyed like <see cref="PlayChoices"/>.
+  /// Missing for the default icon. The picture, which wins over both, is in <see cref="PlayImages"/>.
+  /// </summary>
+  public Dictionary<string, PlayIcon> PlayIcons { get; set; } = [];
+
   /// <summary>What was started last, which the sidebar's Play button starts again. Null before the first launch.</summary>
   public LastPlay? LastPlay { get; set; }
 
@@ -76,6 +82,16 @@ public sealed class LastPlay
 }
 
 /// <summary>The character and setup a server or world was last played with.</summary>
+/// <summary>How a server's or world's icon looks when it has no picture. Null fields mean the default.</summary>
+public sealed class PlayIcon
+{
+  /// <summary><c>#rrggbb</c>, normalized by <see cref="Instances.InstanceIcon.NormalizeColor"/>.</summary>
+  public string? Color { get; set; }
+
+  /// <summary>Up to three letters, normalized by <see cref="Instances.InstanceIcon.NormalizeInitials"/>.</summary>
+  public string? Initials { get; set; }
+}
+
 public sealed class PlayChoice
 {
   /// <summary>The character's file name without <c>.fch</c>, which is how Valheim selects it.</summary>
