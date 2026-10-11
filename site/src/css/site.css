@@ -221,7 +221,27 @@ h3 { font-size: 1.1rem; margin: 1.75rem 0 .5rem; }
 
 .toc { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: 2rem; }
 
-.app-section { margin-bottom: 2.5rem; scroll-margin-top: 1rem; }
+/* One app at a time. The app is picked by the address: download.html#launchheim, or an anchor inside
+   its section such as #launchheim-changes, which is what the front page and the buttons here link
+   to. Picked, its section shows in full, the other one is hidden and the bar on top switches between
+   them. Nothing picked, both show only their header and a button that picks them. Without :has()
+   (browsers before 2023) all of this is skipped and both sections show in full, as before. */
+.app-open { display: none; }
+@supports selector(:has(*)) {
+  main:not(:has(.app-section:target, .app-section :target)) .toc,
+  main:not(:has(.app-section:target, .app-section :target)) .app-more { display: none; }
+  main:not(:has(.app-section:target, .app-section :target)) .app-open { display: inline-flex; }
+  main:has(.app-section:target, .app-section :target) .app-section:not(:target):not(:has(:target)) { display: none; }
+  main:has(#grocerytracker:target, #grocerytracker :target) .toc [href="#grocerytracker"],
+  main:has(#launchheim:target, #launchheim :target) .toc [href="#launchheim"] {
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+    background: var(--code-bg);
+  }
+}
+
+/* Room above a picked app for the bar that switches between them (see "One app at a time" above). */
+.app-section { margin-bottom: 2.5rem; scroll-margin-top: 5rem; }
 .app-section > header { display: flex; align-items: center; gap: 1rem; margin-bottom: .5rem; }
 .app-section > header img { width: 3rem; height: 3rem; }
 .app-section > header .glint { flex: none; }

@@ -24,8 +24,7 @@
 
   <main class="wrap">
     <h1>Downloads</h1>
-    <p class="lead">Everything here is free. Each app has a short guide for getting it running and for
-      your first steps.</p>
+    <p class="lead">Everything here is free. Pick an app to see how to install it.</p>
     <nav class="toc" aria-label="Apps on this page">
       <a class="button" href="#grocerytracker"><span class="glint glint-gt"><img src="img/grocerytracker.svg" alt="" width="22" height="22"></span>GroceryTracker</a>
       <a class="button" href="#launchheim"><span class="glint glint-lh"><img src="img/launchheim.svg" alt="" width="22" height="22"></span>LaunchHeim</a>
@@ -48,6 +47,9 @@
       <p>GroceryTracker runs on a computer in your home, such as a Raspberry Pi 4 or 5, a NAS or any
         Linux machine, and every phone and laptop in the household uses it in the browser. It comes as
         ready-made containers for x86-64 and ARM64, so there is nothing to build.</p>
+      <!-- Shown only while no app is picked (site.css, "One app at a time"). -->
+      <a class="button primary app-open" href="#grocerytracker">Download and install</a>
+      <div class="app-more">
 
       <div class="note">
         <p><strong>Keep it at home.</strong> GroceryTracker has no login: anyone who can reach it can
@@ -105,20 +107,8 @@ nano .env        # set POSTGRES_PASSWORD</code></pre></li>
 {{{ gt_changes }}}
       </div>
 
-      <h3>First steps</h3>
-      <ol class="steps">
-        <li><strong>Manage:</strong> add the people who share the groceries, and your stores and
-          categories.</li>
-        <li><strong>Trips → Add trip:</strong> record a shopping trip with its total and who paid.
-          Line items are optional and split the total across categories.</li>
-        <li><strong>Dashboard:</strong> see your spending for this month, 3, 6 or 12 months, and per
-          category and store.</li>
-        <li><strong>Balance:</strong> see who owes whom, and record a transfer when you settle up.</li>
-        <li>Coming from a spreadsheet? <strong>Manage → Import bookings from CSV</strong> brings in your
-          history. Importing the same file again never creates duplicates.</li>
-      </ol>
-      <p>Everything works offline and syncs when the server is reachable again. More in the
-        <a href="{{ repo_url }}/tree/main/Applications/GroceryTracker#readme">GroceryTracker README</a>.</p>
+      <p>More in the <a href="{{ repo_url }}/tree/main/Applications/GroceryTracker#readme">GroceryTracker README</a>.</p>
+      </div>
     </section>
 
     <!-- ================= LaunchHeim ================= -->
@@ -137,6 +127,9 @@ nano .env        # set POSTGRES_PASSWORD</code></pre></li>
 
       <p>A Valheim mod launcher. Each instance is its own modpack with its own BepInEx, mods and
         configs, and the game install stays vanilla. You need Valheim on Steam.</p>
+      <!-- Shown only while no app is picked (site.css, "One app at a time"). -->
+      <a class="button primary app-open" href="#launchheim">Download and install</a>
+      <div class="app-more">
 
       <!-- if:lh_release -->
       <!-- One way to get it at a time: the tabs are radio buttons, so picking one shows its download and
@@ -316,31 +309,6 @@ echo "{{ lh_android_sha256 }}  {{ lh_android_file }}" | sha256sum -c</code></pre
 {{{ lh_changes }}}
       </div>
 
-      <h3>First steps</h3>
-      <ol class="steps">
-        <li>LaunchHeim finds Valheim through your Steam libraries. If it doesn't, pick the folder under
-          <strong>Settings → Game</strong>.</li>
-        <li><strong>Library → New instance.</strong> BepInEx is installed into it for you.</li>
-        <li><strong>Browse mods</strong>, pick the instance under <em>Install into</em>, and install.
-          Dependencies come along automatically.</li>
-        <li>Press <strong>Play</strong> on the instance, or join a server or load a world from the
-          <strong>Play</strong> page with a character and setup it remembers. The sidebar's play
-          button starts whatever you played last.</li>
-        <li>Steam's overlay works in every game LaunchHeim starts: press <strong>F12</strong> for a
-          screenshot, and the <strong>Screenshots</strong> page shows them with a large preview and a
-          button to their folder.</li>
-        <li>Already modded by hand? <strong>Import game folder</strong> turns it into an instance and
-          leaves the original alone. A mod you downloaded yourself goes in by dropping the file onto the
-          instance.</li>
-        <li>Playing with friends? The share button on an instance gives you its modpack file to drag into
-          a chat; they open it with <strong>Import modpack</strong>.</li>
-        <li>On the go: the phone button on an instance puts it on the Android companion. Add mods there,
-          and when you're home, send the list back. LaunchHeim shows what changed and updates the
-          instance.</li>
-        <li>Click an instance's icon to give it a color, letters or a picture; servers and worlds on the
-          Play page take the same.</li>
-      </ol>
-
       <details>
         <summary>Nexus Mods and CurseForge</summary>
         <p>Thunderstore works right away. For <strong>Nexus Mods</strong>, copy the API key Nexus lists for
@@ -365,6 +333,7 @@ echo "{{ lh_android_sha256 }}  {{ lh_android_file }}" | sha256sum -c</code></pre
           and loads the overlay the same way Steam does.</p>
       </details>
       <p>More in the <a href="{{ repo_url }}/tree/main/Applications/LaunchHeim#readme">LaunchHeim README</a>.</p>
+      </div>
     </section>
 
     <section class="card support" aria-labelledby="support-title">
