@@ -29,6 +29,10 @@ downloads, install guides, Ko-fi at https://ko-fi.com/codeisnotevil). Code: `sit
   follows the visitor's locale (2026-10-11).
 - The download picker is CSS-only (radio buttons + `~`), because the site has no JavaScript. The radios
   must come before the tabs and panels in the markup, since CSS only reaches later siblings (2026-10-11).
+- The download page shows one app at a time via `:target` + `:has()`, so the hash in the address is
+  the state: front-page links must keep pointing at `download.html#<app>` (2026-10-11).
+- The owner wants the site short: the front page says little, the Store is only on the download page,
+  and there are no "first steps" (people know how to use the apps) (2026-10-11).
 
 ## Open
 - No custom domain. A `CNAME` file in `site/src` plus DNS would add one.
