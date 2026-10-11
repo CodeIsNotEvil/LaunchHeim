@@ -80,15 +80,49 @@
           <li>Steam's overlay works in every launch, and a Screenshots page shows what you took with F12.</li>
           <li>An Android companion: pick mods on the go, see who's online, and sync the lists back to the PC.</li>
           <li>Tells you when a new version is out, with the commands to update your install; on Windows it updates itself.</li>
-          <li>For Linux (Arch, Debian/Ubuntu, Fedora/RHEL) and Windows 10/11, with a setup for Windows.</li>
+          <li>For Linux (Arch, Debian/Ubuntu, Fedora/RHEL) and Windows 10/11, from the Microsoft Store or with a setup.</li>
           <li>MIT licensed.</li>
         </ul>
         <div class="actions">
           <a class="button primary" href="download.html#launchheim">Get LaunchHeim</a>
+          <a class="button" href="{{ lh_store_url }}">Microsoft Store</a>
           <a class="button" href="{{ repo_url }}/tree/main/Applications/LaunchHeim">Source</a>
         </div>
       </article>
     </div>
+
+    <!-- The pictures made for the Microsoft Store listing, downsized (site/README.md). Width and height
+         are the files' own, so the row keeps its place while they load. -->
+    <section class="card shots" aria-labelledby="shots-title">
+      <h2 id="shots-title"><span class="glint glint-lh"><img src="img/launchheim.svg" alt="" width="32" height="32"></span>LaunchHeim in pictures</h2>
+      <ul class="shot-strip">
+        <li><figure>
+          <a href="img/launchheim/01-library.webp"><img src="img/launchheim/01-library.webp" width="1600" height="937" loading="lazy"
+            alt="The Library: a Continue playing card for the last instance, and every instance as a card with its own color and a Play button."></a>
+          <figcaption>Every modpack is its own instance.</figcaption>
+        </figure></li>
+        <li><figure>
+          <a href="img/launchheim/02-play.webp"><img src="img/launchheim/02-play.webp" width="1600" height="937" loading="lazy"
+            alt="The Play page: servers with how many players are online, and worlds, each with the character and instance last used."></a>
+          <figcaption>Join servers and open worlds with the setup you used last.</figcaption>
+        </figure></li>
+        <li><figure>
+          <a href="img/launchheim/03-instance.webp"><img src="img/launchheim/03-instance.webp" width="1600" height="937" loading="lazy"
+            alt="An instance's page: its installed mods with switches to turn them on and off, plus tabs for config files and launch options."></a>
+          <figcaption>Turn mods on and off, edit configs, check for updates.</figcaption>
+        </figure></li>
+        <li><figure>
+          <a href="img/launchheim/04-browse.webp"><img src="img/launchheim/04-browse.webp" width="1600" height="937" loading="lazy"
+            alt="Browse mods: Thunderstore search results with downloads, ratings and an Install button, and tabs for Nexus Mods and CurseForge."></a>
+          <figcaption>Browse Thunderstore and Nexus Mods and install in one click.</figcaption>
+        </figure></li>
+        <li><figure>
+          <a href="img/launchheim/05-console.webp"><img src="img/launchheim/05-console.webp" width="1600" height="1015" loading="lazy"
+            alt="The console: BepInEx and Unity log lines as the game starts, with warnings highlighted and a filter."></a>
+          <figcaption>Follow the game's logs live.</figcaption>
+        </figure></li>
+      </ul>
+    </section>
 
     <section class="card support" aria-labelledby="support-title">
       <div>

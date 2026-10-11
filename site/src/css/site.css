@@ -184,6 +184,28 @@ h3 { font-size: 1.1rem; margin: 1.75rem 0 .5rem; }
 .button.primary:hover { filter: brightness(1.08); }
 .button small { font-weight: 400; opacity: .85; }
 
+/* Screenshots (the Microsoft Store listing's): a row that scrolls sideways and snaps to each picture,
+   so a phone shows one at a time and a wide screen about two. Each opens full size. */
+.shots { margin-top: 1.25rem; }
+.shots h2 { display: flex; align-items: center; gap: .6rem; }
+.shots h2 img { width: 2rem; height: 2rem; }
+.shot-strip {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted) transparent;
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0 0 .75rem;
+}
+.shot-strip li { flex: 0 0 min(88%, 30rem); scroll-snap-align: start; }
+.shot-strip figure { margin: 0; }
+.shot-strip a { display: block; line-height: 0; border-radius: 10px; }
+.shot-strip img { width: 100%; height: auto; border: 1px solid var(--border); border-radius: 10px; }
+.shot-strip figcaption { margin-top: .5rem; color: var(--muted); font-size: .9rem; }
+
 .support {
   margin-top: 2.5rem;
   display: flex;
@@ -215,6 +237,68 @@ h3 { font-size: 1.1rem; margin: 1.75rem 0 .5rem; }
 .changelog h4 { margin: .6rem 0 .2rem; font-size: .95rem; }
 .changelog ul { margin: 0 0 .4rem; padding-left: 1.2rem; }
 .changelog .tag { margin-left: .4rem; font-size: .75rem; padding: .05rem .45rem; border-radius: 999px; border: 1px solid var(--accent); color: var(--accent); }
+
+/* Download picker: one tab per way to get an app, and only the picked one's download and instructions
+   show. Each tab is the <label> of a radio button; the radios stay focusable and keep the keyboard
+   behaviour of a radio group, they're just not drawn. They come first in .get, so "~" reaches the tabs
+   and panels after them. Every way of getting it needs its line in each of the three lists below. */
+.get { margin: 1rem 0; }
+.get > input { position: absolute; opacity: 0; pointer-events: none; }
+.get-tabs { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); }
+/* Two in a row on a phone rather than one: six tabs stacked push the instructions off the screen. */
+@media (max-width: 30rem) { .get-tabs { grid-template-columns: 1fr 1fr; } }
+.get-tabs label {
+  display: flex;
+  flex-direction: column;
+  padding: .55rem .9rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.get-tabs label:hover { border-color: var(--accent); }
+.get-tabs small { font-weight: 400; color: var(--muted); }
+.get-panel {
+  display: none;
+  margin-top: .75rem;
+  padding: 1rem 1.1rem .25rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+.get-panel > .button:first-child { margin-bottom: .25rem; }
+.get-panel > pre:first-child { margin-top: 0; }
+.get-panel p:first-child { margin-top: 0; }
+
+#lh-get-store:checked ~ .get-store,
+#lh-get-setup:checked ~ .get-setup,
+#lh-get-arch:checked ~ .get-arch,
+#lh-get-deb:checked ~ .get-deb,
+#lh-get-rpm:checked ~ .get-rpm,
+#lh-get-android:checked ~ .get-android { display: block; }
+
+#lh-get-store:checked ~ .get-tabs [for="lh-get-store"],
+#lh-get-setup:checked ~ .get-tabs [for="lh-get-setup"],
+#lh-get-arch:checked ~ .get-tabs [for="lh-get-arch"],
+#lh-get-deb:checked ~ .get-tabs [for="lh-get-deb"],
+#lh-get-rpm:checked ~ .get-tabs [for="lh-get-rpm"],
+#lh-get-android:checked ~ .get-tabs [for="lh-get-android"] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  background: var(--code-bg);
+}
+
+/* The radio has the focus but isn't drawn, so its tab shows the ring. */
+#lh-get-store:focus-visible ~ .get-tabs [for="lh-get-store"],
+#lh-get-setup:focus-visible ~ .get-tabs [for="lh-get-setup"],
+#lh-get-arch:focus-visible ~ .get-tabs [for="lh-get-arch"],
+#lh-get-deb:focus-visible ~ .get-tabs [for="lh-get-deb"],
+#lh-get-rpm:focus-visible ~ .get-tabs [for="lh-get-rpm"],
+#lh-get-android:focus-visible ~ .get-tabs [for="lh-get-android"] {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
 
 /* License notes under the downloads: required to be there, not meant to compete with them. */
 .fine-print { color: var(--muted); font-size: .85rem; margin: 0 0 1rem; }

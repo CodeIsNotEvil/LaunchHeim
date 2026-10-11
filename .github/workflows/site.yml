@@ -13,6 +13,7 @@ on:
       - Assets/**
       - Applications/GroceryTracker/assets/**
       - Applications/LaunchHeim/src/Desktop/packaging/launchheim.svg
+      - Applications/LaunchHeim/assets/**
       # The download page shows every version from the changelogs.
       - Applications/GroceryTracker/CHANGELOG.md
       - Applications/LaunchHeim/CHANGELOG.md
