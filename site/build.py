@@ -54,7 +54,12 @@ ASSETS = {
   "img/launchheim.svg": ROOT / "Applications/LaunchHeim/src/Desktop/packaging/launchheim.svg",
   "fonts/KodeMono.woff2": ROOT / "Applications/GroceryTracker/src/UI/GroceryTracker.UI.Blazor/wwwroot/fonts/KodeMono.woff2",
   "fonts/OFL.txt": ROOT / "Applications/GroceryTracker/src/UI/GroceryTracker.UI.Blazor/wwwroot/fonts/OFL.txt",
+  # The Microsoft Store listing's screenshots, downsized for the web (site/README.md).
+  **{f"img/launchheim/{path.name}": path for path in sorted((ROOT / "Applications/LaunchHeim/assets/screenshots").glob("*.webp"))},
 }
+
+# LaunchHeim's Microsoft Store listing. Without ?hl=&gl= the Store picks the visitor's language and country.
+LAUNCHHEIM_STORE_URL = "https://apps.microsoft.com/detail/xpfpghrfcl4sfl"
 
 # Which release file is which download, by how its name ends.
 LAUNCHHEIM_FILES = {
@@ -244,6 +249,7 @@ def main() -> None:
   releases = json.loads(args.releases_json.read_text()) if args.releases_json else fetch_releases(args.require_releases_api)
   values = {
     "repo_url": f"https://github.com/{REPO}",
+    "lh_store_url": LAUNCHHEIM_STORE_URL,
     "year": str(datetime.now().year),
     **release_values(newest(releases, "grocerytracker-v"), "gt", "grocerytracker-v", GROCERYTRACKER_FILES),
     **release_values(newest(releases, "launchheim-v"), "lh", "launchheim-v", LAUNCHHEIM_FILES),

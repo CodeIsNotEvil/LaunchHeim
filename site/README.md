@@ -23,6 +23,25 @@ site/build.py --releases-json sample.json       # preview the download page with
 the GitHub API for each app's newest release, including the SHA-256 GitHub stores for every file
 (`digest`). Download links and checksums therefore follow releases without editing the pages. Before an app's first release, its section shows build instructions instead.
 
+The download page shows one app at a time, picked by the address (`download.html#launchheim`, or an
+anchor inside the section such as `#launchheim-changes`) through CSS `:target` and `:has()`. With no
+anchor, both apps show only their header and a button that picks them. Link to an app's anchor, not to
+the bare page, when the reader wants its downloads. Browsers without `:has()` show both in full.
+
+LaunchHeim's download section is a picker: one tab per way to get it (Microsoft Store, Windows setup,
+Arch, Debian, Fedora, Android), and only the picked one's download and instructions show. The tabs are
+radio buttons styled in CSS, so the site still runs no JavaScript; a new tab needs its lines in the three
+selector lists under "Download picker" in `site.css`. The Store link is `LAUNCHHEIM_STORE_URL` in
+`build.py` (the publisher page is https://apps.microsoft.com/search/publisher?name=CodeIsNotEvil).
+
+The screenshots on the front page are the ones made for the Store listing, kept in
+`Applications/LaunchHeim/assets/screenshots/` as 1600 px WebP (about 400 KB for all five rather than
+2.6 MB of PNG). For new ones:
+
+```fish
+magick 01-library.png -resize '1600x>' -strip -define webp:method=6 -quality 85 01-library.webp
+```
+
 The build fails when a rendered page links to an `#anchor` it doesn't have, or opens more `<section>`s
 than it closes. Balanced `if`/`end` markers alone didn't catch a template that lost a stretch in the
 middle (2026-10-01), and the download page went live mixing the two apps.
