@@ -3,6 +3,7 @@ using CINE.LaunchHeim.Core;
 using CINE.LaunchHeim.Core.Catalogs.CurseForge;
 using CINE.LaunchHeim.Core.Catalogs.Nexus;
 using CINE.LaunchHeim.Core.Catalogs.Thunderstore;
+using CINE.LaunchHeim.Core.Cli;
 using CINE.LaunchHeim.Core.Downloads;
 using CINE.LaunchHeim.Core.Instances;
 using CINE.LaunchHeim.Core.Logging;
@@ -10,6 +11,7 @@ using CINE.LaunchHeim.Core.Mods;
 using CINE.LaunchHeim.Core.Packs;
 using CINE.LaunchHeim.Core.Storage;
 using CINE.LaunchHeim.Core.Updates;
+using CINE.LaunchHeim.Desktop.Cli;
 using CINE.LaunchHeim.Desktop.Hosting;
 using CINE.LaunchHeim.Desktop.ViewModels;
 using Qml.Net;
@@ -42,6 +44,21 @@ public static class Program
     }
 
     var paths = AppPaths.FromEnvironment();
+
+    // play, steam, list and help run without the window (Cli/CliRunner.cs); anything else opens it.
+    try
+    {
+      if (CommandLine.Parse(args) is { } command)
+      {
+        return CliRunner.Run(command, paths);
+      }
+    }
+    catch (CliUsageException ex)
+    {
+      Console.Error.WriteLine($"LaunchHeim: {ex.Message}");
+      return 2;
+    }
+
     var commandLine = string.Join(' ', args);
 
     // A second start (typically the browser handing over an nxm:// link) passes its arguments to the
