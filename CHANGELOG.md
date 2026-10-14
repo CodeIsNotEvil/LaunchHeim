@@ -17,6 +17,10 @@ bullet per change.
   pick one with `--instance`, `--server`, `--world` and `--character`), and `launchheim list` shows
   what there is to pick. `launchheim help` explains it all.
 
+### Fixed
+- Copy buttons now work on Windows: the update commands, the console lines and the Steam line.
+- Text in input fields sits in the middle instead of slightly too high.
+
 ## 0.6.0 - 2026-10-09
 
 ### Added
