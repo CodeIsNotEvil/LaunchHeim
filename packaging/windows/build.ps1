@@ -182,7 +182,22 @@ if ($Smoke) {
     $env:LAUNCHHEIM_SCREENSHOT = $shot
     $env:LAUNCHHEIM_SCREENSHOT_PAGE = $page
     $env:LAUNCHHEIM_SCREENSHOT_DELAY = '8000'
+    # The Copy buttons, once (Clipboard.qml): the window copies a marker as it opens. Only in CI, since
+    # it replaces what's on the clipboard. Qt's own clipboard warnings never reach the log (a GUI
+    # program's warnings go to the debugger), so the clipboard itself is asked.
+    $copyCheck = $env:GITHUB_ACTIONS -and $page -eq 'settings'
+    if ($copyCheck) { $marker = "LaunchHeim clipboard check $([guid]::NewGuid())"; $env:LAUNCHHEIM_SCREENSHOT_CLIPBOARD = $marker }
     $process = Start-Process $exe -PassThru -RedirectStandardError $log -RedirectStandardOutput "$log.out"
+    if ($copyCheck) {
+      # While the window is open: what a program put on the clipboard may go when it exits.
+      $copied = $false
+      while (-not $copied -and -not $process.HasExited) {
+        $copied = (Get-Clipboard -Raw) -eq $marker
+        if (-not $copied) { Start-Sleep -Milliseconds 500 }
+      }
+      Remove-Item Env:\LAUNCHHEIM_SCREENSHOT_CLIPBOARD
+      if (-not $copied) { Write-Host '::error::the Copy buttons put nothing on the clipboard'; $failed = $true }
+    }
     if (-not $process.WaitForExit(120000)) { $process.Kill(); Write-Host "::error::$page timed out"; $failed = $true }
     Get-Content $log, "$log.out" -ErrorAction SilentlyContinue | Write-Host
     if (-not (Test-Path $shot)) { Write-Host "::error::no screenshot of $page"; $failed = $true }

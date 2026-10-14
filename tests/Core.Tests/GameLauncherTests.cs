@@ -264,6 +264,85 @@ public class GameLauncherTests : IDisposable
       ["-console", "+connect", "10.0.0.1:2456", "-password", "***"],
       GameLauncher.Redact(["-console", "+connect", "10.0.0.1:2456", "-password", "hunter22"]));
 
+  [Fact]
+  public void Steams_command_is_found_behind_its_wrappers()
+  {
+    var game = Path.Combine(_game, "valheim.x86_64");
+
+    Assert.Equal(3, GameLauncher.FindGame(["/steam/reaper", "SteamLaunch", "--", game, "-force-glcore"]));
+    Assert.Equal(0, GameLauncher.FindGame([Path.Combine("C:", "Games", "Valheim", "Valheim.exe")]));
+    Assert.Equal(-1, GameLauncher.FindGame(["/games/other/game.x86_64"]));
+  }
+
+  [Fact]
+  public void Steams_command_runs_with_the_instance_added()
+  {
+    var game = Path.Combine(_game, "valheim.x86_64");
+    var fromSteam = new Dictionary<string, string?> { ["LD_PRELOAD"] = "/steam/ubuntu12_64/gameoverlayrenderer.so" };
+    var join = GameLauncher.JoinArguments("10.0.0.1:2456", null);
+
+    var plan = GameLauncher.WrapSteamCommand([game, "-force-glcore"], _instance, "-console", fromSteam, GamePlatform.Linux, join);
+
+    // Steam's own command and arguments first, then the instance's and the server.
+    Assert.Equal(game, plan.FileName);
+    Assert.Equal(["-force-glcore", "-console", "+connect", "10.0.0.1:2456"], plan.Arguments);
+    Assert.Equal(_game, plan.WorkingDirectory);
+    Assert.Equal(Path.Combine(_instance, GameLauncher.PreloaderPath), plan.Environment["DOORSTOP_TARGET_ASSEMBLY"]);
+    // Steam's overlay stays, behind Doorstop, and isn't added a second time.
+    Assert.Equal("libdoorstop_x64.so:/steam/ubuntu12_64/gameoverlayrenderer.so", plan.Environment["LD_PRELOAD"]);
+    Assert.False(plan.Environment.ContainsKey("SteamOverlayGameId"));
+    Assert.Null(plan.SteamStartsGame);
+  }
+
+  [Fact]
+  public void Steams_command_keeps_its_wrapper_in_front()
+  {
+    var game = Path.Combine(_game, "valheim.x86_64");
+
+    var plan = GameLauncher.WrapSteamCommand(["gamemoderun", game], null, "", NoEnvironment, GamePlatform.Linux);
+
+    Assert.Equal("gamemoderun", plan.FileName);
+    Assert.Equal([game], plan.Arguments);
+    Assert.Equal("TRUE", plan.Environment["DOORSTOP_DISABLE"]);
+  }
+
+  [Fact]
+  public void Steams_command_without_the_game_is_refused() =>
+    Assert.Throws<LaunchException>(() => GameLauncher.WrapSteamCommand(["/games/other/game.x86_64"], null, "", NoEnvironment, GamePlatform.Linux));
+
+  [Fact]
+  public void Windows_steam_command_gets_doorstop_on_the_command_line()
+  {
+    var (game, instance) = WindowsSetup();
+    GameLauncher.PrepareGameFolder(game, instance, GamePlatform.Windows);
+    var exe = Path.Combine(game, "valheim.exe");
+
+    var plan = GameLauncher.WrapSteamCommand([exe], instance, "", NoEnvironment, GamePlatform.Windows);
+
+    Assert.Equal(exe, plan.FileName);
+    // Doorstop gets a full path, which on Windows has backslashes only.
+    Assert.Equal(["--doorstop-enabled", "true", "--doorstop-target-assembly", Path.GetFullPath(Path.Combine(instance, GameLauncher.PreloaderPath))], plan.Arguments.Take(4));
+    Assert.False(plan.Environment.ContainsKey("LD_PRELOAD"));
+  }
+
+  [Fact]
+  public void Launchheims_own_windows_launches_are_recognised_when_steam_hands_them_back()
+  {
+    var (game, instance) = WindowsSetup();
+    var steam = _temp.Tree("SteamWindows", "steam.exe");
+    GameLauncher.PrepareGameFolder(game, instance, GamePlatform.Windows);
+    var exe = Path.Combine(game, "valheim.exe");
+
+    // Steam runs `LaunchHeim.exe steam %command%` with what -applaunch passed after the game.
+    var modded = GameLauncher.Plan(game, instance, "", NoEnvironment, GamePlatform.Windows, steamDirectory: steam);
+    var vanilla = GameLauncher.Plan(_temp.Tree("NoProxy", "valheim.exe"), null, "", NoEnvironment, GamePlatform.Windows, steamDirectory: steam);
+
+    Assert.True(GameLauncher.IsLaunchHeimCommand([exe, .. modded.Arguments.Skip(2)]));
+    Assert.True(GameLauncher.IsLaunchHeimCommand([exe, .. vanilla.Arguments.Skip(2)]));
+    Assert.False(GameLauncher.IsLaunchHeimCommand([exe]));
+    Assert.False(GameLauncher.IsLaunchHeimCommand([exe, "+connect", "10.0.0.1:2456"]));
+  }
+
   private (string Game, string Instance) WindowsSetup()
   {
     var game = _temp.Tree("ValheimWindows", "valheim.exe");

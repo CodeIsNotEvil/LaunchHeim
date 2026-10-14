@@ -57,6 +57,28 @@ public static class GameProcess
     return null;
   }
 
+  /// <summary>Starts the game, or asks Steam to and waits for the game's process (see <see cref="LaunchPlan.SteamStartsGame"/>).</summary>
+  /// <param name="timeout">How long Steam may take: it may sync the cloud or update the game first.</param>
+  /// <param name="steamStarting">Called when Steam has been asked and the wait for the game begins.</param>
+  public static async Task<Process> StartAsync(LaunchPlan plan, TimeSpan timeout, Action? steamStarting, CancellationToken cancellationToken)
+  {
+    if (plan.SteamStartsGame is not { } game)
+    {
+      return Process.Start(plan.ToStartInfo()) ?? throw new LaunchException("The game did not start.");
+    }
+
+    // Steam would only bring the running game to the front, and LaunchHeim would follow the wrong one.
+    if (IsRunning(game))
+    {
+      throw new LaunchException("Valheim is already running. Close it, then start it again.");
+    }
+
+    Process.Start(plan.ToStartInfo())?.Dispose();
+    steamStarting?.Invoke();
+    return await WaitForStartAsync(game, timeout, TimeSpan.FromSeconds(1), cancellationToken)
+      ?? throw new LaunchException("Steam did not start Valheim. If Steam is still updating it or asking something, the game starts once that's done.");
+  }
+
   /// <summary>Returns once the process has exited, with its exit code when Windows tells it.</summary>
   public static async Task<int?> WaitForExitAsync(Process process, CancellationToken cancellationToken)
   {

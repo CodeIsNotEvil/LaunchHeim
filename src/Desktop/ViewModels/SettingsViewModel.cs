@@ -74,6 +74,18 @@ public sealed class SettingsViewModel : ViewModel
       ? "Makes LaunchHeim the default app for nxm:// links."
       : "Registers LaunchHeim for nxm:// links and adds it to your application launcher.";
 
+  /// <summary>For Valheim's launch options in Steam, see <see cref="Cli.CliRunner"/>.</summary>
+  [NotifySignal]
+  public string SteamLaunchOptions { get; } = Cli.CliRunner.SteamLaunchOptions();
+
+  /// <summary>QML copies the field's text itself; this only confirms it.</summary>
+  public void SteamLaunchOptionsCopied() =>
+    _app.Toast("success", "Copied", "Paste it into Valheim's launch options in Steam.");
+
+  /// <summary>Where starts from Steam log what they did, next to <see cref="LogFile"/>.</summary>
+  [NotifySignal]
+  public string CommandLineLogFile => _app.Paths.CommandLineLogFile;
+
   [NotifySignal]
   public string DataDirectory => _app.Paths.DataDirectory;
 
@@ -262,10 +274,7 @@ public sealed class SettingsViewModel : ViewModel
 
   internal void ResolveGameDirectory()
   {
-    var configured = _app.SettingsModel.GameDirectory;
-    GameDirectory = SteamLibraryLocator.IsValheimDirectory(configured)
-      ? configured!
-      : SteamLibraryLocator.ForCurrentUser().FindValheim() ?? configured ?? "";
+    GameDirectory = SteamLibraryLocator.ForCurrentUser().GameDirectory(_app.SettingsModel.GameDirectory);
     Raise(nameof(GameFound));
     Raise(nameof(GameDirectoryIsCustom));
     Raise(nameof(GameFolderHasBepInEx));

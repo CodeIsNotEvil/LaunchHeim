@@ -424,24 +424,9 @@ public sealed class AppViewModel : ViewModel
   /// <summary>Starts the game, or asks Steam to and waits for the game's process (see <see cref="LaunchPlan.SteamStartsGame"/>).</summary>
   private async Task<Process> StartProcessAsync(LaunchPlan plan)
   {
-    if (plan.SteamStartsGame is not { } game)
-    {
-      return Process.Start(plan.ToStartInfo()) ?? throw new LaunchException("The game did not start.");
-    }
-
-    // Steam would only bring the running game to the front, and LaunchHeim would follow the wrong one.
-    if (GameProcess.IsRunning(game))
-    {
-      throw new LaunchException("Valheim is already running. Close it, then click Play again.");
-    }
-
-    SetSteamStatus("Steam is starting Valheim", "Answer Steam if it asks");
     try
     {
-      Process.Start(plan.ToStartInfo())?.Dispose();
-      // As long as SteamClient waits for a login: Steam may sync the cloud or update the game first.
-      return await GameProcess.WaitForStartAsync(game, _steam.Timeout, TimeSpan.FromSeconds(1), CancellationToken.None)
-        ?? throw new LaunchException("Steam did not start Valheim. If Steam is still updating it or asking something, the game starts once that's done.");
+      return await GameProcess.StartAsync(plan, _steam.Timeout, () => SetSteamStatus("Steam is starting Valheim", "Answer Steam if it asks"), CancellationToken.None);
     }
     finally
     {
@@ -464,11 +449,7 @@ public sealed class AppViewModel : ViewModel
   {
     try
     {
-      var prefs = UnityPrefs.ForValheim(Play.Saves.DataDirectory);
-      foreach (var (key, value) in direct.Prefs)
-      {
-        prefs.SetString(key, value);
-      }
+      direct.SelectInGame(Play.Saves.DataDirectory);
     }
     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
     {
@@ -600,11 +581,18 @@ public sealed class AppViewModel : ViewModel
   /// <summary>Brings the window to the front, for something that needs an answer now.</summary>
   internal void Activate() => this.ActivateSignal("activateRequested");
 
-  /// <summary>Handles a command line forwarded by a second start, usually an nxm:// link.</summary>
+  /// <summary>
+  /// Handles a command line forwarded by a second start, usually an nxm:// link, or the reason a start
+  /// from Steam's launch options couldn't launch (<see cref="Cli.CliRunner.LaunchErrorMessage"/>).
+  /// </summary>
   public void HandleCommandLine(string line)
   {
     this.ActivateSignal("activateRequested");
-    if (NxmLink.TryParse(line.Trim(), out var link))
+    if (line.StartsWith(Cli.CliRunner.LaunchErrorMessage, StringComparison.Ordinal))
+    {
+      Toast("error", "Could not start Valheim from Steam", line[Cli.CliRunner.LaunchErrorMessage.Length..].Trim());
+    }
+    else if (NxmLink.TryParse(line.Trim(), out var link))
     {
       _ = InstallNxmAsync(link);
     }

@@ -7,13 +7,6 @@ using Qml.Net;
 
 namespace CINE.LaunchHeim.Desktop.ViewModels;
 
-/// <summary>What a launch should open in the game: a server to join, or a character and world to select.</summary>
-/// <param name="Key">The server or world's key in <see cref="AppSettings.PlayChoices"/>, to play it again from the sidebar.</param>
-/// <param name="Name">The server or world, for the log and the sidebar.</param>
-/// <param name="Arguments">Command-line arguments for the game, see <see cref="GameLauncher.JoinArguments"/>.</param>
-/// <param name="Prefs">PlayerPrefs to set first, see <see cref="ValheimPrefs"/>.</param>
-internal sealed record DirectPlay(string Key, string Name, IReadOnlyList<string> Arguments, IReadOnlyDictionary<string, string> Prefs);
-
 /// <summary>
 /// The Play page: the servers and worlds Valheim knows, each started with the character and setup
 /// (vanilla or an instance) that was used there last time.
@@ -34,7 +27,7 @@ internal sealed record DirectPlay(string Key, string Name, IReadOnlyList<string>
 /// </remarks>
 public sealed class PlayViewModel : ViewModel
 {
-  internal const string VanillaName = "Vanilla Valheim";
+  internal const string VanillaName = PlayTargets.VanillaName;
 
   private readonly AppViewModel _app;
   private List<ValheimCharacter> _characters = [];
@@ -243,15 +236,10 @@ public sealed class PlayViewModel : ViewModel
     _app.SaveSettings();
     destination.RaiseChoice();
 
-    // The character is set for a server too: +connect opens the character selection, which starts on it.
-    var prefs = new Dictionary<string, string> { [ValheimPrefs.Character] = character.FileName };
-    if (!isServer)
-    {
-      prefs[ValheimPrefs.World] = destination.Name;
-    }
-
-    var arguments = isServer ? GameLauncher.JoinArguments(destination.Address, password) : [];
-    _app.Launch(instance, new DirectPlay(destination.Key, destination.Name, arguments, prefs));
+    var direct = isServer
+      ? DirectPlay.Server(destination.Key, destination.Name, destination.Address, character.FileName, password)
+      : DirectPlay.World(destination.Key, destination.Name, character.FileName);
+    _app.Launch(instance, direct);
   }
 
   internal void SetImage(DestinationViewModel destination, string file)

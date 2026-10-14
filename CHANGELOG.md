@@ -7,6 +7,20 @@ Format: a `## <version> - <yyyy-mm-dd>` heading per release (the version must ma
 `src/Desktop/LaunchHeim.Desktop.csproj`), then `### Added`, `### Changed` or `### Fixed` with one
 bullet per change.
 
+## 0.7.0 - 2026-10-14
+
+### Added
+- Start LaunchHeim's setups from Steam: paste the line from Settings → "Start from Steam" into
+  Valheim's launch options, and Steam's Play button starts what you played last in LaunchHeim, with
+  its mods, character and server or world. LaunchHeim doesn't need to be open.
+- A command line: `launchheim play` starts the game without the window (what you played last, or
+  pick one with `--instance`, `--server`, `--world` and `--character`), and `launchheim list` shows
+  what there is to pick. `launchheim help` explains it all.
+
+### Fixed
+- Copy buttons now work on Windows: the update commands, the console lines and the Steam line.
+- Text in input fields sits in the middle instead of slightly too high.
+
 ## 0.6.0 - 2026-10-09
 
 ### Added

@@ -3,6 +3,7 @@ using CINE.LaunchHeim.Core;
 using CINE.LaunchHeim.Core.Catalogs.CurseForge;
 using CINE.LaunchHeim.Core.Catalogs.Nexus;
 using CINE.LaunchHeim.Core.Catalogs.Thunderstore;
+using CINE.LaunchHeim.Core.Cli;
 using CINE.LaunchHeim.Core.Downloads;
 using CINE.LaunchHeim.Core.Instances;
 using CINE.LaunchHeim.Core.Logging;
@@ -10,6 +11,7 @@ using CINE.LaunchHeim.Core.Mods;
 using CINE.LaunchHeim.Core.Packs;
 using CINE.LaunchHeim.Core.Storage;
 using CINE.LaunchHeim.Core.Updates;
+using CINE.LaunchHeim.Desktop.Cli;
 using CINE.LaunchHeim.Desktop.Hosting;
 using CINE.LaunchHeim.Desktop.ViewModels;
 using Qml.Net;
@@ -23,6 +25,10 @@ public static class Program
   /// <summary>Runs an action on the Qt thread. Safe to call from any thread.</summary>
   public static void Dispatch(Func<Task> action) => _app?.Dispatch(() => _ = action());
 
+  // Qt's Windows clipboard and drag and drop are OLE, which only works in a single-threaded apartment.
+  // .NET makes the main thread a multithreaded one unless told otherwise; Qt's OleInitialize then
+  // fails, and every Copy button did nothing on Windows (its warning goes to the debugger, not stderr).
+  [STAThread]
   public static int Main(string[] args)
   {
     // Used by install.sh: adds LaunchHeim to the application launcher and makes it the nxm:// handler.
@@ -42,6 +48,21 @@ public static class Program
     }
 
     var paths = AppPaths.FromEnvironment();
+
+    // play, steam, list and help run without the window (Cli/CliRunner.cs); anything else opens it.
+    try
+    {
+      if (CommandLine.Parse(args) is { } command)
+      {
+        return CliRunner.Run(command, paths);
+      }
+    }
+    catch (CliUsageException ex)
+    {
+      Console.Error.WriteLine($"LaunchHeim: {ex.Message}");
+      return 2;
+    }
+
     var commandLine = string.Join(' ', args);
 
     // A second start (typically the browser handing over an nxm:// link) passes its arguments to the
@@ -109,6 +130,7 @@ public static class Program
 
     using var engine = new QQmlApplicationEngine();
     engine.SetContextProperty("screenshotPath", Environment.GetEnvironmentVariable("LAUNCHHEIM_SCREENSHOT") ?? "");
+    engine.SetContextProperty("screenshotClipboard", Environment.GetEnvironmentVariable("LAUNCHHEIM_SCREENSHOT_CLIPBOARD") ?? "");
     engine.SetContextProperty("screenshotDelay", int.TryParse(Environment.GetEnvironmentVariable("LAUNCHHEIM_SCREENSHOT_DELAY"), out var delay) ? delay : 4000);
     engine.Load(Path.Combine(AppContext.BaseDirectory, "qml", "Main.qml"));
 

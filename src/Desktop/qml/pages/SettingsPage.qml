@@ -62,6 +62,46 @@ Item {
         }
       }
 
+      // Cli/CliRunner.cs: Steam starts LaunchHeim, which adds the instance to Steam's own command.
+      SettingsSection {
+        iconName: "power"
+        title: "Start from Steam"
+        description: "Paste this into Valheim's launch options in Steam (Properties → General). Steam's Play button then starts what you played last in LaunchHeim, with its instance, character and server or world."
+        Layout.fillWidth: true
+
+        RowLayout {
+          spacing: 8
+          Layout.fillWidth: true
+          LhTextField {
+            text: page.settings.steamLaunchOptions
+            readOnly: true
+            selectByMouse: true
+            font.family: Theme.fontFamily
+            Layout.fillWidth: true
+          }
+          LhButton {
+            text: "Copy"
+            iconName: "copy"
+            onClicked: {
+              Clipboard.copy(page.settings.steamLaunchOptions)
+              page.settings.steamLaunchOptionsCopied()
+            }
+          }
+        }
+
+        RowLayout {
+          spacing: 10
+          Layout.fillWidth: true
+          Icon { iconName: "play"; color: Theme.textMuted }
+          Label {
+            text: "Steam starts: " + App.lastPlayName
+            color: Theme.textMuted
+            elide: Text.ElideRight
+            Layout.fillWidth: true
+          }
+        }
+      }
+
       SettingsSection {
         iconName: "key"
         title: "Nexus Mods"

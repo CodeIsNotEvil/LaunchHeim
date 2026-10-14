@@ -3,7 +3,7 @@
 A Valheim mod launcher for Linux (built on CachyOS with KDE Plasma 6) and Windows. It manages
 **instances**: self-contained modded setups, each with its own BepInEx, plugins and configs. It finds
 and installs mods from Thunderstore, Nexus Mods and CurseForge, and starts Valheim with one of them,
-or vanilla, optionally straight into one of your servers or worlds. On Linux the game folder is never modified. On Windows it gets Doorstop's `winhttp.dll`
+or vanilla, optionally straight into one of your servers or worlds, from its window, the command line or Steam's Play button. On Linux the game folder is never modified. On Windows it gets Doorstop's `winhttp.dll`
 (see [Windows](#windows)).
 
 .NET 10 with a Qt Quick (QML) front end hosted through [Qml.Net](https://github.com/qmlnet/qmlnet).
@@ -49,8 +49,8 @@ not a C# change.
 
 | Project | Holds |
 |---|---|
-| `src/Core` | Everything testable, with no UI: Steam/Valheim discovery (`Game/`), Valheim's own characters, worlds, servers and prefs (`Saves/`), instances, the mod installer and dependency resolution (`Mods/`), modpack export and import (`Packs/`), the three catalogs (`Catalogs/`), logging and log following (`Logging/`), downloads and XDG storage. |
-| `src/Desktop` | The Qml.Net host, view models, QML pages and components, the Plasma (or Windows) colour scheme and desktop integration (single instance, `nxm://`). |
+| `src/Core` | Everything testable, with no UI: Steam/Valheim discovery (`Game/`), Valheim's own characters, worlds, servers and prefs (`Saves/`), instances, the mod installer and dependency resolution (`Mods/`), modpack export and import (`Packs/`), the three catalogs (`Catalogs/`), the command line's parser (`Cli/`), logging and log following (`Logging/`), downloads and XDG storage. |
+| `src/Desktop` | The Qml.Net host, view models, QML pages and components, the Plasma (or Windows) colour scheme, desktop integration (single instance, `nxm://`) and the command line's runner (`Cli/`), which never loads Qt. |
 | `packaging/` | The pacman, deb, rpm and Windows builds. See [`packaging/README.md`](packaging/README.md). |
 | `android/` | LaunchHeim Companion, the Android app (Kotlin, Compose). See [`android/README.md`](android/README.md). |
 | `tests/Core.Tests` | xUnit tests for Core. |
@@ -123,6 +123,39 @@ started last (`lastPlay` in `settings.json`): a server or world with its remembe
 and password, an instance, or vanilla before anything was played. The card names it, destination
 first because it elides the end. If the server or world is gone from Valheim's lists, or its character
 or instance is, the button opens the Play page instead.
+
+**Start from Steam.** With `launchheim steam %command%` in Valheim's launch options (Steam → Valheim →
+Properties → General; Settings → "Start from Steam" shows the exact line and copies it), Steam's own
+Play button starts what the sidebar's Play button would: the last play, with its instance, character
+and server or world. LaunchHeim doesn't have to be open. Steam runs LaunchHeim with the game's command
+in place of `%command%`, and LaunchHeim adds what its own launches add (`GameLauncher.WrapSteamCommand`):
+Doorstop for the instance (its variables on Linux, its arguments on Windows), the instance's launch
+arguments, `+connect` for a server, and the PlayerPrefs for the character and world. Then it runs
+Steam's command and waits for the game, so Steam's overlay, play time and "Running" state work as for
+any game, and Steam's environment (its runtime and overlay preload) reaches the game unchanged. Options
+before `%command%` pin a setup instead of the last play, such as `launchheim steam --instance Modded
+%command%`. Steam's own options win where they overlap: a friend's game joined from Steam keeps the
+instance but joins the friend, and doesn't become the last play. Commands that aren't Valheim, and
+LaunchHeim's own launches on Windows (which go through Steam and so through the launch options too;
+they always carry `--doorstop-enabled`), run unchanged. When the launch can't be planned (an instance
+without BepInEx, a world that's gone), nothing starts: playing vanilla instead could open a modded
+world without its mods, and Valheim drops modded items when it saves. The reason shows as a toast in
+the open window, else as a desktop notification (`notify-send`) or a message box on Windows. The
+launch options don't work with Flatpak Steam, whose sandbox can't run a LaunchHeim installed outside
+it, or with a compatibility tool forced for Valheim.
+
+**Command line.** `launchheim help` lists the commands. `launchheim play` starts Valheim without the
+window, the same way the window does (Steam first, the overlay, PlayerPrefs) and waits until it
+closes; without options it plays the last play, and `--instance`, `--vanilla`, `--server`, `--world`,
+`--character` and `--password` pick something else, filling in the rest from the server's or world's
+remembered choice (`Core/Game/PlayTarget.cs`). A server or world played the first time needs a
+character and a setup: guessing could open a modded world in vanilla. `launchheim list` shows the
+instances, characters, servers and worlds with what each was played with last. A launch from the
+command line or from Steam counts like one from the window: it becomes the last play and updates the
+remembered choice. They log to `launchheim-cli.log` next to `launchheim.log`, because two processes
+appending to one file can overwrite each other's lines. Anything else on the command line (none, or
+an `nxm://` link) opens the window as before. On Windows `LaunchHeim.exe` is a GUI program, so the
+commands attach to the terminal that started them to print.
 
 **Players online.** Each server row shows how many players are on it ("2/10 online", or "Offline" when
 it doesn't answer), asked with Steam's server query (A2S, `Core/Saves/ServerQuery`) on the query port,
@@ -249,7 +282,8 @@ the shown lines copied for a bug report. It follows the files rather than piping
 because a pipe ties the game to the launcher: closing LaunchHeim would leave Valheim writing into a
 pipe nobody reads. A file that got shorter or has a new first line is a new session. LaunchHeim's log
 records every launch (executable, arguments and the Doorstop environment), Steam's state, installs,
-imports and every error toast; it moves to `launchheim.log.1` once it passes 2 MB. On Windows the
+imports and every error toast; it moves to `launchheim.log.1` once it passes 2 MB. Starts from the
+command line and from Steam write `launchheim-cli.log` in the same folder. On Windows the
 instance's launch options can also switch on BepInEx's own console window (`[Logging.Console]` in
 `BepInEx.cfg`). On Linux that console writes to the game's stdout, which nobody sees, so the option
 is hidden there.
@@ -317,7 +351,10 @@ The same QML UI runs on Windows. The differences:
   properties are added too. `steam.exe` hands the launch to the running client and exits, so
   LaunchHeim waits up to three minutes for a `valheim` process ("Steam is starting Valheim" in the
   sidebar) and follows that one. A Valheim that is already running is refused first, so the next one
-  that appears is the right one. Without `steam.exe` the game is started directly as before.
+  that appears is the right one. Without `steam.exe` the game is started directly as before. A vanilla
+  launch through Steam passes `--doorstop-enabled false` even without a proxy in the game folder, so
+  `LaunchHeim.exe steam %command%` in the launch options recognises it as LaunchHeim's own and runs
+  it as it is (see "Start from Steam").
 - **Folders.** Instances and caches go in `%LOCALAPPDATA%\LaunchHeim`, settings in
   `%APPDATA%\LaunchHeim`. Steam is found through the registry, then `libraryfolders.vdf` as on Linux.
 - **nxm://** is registered per user under `HKCU\Software\Classes\nxm` (Settings → Register). No

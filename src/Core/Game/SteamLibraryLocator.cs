@@ -123,6 +123,11 @@ public sealed class SteamLibraryLocator(IEnumerable<string> steamRoots, GamePlat
     return null;
   }
 
+  /// <summary>The folder chosen in Settings while it still holds Valheim, else the one in the Steam libraries.</summary>
+  /// <returns>The chosen folder when neither holds the game, so the error names it, or empty when none was chosen.</returns>
+  public string GameDirectory(string? configured) =>
+    IsValheimDirectory(configured, platform) ? configured! : FindValheim() ?? configured ?? "";
+
   public static bool IsValheimDirectory(string? directory) => IsValheimDirectory(directory, GamePlatforms.Current);
 
   public static bool IsValheimDirectory(string? directory, GamePlatform platform) =>
