@@ -36,6 +36,14 @@ public class CommandLineTests
   }
 
   [Fact]
+  public void Instant_start_can_be_switched_on_or_off()
+  {
+    Assert.True(CommandLine.Parse(["play", "--world", "Midgard", "--instant"])!.Request.Instant);
+    Assert.False(CommandLine.Parse(["play", "--world", "Midgard", "--no-instant"])!.Request.Instant);
+    Assert.Null(CommandLine.Parse(["play", "--world", "Midgard"])!.Request.Instant);
+  }
+
+  [Fact]
   public void An_empty_password_can_be_given_to_forget_the_remembered_one() =>
     Assert.Equal("", CommandLine.Parse(["play", "--server", "x:1", "--password="])!.Request.Password);
 

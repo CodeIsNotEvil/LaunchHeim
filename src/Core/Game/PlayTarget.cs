@@ -9,15 +9,21 @@ namespace CINE.LaunchHeim.Core.Game;
 /// <param name="Name">The server or world, for the log and the sidebar.</param>
 /// <param name="Arguments">Command-line arguments for the game, see <see cref="GameLauncher.JoinArguments"/>.</param>
 /// <param name="Prefs">PlayerPrefs to set first, see <see cref="ValheimPrefs"/>.</param>
-public sealed record DirectPlay(string Key, string Name, IReadOnlyList<string> Arguments, IReadOnlyDictionary<string, string> Prefs)
+/// <param name="Instant">
+/// Start instantly: LaunchHeim's plugin presses Start in the menus (see <see cref="InstantStart"/>), and
+/// <paramref name="Arguments"/> end with <see cref="InstantStart.Argument"/>.
+/// </param>
+public sealed record DirectPlay(string Key, string Name, IReadOnlyList<string> Arguments, IReadOnlyDictionary<string, string> Prefs, bool Instant = false)
 {
   /// <summary>Joins a server. The character is set too: <c>+connect</c> opens the character selection, which starts on it.</summary>
-  public static DirectPlay Server(string key, string name, string address, string character, string? password) =>
-    new(key, name, GameLauncher.JoinArguments(address, password), new Dictionary<string, string> { [ValheimPrefs.Character] = character });
+  public static DirectPlay Server(string key, string name, string address, string character, string? password, bool instant = false) =>
+    new(key, name, [.. GameLauncher.JoinArguments(address, password), .. InstantArguments(instant)], new Dictionary<string, string> { [ValheimPrefs.Character] = character }, instant);
 
-  /// <summary>Selects a character and world in the menus. The game has no option to load the world itself.</summary>
-  public static DirectPlay World(string key, string name, string character) =>
-    new(key, name, [], new Dictionary<string, string> { [ValheimPrefs.Character] = character, [ValheimPrefs.World] = name });
+  /// <summary>Selects a character and world in the menus. Only instant start loads the world without a click.</summary>
+  public static DirectPlay World(string key, string name, string character, bool instant = false) =>
+    new(key, name, InstantArguments(instant), new Dictionary<string, string> { [ValheimPrefs.Character] = character, [ValheimPrefs.World] = name }, instant);
+
+  private static IReadOnlyList<string> InstantArguments(bool instant) => instant ? [InstantStart.Argument] : [];
 
   /// <summary>Sets the character and world Valheim's menus start on, in the game's PlayerPrefs.</summary>
   /// <remarks>
@@ -52,6 +58,9 @@ public sealed record PlayRequest
   public string? Character { get; init; }
 
   public string? Password { get; init; }
+
+  /// <summary>Start instantly (true) or not (false); null keeps the server's or world's remembered choice.</summary>
+  public bool? Instant { get; init; }
 }
 
 /// <summary>A resolved launch: the setup, and the server or world with the choice to remember for it.</summary>
@@ -129,9 +138,9 @@ public static class PlayTargets
 
     if (request.Server is null && request.World is null)
     {
-      if (request.Character is not null || request.Password is not null)
+      if (request.Character is not null || request.Password is not null || request.Instant is not null)
       {
-        throw new LaunchException("--character and --password need a --server or --world.");
+        throw new LaunchException("--character, --password and --instant need a --server or --world.");
       }
 
       if (request.Vanilla)
@@ -216,14 +225,16 @@ public static class PlayTargets
       password = null;
     }
 
+    var instant = request.Instant ?? remembered?.InstantStart ?? false;
     var direct = isServer
-      ? DirectPlay.Server(key, name, address, character.FileName, password)
-      : DirectPlay.World(key, name, character.FileName);
+      ? DirectPlay.Server(key, name, address, character.FileName, password, instant)
+      : DirectPlay.World(key, name, character.FileName, instant);
     var choice = new PlayChoice
     {
       Character = character.FileName,
       InstanceId = instance?.Id,
       Password = password,
+      InstantStart = instant,
       LastPlayedAt = DateTimeOffset.UtcNow,
     };
     return new PlayTarget(instance, direct, choice);

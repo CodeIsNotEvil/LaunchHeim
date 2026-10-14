@@ -136,6 +136,28 @@ public class PlayTargetsTests
     Assert.Throws<LaunchException>(() => Resolve(new PlayRequest { Vanilla = vanilla, Instance = instance, Server = server, World = world, Character = character }));
 
   [Fact]
+  public void Instant_start_is_remembered_and_can_be_switched_per_launch()
+  {
+    var settings = Settings();
+    settings.PlayChoices[World.Key].InstantStart = true;
+
+    var remembered = Resolve(new PlayRequest { World = "Midgard" }, settings);
+    var switchedOff = Resolve(new PlayRequest { World = "Midgard", Instant = false }, settings);
+    var switchedOn = Resolve(new PlayRequest { Server = "Our Server", Instant = true });
+
+    Assert.True(remembered.Direct!.Instant);
+    Assert.Equal([InstantStart.Argument], remembered.Direct.Arguments);
+    Assert.False(switchedOff.Direct!.Instant);
+    Assert.False(switchedOff.Choice!.InstantStart);
+    Assert.Equal(InstantStart.Argument, switchedOn.Direct!.Arguments[^1]);
+    Assert.True(switchedOn.Choice!.InstantStart);
+  }
+
+  [Fact]
+  public void Instant_start_needs_a_server_or_world() =>
+    Assert.Throws<LaunchException>(() => Resolve(new PlayRequest { Instance = "Modded", Instant = true }));
+
+  [Fact]
   public void Becomes_the_last_play_once_started()
   {
     var target = Resolve(new PlayRequest { World = "Midgard" });
