@@ -60,6 +60,9 @@ tar -xf %{SOURCE0} -C %{buildroot}
 %{_prefix}/lib/firewalld/services/launchheim.xml
 
 %changelog
+* Wed Oct 14 2026 CodeIsNotEvil <noreply@github.com> - 0.7.0-1
+- Start from Steam, a command line, instant start, keeping achievements with mods, removing mods from Browse (see CHANGELOG.md)
+
 * Fri Oct 09 2026 CodeIsNotEvil <noreply@github.com> - 0.6.0-1
 - Instance, server and world icons, sharing with friends, drag-and-drop installs, firewall rules for phone sync (see CHANGELOG.md)
 
