@@ -186,16 +186,17 @@ public static class GameLauncher
 
   /// <summary>Where the game is in a command Steam passed with <c>%command%</c>, or -1 when it isn't there.</summary>
   /// <remarks>
-  /// Steam may put wrappers in front of the game (its reaper, a compatibility tool, or what the user's
-  /// launch options add before LaunchHeim), so the game is found by its file name.
+  /// Steam may put wrappers in front of the game (its reaper, Steam Linux Runtime, or what the user's
+  /// launch options add before LaunchHeim), so the game is found by its file name. Only this platform's
+  /// game counts: <c>valheim.exe</c> on Linux is Proton running the Windows build, which LaunchHeim's
+  /// Linux Doorstop can't mod, so that command runs unchanged.
   /// </remarks>
-  public static int FindGame(IReadOnlyList<string> command)
+  public static int FindGame(IReadOnlyList<string> command, GamePlatform? platform = null)
   {
+    var executable = SteamLibraryLocator.ExecutableFor(platform ?? GamePlatforms.Current);
     for (var i = 0; i < command.Count; i++)
     {
-      var name = Path.GetFileName(command[i]);
-      if (name.Equals(SteamLibraryLocator.ExecutableFor(GamePlatform.Linux), StringComparison.OrdinalIgnoreCase)
-        || name.Equals(SteamLibraryLocator.ExecutableFor(GamePlatform.Windows), StringComparison.OrdinalIgnoreCase))
+      if (Path.GetFileName(command[i]).Equals(executable, StringComparison.OrdinalIgnoreCase))
       {
         return i;
       }
@@ -222,9 +223,16 @@ public static class GameLauncher
   /// <para>
   /// Steam's own start is kept, with the environment Steam gives it, so its overlay, the play time and the
   /// "Running" state work as for any game. Only what LaunchHeim adds to its own launches is added:
-  /// Doorstop's variables (Linux) or arguments (Windows) for the instance, the instance's launch arguments
-  /// and the server to join. Steam's overlay preload is already in <c>LD_PRELOAD</c> and stays behind
-  /// Doorstop, the order <c>start_game_bepinex.sh %command%</c> gives.
+  /// Doorstop for the instance, the instance's launch arguments and the server to join.
+  /// </para>
+  /// <para>
+  /// On Linux, Doorstop goes right in front of the game inside Steam's command
+  /// (<see cref="SteamDoorstopPrefix"/>), never onto the whole command. With Steam Linux Runtime the
+  /// command is a chain (<c>steam-launch-wrapper -- reaper ... -- _v2-entry-point ... -- valheim.x86_64</c>),
+  /// and Doorstop preloaded into the runtime's launcher made it fail at once (exit 125, found in 0.7.0,
+  /// 2026-10-14), while the container would have rebuilt <c>LD_LIBRARY_PATH</c> for the game anyway. In
+  /// front of the game it runs inside the container, where the home folder and the instance are visible,
+  /// with the library by its full path. On Windows Doorstop takes arguments, which go at the end.
   /// </para>
   /// <para>
   /// The instance's arguments and the join arguments go at the end, after what Steam passed (such as
@@ -237,11 +245,10 @@ public static class GameLauncher
     IReadOnlyList<string> command,
     string? instanceDirectory,
     string extraArguments,
-    IReadOnlyDictionary<string, string?> currentEnvironment,
     GamePlatform? platform = null,
     IReadOnlyList<string>? joinArguments = null)
   {
-    var gameIndex = FindGame(command);
+    var gameIndex = FindGame(command, platform);
     if (gameIndex < 0)
     {
       throw new LaunchException("Steam's command doesn't start Valheim. Put `%command%` after LaunchHeim's arguments in Valheim's launch options.");
@@ -254,6 +261,7 @@ public static class GameLauncher
       environment[variable] = null;
     }
 
+    List<string> prefix = [];
     List<string> added = [];
     if ((platform ?? GamePlatforms.Current) == GamePlatform.Windows)
     {
@@ -266,12 +274,13 @@ public static class GameLauncher
     }
     else
     {
-      AddDoorstop(environment, instanceDirectory, currentEnvironment);
+      prefix.AddRange(SteamDoorstopPrefix(instanceDirectory));
     }
 
     added.AddRange(SplitArguments(extraArguments));
     added.AddRange(joinArguments ?? []);
-    return new LaunchPlan(command[0], gameDirectory, [.. command.Skip(1), .. added], environment);
+    List<string> full = [.. command.Take(gameIndex), .. prefix, .. command.Skip(gameIndex), .. added];
+    return new LaunchPlan(full[0], gameDirectory, full.Skip(1).ToList(), environment);
   }
 
   /// <summary>The arguments as they may be logged: a server password is replaced with stars.</summary>
@@ -366,6 +375,22 @@ public static class GameLauncher
     string instanceDirectory,
     IReadOnlyDictionary<string, string?> currentEnvironment)
   {
+    var (variables, doorstop) = DoorstopVariables(instanceDirectory);
+    foreach (var (key, value) in variables)
+    {
+      environment[key] = value;
+    }
+
+    var doorstopDirectory = Path.GetDirectoryName(doorstop)!;
+    environment["LD_LIBRARY_PATH"] = Prepend(doorstopDirectory, currentEnvironment.GetValueOrDefault("LD_LIBRARY_PATH"));
+    // In front of Steam's overlay, if AddSteamOverlay added it: the order a start_game_bepinex.sh in
+    // Steam's launch options gives, which is what BepInEx is tested with.
+    environment["LD_PRELOAD"] = Prepend(Path.GetFileName(doorstop), environment.GetValueOrDefault("LD_PRELOAD") ?? currentEnvironment.GetValueOrDefault("LD_PRELOAD"));
+  }
+
+  /// <summary>Doorstop's settings for an instance on Linux, and its library, which goes into <c>LD_PRELOAD</c>.</summary>
+  private static (IReadOnlyList<KeyValuePair<string, string>> Variables, string Library) DoorstopVariables(string instanceDirectory)
+  {
     var preloader = Path.Combine(instanceDirectory, PreloaderPath);
     var doorstop = Path.Combine(instanceDirectory, DoorstopLibrary);
     if (!File.Exists(preloader) || !File.Exists(doorstop))
@@ -375,27 +400,44 @@ public static class GameLauncher
 
     var corlib = Path.Combine(instanceDirectory, "unstripped_corlib");
     var corlibOverride = Directory.Exists(corlib) ? corlib : "";
+    KeyValuePair<string, string>[] variables =
+    [
+      // Doorstop 4, used by BepInExPack_Valheim 5.4.22 and newer.
+      new("DOORSTOP_ENABLED", "1"),
+      new("DOORSTOP_TARGET_ASSEMBLY", preloader),
+      new("DOORSTOP_IGNORE_DISABLED_ENV", "0"),
+      new("DOORSTOP_BOOT_CONFIG_OVERRIDE", ""),
+      new("DOORSTOP_MONO_DLL_SEARCH_PATH_OVERRIDE", corlibOverride),
+      new("DOORSTOP_MONO_DEBUG_ENABLED", "0"),
+      new("DOORSTOP_MONO_DEBUG_ADDRESS", "127.0.0.1:10000"),
+      new("DOORSTOP_MONO_DEBUG_SUSPEND", "0"),
+      // Doorstop 3, used by older packs that people pin for old mods. Doorstop 4 ignores these.
+      new("DOORSTOP_ENABLE", "TRUE"),
+      new("DOORSTOP_INVOKE_DLL_PATH", preloader),
+      new("DOORSTOP_CORLIB_OVERRIDE_PATH", corlibOverride),
+    ];
+    return (variables, doorstop);
+  }
 
-    // Doorstop 4, used by BepInExPack_Valheim 5.4.22 and newer.
-    environment["DOORSTOP_ENABLED"] = "1";
-    environment["DOORSTOP_TARGET_ASSEMBLY"] = preloader;
-    environment["DOORSTOP_IGNORE_DISABLED_ENV"] = "0";
-    environment["DOORSTOP_BOOT_CONFIG_OVERRIDE"] = "";
-    environment["DOORSTOP_MONO_DLL_SEARCH_PATH_OVERRIDE"] = corlibOverride;
-    environment["DOORSTOP_MONO_DEBUG_ENABLED"] = "0";
-    environment["DOORSTOP_MONO_DEBUG_ADDRESS"] = "127.0.0.1:10000";
-    environment["DOORSTOP_MONO_DEBUG_SUSPEND"] = "0";
-
-    // Doorstop 3, used by older packs that people pin for old mods. Doorstop 4 ignores these.
-    environment["DOORSTOP_ENABLE"] = "TRUE";
-    environment["DOORSTOP_INVOKE_DLL_PATH"] = preloader;
-    environment["DOORSTOP_CORLIB_OVERRIDE_PATH"] = corlibOverride;
-
-    var doorstopDirectory = Path.GetDirectoryName(doorstop)!;
-    environment["LD_LIBRARY_PATH"] = Prepend(doorstopDirectory, currentEnvironment.GetValueOrDefault("LD_LIBRARY_PATH"));
-    // In front of Steam's overlay, if AddSteamOverlay added it: the order a start_game_bepinex.sh in
-    // Steam's launch options gives, which is what BepInEx is tested with.
-    environment["LD_PRELOAD"] = Prepend(Path.GetFileName(doorstop), environment.GetValueOrDefault("LD_PRELOAD") ?? currentEnvironment.GetValueOrDefault("LD_PRELOAD"));
+  /// <summary>
+  /// What goes in front of the game in Steam's command on Linux so Doorstop reaches the game and nothing
+  /// else: <c>env</c> with Doorstop's settings, then <c>sh</c> putting the library first in whatever
+  /// <c>LD_PRELOAD</c> the game would get (Steam's overlay, inside the container too).
+  /// </summary>
+  public static IReadOnlyList<string> SteamDoorstopPrefix(string instanceDirectory)
+  {
+    var (variables, library) = DoorstopVariables(instanceDirectory);
+    return
+    [
+      "/usr/bin/env",
+      .. variables.Select(v => $"{v.Key}={v.Value}"),
+      "/bin/sh",
+      "-c",
+      // The library comes in as $1 rather than inside the script, so no path needs quoting.
+      """LD_PRELOAD="$1${LD_PRELOAD:+:$LD_PRELOAD}"; export LD_PRELOAD; shift; exec "$@" """,
+      "launchheim-doorstop",
+      Path.GetFullPath(library),
+    ];
   }
 
   /// <summary>Loads Steam's overlay into the game the way Steam does for the games it starts on Linux.</summary>

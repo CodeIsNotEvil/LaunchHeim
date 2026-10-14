@@ -269,29 +269,82 @@ public class GameLauncherTests : IDisposable
   {
     var game = Path.Combine(_game, "valheim.x86_64");
 
-    Assert.Equal(3, GameLauncher.FindGame(["/steam/reaper", "SteamLaunch", "--", game, "-force-glcore"]));
-    Assert.Equal(0, GameLauncher.FindGame([Path.Combine("C:", "Games", "Valheim", "Valheim.exe")]));
-    Assert.Equal(-1, GameLauncher.FindGame(["/games/other/game.x86_64"]));
+    Assert.Equal(3, GameLauncher.FindGame(["/steam/reaper", "SteamLaunch", "--", game, "-force-glcore"], GamePlatform.Linux));
+    Assert.Equal(0, GameLauncher.FindGame([Path.Combine("C:", "Games", "Valheim", "Valheim.exe")], GamePlatform.Windows));
+    Assert.Equal(-1, GameLauncher.FindGame(["/games/other/game.x86_64"], GamePlatform.Linux));
+    // Proton on Linux runs the Windows build, which Linux Doorstop can't mod: left to run unchanged.
+    Assert.Equal(-1, GameLauncher.FindGame(["/steam/proton", "waitforexitandrun", "/games/Valheim/valheim.exe"], GamePlatform.Linux));
   }
 
   [Fact]
-  public void Steams_command_runs_with_the_instance_added()
+  public void Steams_command_runs_with_doorstop_in_front_of_the_game_only()
   {
     var game = Path.Combine(_game, "valheim.x86_64");
-    var fromSteam = new Dictionary<string, string?> { ["LD_PRELOAD"] = "/steam/ubuntu12_64/gameoverlayrenderer.so" };
     var join = GameLauncher.JoinArguments("10.0.0.1:2456", null);
 
-    var plan = GameLauncher.WrapSteamCommand([game, "-force-glcore"], _instance, "-console", fromSteam, GamePlatform.Linux, join);
+    var plan = GameLauncher.WrapSteamCommand([game, "-force-glcore"], _instance, "-console", GamePlatform.Linux, join);
+    var prefix = GameLauncher.SteamDoorstopPrefix(_instance);
 
-    // Steam's own command and arguments first, then the instance's and the server.
-    Assert.Equal(game, plan.FileName);
-    Assert.Equal(["-force-glcore", "-console", "+connect", "10.0.0.1:2456"], plan.Arguments);
+    // Doorstop's env/sh step, then Steam's own command and arguments, then the instance's and the server.
+    Assert.Equal("/usr/bin/env", plan.FileName);
+    Assert.Equal([.. prefix.Skip(1), game, "-force-glcore", "-console", "+connect", "10.0.0.1:2456"], plan.Arguments);
+    Assert.Contains($"DOORSTOP_TARGET_ASSEMBLY={Path.Combine(_instance, GameLauncher.PreloaderPath)}", prefix);
+    Assert.Equal(Path.GetFullPath(Path.Combine(_instance, GameLauncher.DoorstopLibrary)), prefix[^1]);
     Assert.Equal(_game, plan.WorkingDirectory);
-    Assert.Equal(Path.Combine(_instance, GameLauncher.PreloaderPath), plan.Environment["DOORSTOP_TARGET_ASSEMBLY"]);
-    // Steam's overlay stays, behind Doorstop, and isn't added a second time.
-    Assert.Equal("libdoorstop_x64.so:/steam/ubuntu12_64/gameoverlayrenderer.so", plan.Environment["LD_PRELOAD"]);
-    Assert.False(plan.Environment.ContainsKey("SteamOverlayGameId"));
+    // Nothing on the whole command: Steam's launchers mustn't load Doorstop.
+    Assert.False(plan.Environment.ContainsKey("LD_PRELOAD"));
+    Assert.False(plan.Environment.ContainsKey("LD_LIBRARY_PATH"));
+    Assert.DoesNotContain(plan.Environment.Keys, k => k.StartsWith("DOORSTOP_", StringComparison.Ordinal));
     Assert.Null(plan.SteamStartsGame);
+  }
+
+  [Fact]
+  public void Steam_linux_runtimes_chain_stays_as_steam_made_it()
+  {
+    // Steam's command for Valheim with Steam Linux Runtime, as LaunchHeim 0.7.0 logged it.
+    string[] chain =
+    [
+      "/home/u/.local/share/Steam/ubuntu12_32/steam-launch-wrapper", "--",
+      "/home/u/.local/share/Steam/ubuntu12_32/reaper", "SteamLaunch", "AppId=892970", "--",
+      "/games/steamapps/common/SteamLinuxRuntime_soldier/_v2-entry-point", "--verb=waitforexitandrun", "--",
+      "/games/steamapps/common/SteamLinuxRuntime/scout-on-soldier-entry-point-v2", "--",
+    ];
+    var game = Path.Combine(_game, "valheim.x86_64");
+
+    var plan = GameLauncher.WrapSteamCommand([.. chain, game], _instance, "", GamePlatform.Linux, ["-launchheim-instant"]);
+
+    Assert.Equal(chain[0], plan.FileName);
+    Assert.Equal([.. chain.Skip(1), .. GameLauncher.SteamDoorstopPrefix(_instance), game, "-launchheim-instant"], plan.Arguments);
+    Assert.False(plan.Environment.ContainsKey("LD_PRELOAD"));
+  }
+
+  [Fact]
+  public async Task Doorstops_step_puts_it_in_front_of_the_preload_the_game_gets()
+  {
+    if (!OperatingSystem.IsLinux())
+    {
+      return;
+    }
+
+    // A stand-in game that prints what it was given, run through the real env and sh.
+    var game = Path.Combine(_temp.Tree("FakeGame"), "valheim.x86_64");
+    File.WriteAllText(game, "#!/bin/sh\nprintf '%s|%s|%s' \"$LD_PRELOAD\" \"$DOORSTOP_ENABLED\" \"$*\"\n");
+    File.SetUnixFileMode(game, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+    // The library has to load for real here: a zero-byte one would only print an ld.so warning, so use
+    // libc, wherever this distribution keeps it.
+    string[] libcs = ["/usr/lib/libc.so.6", "/lib/x86_64-linux-gnu/libc.so.6", "/usr/lib/x86_64-linux-gnu/libc.so.6", "/usr/lib64/libc.so.6"];
+    var doorstop = Path.Combine(_instance, GameLauncher.DoorstopLibrary);
+    File.Copy(libcs.First(File.Exists), doorstop, overwrite: true);
+
+    var plan = GameLauncher.WrapSteamCommand([game, "-force-glcore"], _instance, "", GamePlatform.Linux, ["+connect", "a b:1"]);
+    var info = plan.ToStartInfo();
+    info.RedirectStandardOutput = true;
+    info.Environment["LD_PRELOAD"] = "/overlay.so";
+    using var process = System.Diagnostics.Process.Start(info)!;
+    var output = await process.StandardOutput.ReadToEndAsync();
+    await process.WaitForExitAsync();
+
+    Assert.Equal($"{Path.GetFullPath(doorstop)}:/overlay.so|1|-force-glcore +connect a b:1", output);
   }
 
   [Fact]
@@ -299,7 +352,7 @@ public class GameLauncherTests : IDisposable
   {
     var game = Path.Combine(_game, "valheim.x86_64");
 
-    var plan = GameLauncher.WrapSteamCommand(["gamemoderun", game], null, "", NoEnvironment, GamePlatform.Linux);
+    var plan = GameLauncher.WrapSteamCommand(["gamemoderun", game], null, "", GamePlatform.Linux);
 
     Assert.Equal("gamemoderun", plan.FileName);
     Assert.Equal([game], plan.Arguments);
@@ -308,7 +361,7 @@ public class GameLauncherTests : IDisposable
 
   [Fact]
   public void Steams_command_without_the_game_is_refused() =>
-    Assert.Throws<LaunchException>(() => GameLauncher.WrapSteamCommand(["/games/other/game.x86_64"], null, "", NoEnvironment, GamePlatform.Linux));
+    Assert.Throws<LaunchException>(() => GameLauncher.WrapSteamCommand(["/games/other/game.x86_64"], null, "", GamePlatform.Linux));
 
   [Fact]
   public void Windows_steam_command_gets_doorstop_on_the_command_line()
@@ -317,7 +370,7 @@ public class GameLauncherTests : IDisposable
     GameLauncher.PrepareGameFolder(game, instance, GamePlatform.Windows);
     var exe = Path.Combine(game, "valheim.exe");
 
-    var plan = GameLauncher.WrapSteamCommand([exe], instance, "", NoEnvironment, GamePlatform.Windows);
+    var plan = GameLauncher.WrapSteamCommand([exe], instance, "", GamePlatform.Windows);
 
     Assert.Equal(exe, plan.FileName);
     // Doorstop gets a full path, which on Windows has backslashes only.
