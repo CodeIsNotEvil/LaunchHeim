@@ -1,7 +1,7 @@
 ---
 tags: [project, dotnet, qml, gaming]
 created: 2026-09-26
-updated: 2026-10-09
+updated: 2026-10-14
 status: active
 ---
 # LaunchHeim
@@ -78,6 +78,12 @@ accounts) and CurseForge (API key).
   ([[0014-launchheim-steam-overlay]]). The Screenshots page lists Steam's F12 pictures of Valheim with
   a large preview, "Show in folder" (Explorer `/select`, D-Bus `FileManager1.ShowItems` on Linux) and
   "Open".
+- Command line and Steam's Play button (2026-10-14, for 0.7.0): `launchheim play|steam|list|help`
+  without Qt (`Core/Cli`, `Desktop/Cli/CliRunner.cs`). `launchheim steam %command%` in Valheim's
+  launch options wraps Steam's command with the last play's instance, server or world
+  ([[0015-launchheim-steam-launch-options-wrap-steams-command]]); Settings → "Start from Steam" shows
+  the line. `PlayTargets` resolves the last play or the CLI's options with the window's rules, and
+  `DirectPlay` moved to Core so the Play page, the CLI and the wrapper build launches the same way.
 
 ## Gotchas
 - CurseForge's API offers no Valheim to third-party keys (2026-10-09): a valid key lists 38 games
@@ -192,6 +198,10 @@ accounts) and CurseForge (API key).
   and kills that command (2026-10-05).
 
 ## Open
+- Start from Steam (2026-10-14): not yet tried with the real client and game. Check Shift+Tab and a
+  modded world from Steam's Play on Linux, the Windows overlay for a `valheim.exe` that LaunchHeim
+  started under Steam, and that Steam's "Join game" keeps the instance
+  ([[0015-launchheim-steam-launch-options-wrap-steams-command]]).
 - Code signing (2026-10-08): signs fine in CI (secrets set, PR #29 run 37808678350). Not yet looked
   at on a real Windows PC: the Digital Signatures tab and the SmartScreen prompt for the signed zip.
 - Phone sync on Windows (2026-10-09): the firewall rule (setup's netsh, Settings' elevated PowerShell)
