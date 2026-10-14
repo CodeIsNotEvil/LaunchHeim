@@ -320,7 +320,8 @@ public class GameLauncherTests : IDisposable
     var plan = GameLauncher.WrapSteamCommand([exe], instance, "", NoEnvironment, GamePlatform.Windows);
 
     Assert.Equal(exe, plan.FileName);
-    Assert.Equal(["--doorstop-enabled", "true", "--doorstop-target-assembly", Path.Combine(instance, GameLauncher.PreloaderPath)], plan.Arguments.Take(4));
+    // Doorstop gets a full path, which on Windows has backslashes only.
+    Assert.Equal(["--doorstop-enabled", "true", "--doorstop-target-assembly", Path.GetFullPath(Path.Combine(instance, GameLauncher.PreloaderPath))], plan.Arguments.Take(4));
     Assert.False(plan.Environment.ContainsKey("LD_PRELOAD"));
   }
 
