@@ -2,10 +2,10 @@ using System;
 using System.Collections;
 using System.Linq;
 using System.Reflection;
-using BepInEx;
+using BepInEx.Logging;
 using UnityEngine;
 
-namespace CINE.LaunchHeim.InstantStart;
+namespace CINE.LaunchHeim.GamePlugin;
 
 /// <summary>
 /// Presses Start in Valheim's menus for LaunchHeim: straight into a world, or onto a server without
@@ -13,7 +13,7 @@ namespace CINE.LaunchHeim.InstantStart;
 /// </summary>
 /// <remarks>
 /// <para>
-/// It does nothing unless the game was started with <see cref="Argument"/>, which LaunchHeim only passes
+/// It runs only when the game was started with <see cref="Argument"/>, which LaunchHeim only passes
 /// for a server or world whose "Start instantly" is on. LaunchHeim has already set the PlayerPrefs the
 /// menus select from (<c>profile</c>, and <c>world</c> for a world) and passed <c>+connect</c> for a server.
 /// </para>
@@ -24,13 +24,8 @@ namespace CINE.LaunchHeim.InstantStart;
 /// selected what LaunchHeim asked for. When it didn't (a character or world that's gone), or the menu
 /// isn't ready in time (a popup waiting for an answer), it leaves the menu to the player.
 /// </para>
-/// <para>
-/// Valheim's classes are found by name at run time, so this compiles without the game. A game update that
-/// renames them only makes it give up, which the BepInEx log says.
-/// </para>
 /// </remarks>
-[BepInPlugin("io.github.codeisnotevil.launchheim.instantstart", "LaunchHeim Instant Start", "1.0.0")]
-public sealed class InstantStartPlugin : BaseUnityPlugin
+internal sealed class InstantStart(ManualLogSource logger)
 {
   public const string Argument = "-launchheim-instant";
 
@@ -38,21 +33,10 @@ public sealed class InstantStartPlugin : BaseUnityPlugin
   private static readonly float ServerTimeout = 180f;
   private static readonly float WorldTimeout = 120f;
 
-  private void Awake()
+  /// <summary>The menu work, as a coroutine for the plugin to run.</summary>
+  public IEnumerator Run(bool joinsServer)
   {
-    var arguments = Environment.GetCommandLineArgs();
-    if (!arguments.Contains(Argument))
-    {
-      return;
-    }
-
-    var joinsServer = arguments.Contains("+connect");
-    Logger.LogInfo(joinsServer ? "Instant start: joining the server." : "Instant start: opening the world.");
-    StartCoroutine(Run(joinsServer));
-  }
-
-  private IEnumerator Run(bool joinsServer)
-  {
+    logger.LogInfo(joinsServer ? "Instant start: joining the server." : "Instant start: opening the world.");
     Menu? menu = null;
     var deadline = Time.realtimeSinceStartup + (joinsServer ? ServerTimeout : WorldTimeout);
     while (Time.realtimeSinceStartup < deadline)
@@ -68,7 +52,7 @@ public sealed class InstantStartPlugin : BaseUnityPlugin
 
     if (menu is null || !menu.IsReady(joinsServer))
     {
-      Logger.LogWarning("Instant start: the menu wasn't ready in time, so it's left to you.");
+      logger.LogWarning("Instant start: the menu wasn't ready in time, so it's left to you.");
       yield break;
     }
 
@@ -76,7 +60,7 @@ public sealed class InstantStartPlugin : BaseUnityPlugin
     yield return null;
     if (!menu.HasCharacterSelected())
     {
-      Logger.LogWarning($"Instant start: the game didn't select the character \"{menu.WantedCharacter}\", so it's left to you.");
+      logger.LogWarning($"Instant start: the game didn't select the character \"{menu.WantedCharacter}\", so it's left to you.");
       yield break;
     }
 
@@ -94,7 +78,7 @@ public sealed class InstantStartPlugin : BaseUnityPlugin
     yield return null;
     if (!menu.HasWorldSelected())
     {
-      Logger.LogWarning($"Instant start: the game didn't select the world \"{menu.WantedWorld}\", so it's left to you.");
+      logger.LogWarning($"Instant start: the game didn't select the world \"{menu.WantedWorld}\", so it's left to you.");
       yield break;
     }
 
@@ -123,14 +107,14 @@ public sealed class InstantStartPlugin : BaseUnityPlugin
 
     public static Menu? Find()
     {
-      var type = FindType("FejdStartup");
+      var type = Game.FindType("FejdStartup");
       if (type is null)
       {
         return null;
       }
 
       var startup = type.GetProperty("instance", Any)?.GetValue(null);
-      return startup is null ? null : new Menu(startup, type, FindType("UnifiedPopup"), FindType("CinematicsManager"), FindType("PlatformPrefs"));
+      return startup is null ? null : new Menu(startup, type, Game.FindType("UnifiedPopup"), Game.FindType("CinematicsManager"), Game.FindType("PlatformPrefs"));
     }
 
     public string WantedCharacter => Pref("profile");
@@ -194,10 +178,5 @@ public sealed class InstantStartPlugin : BaseUnityPlugin
     private static bool StaticBool(Type type, string method) =>
       type.GetMethod(method, Any, null, Type.EmptyTypes, null)?.Invoke(null, null) as bool? ?? false;
 
-    private static Type? FindType(string name) =>
-      AppDomain.CurrentDomain.GetAssemblies()
-        .Where(a => a.GetName().Name is "assembly_valheim" or "assembly_utils")
-        .Select(a => a.GetType(name, throwOnError: false))
-        .FirstOrDefault(t => t is not null);
   }
 }

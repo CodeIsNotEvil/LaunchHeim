@@ -43,9 +43,9 @@ public sealed class AppViewModel : ViewModel
     GameFolderImporter importer,
     ImageCache images,
     UpdateChecker updates,
-    InstantStart instantStart)
+    GamePlugin gamePlugin)
   {
-    InstantStart = instantStart;
+    GamePlugin = gamePlugin;
     Paths = paths;
     _settingsStore = settingsStore;
     SettingsModel = settingsStore.Load();
@@ -325,8 +325,8 @@ public sealed class AppViewModel : ViewModel
     }
   }
 
-  /// <summary>Gets "Start instantly" launches ready (see <see cref="Core.Game.InstantStart"/>).</summary>
-  internal InstantStart InstantStart { get; }
+  /// <summary>Puts LaunchHeim's game plugin into launches (see <see cref="Core.Game.GamePlugin"/>).</summary>
+  internal GamePlugin GamePlugin { get; }
 
   internal void Launch(InstanceViewModel instance) => StartGame(instance);
 
@@ -350,17 +350,18 @@ public sealed class AppViewModel : ViewModel
     try
     {
       var instanceDirectory = instance is null ? null : Instances.DirectoryOf(instance.Model);
-      if (direct is { Instant: true })
+      if (instance is null && direct is { Instant: true })
       {
         // Shown like Steam's state, which also keeps a second Play out while BepInEx downloads the first time.
-        SetSteamStatus("Getting instant start ready", instance is null ? "BepInEx is set up once" : "");
-        var prepared = await InstantStart.PrepareAsync(instanceDirectory, direct, null, CancellationToken.None);
-        SetSteamStatus("", "");
-        instanceDirectory = prepared.InstanceDirectory;
-        if (prepared.Problem is { } problem)
-        {
-          Toast("error", "Starting without instant start", problem);
-        }
+        SetSteamStatus("Getting instant start ready", "BepInEx is set up once");
+      }
+
+      var prepared = await GamePlugin.PrepareAsync(instanceDirectory, direct, SettingsModel.KeepAchievements, null, CancellationToken.None);
+      SetSteamStatus("", "");
+      instanceDirectory = prepared.InstanceDirectory;
+      if (prepared.Problem is { } problem)
+      {
+        Toast("error", "Starting without LaunchHeim's game plugin", problem);
       }
 
       // Windows only: Doorstop's proxy has to sit in the game folder (see GameLauncher).
@@ -370,7 +371,7 @@ public sealed class AppViewModel : ViewModel
         instanceDirectory,
         instance?.Model.LaunchArguments ?? SettingsModel.VanillaLaunchArguments,
         GameLauncher.CurrentEnvironment(),
-        joinArguments: direct?.Arguments,
+        joinArguments: [.. direct?.Arguments ?? [], .. prepared.Arguments],
         steamDirectory: SteamLibraryLocator.ForCurrentUser().ClientDirectory());
 
       // Valheim without a logged-in Steam client shows a black window and no error (see SteamClient).

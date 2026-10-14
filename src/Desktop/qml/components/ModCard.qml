@@ -113,6 +113,15 @@ Card {
           kind: card.mod.hasUpdate ? "secondary" : "primary"
           onClicked: card.mod.install()
         }
+
+        // No confirmation: it's one click to install again, and the toast says what went.
+        IconButton {
+          visible: card.mod.isInstalled
+          kind: "danger"
+          iconName: "trash"
+          tip: "Remove from " + Vm.browse.targetName
+          onClicked: card.mod.remove()
+        }
       }
     }
   }

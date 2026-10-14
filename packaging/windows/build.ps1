@@ -136,7 +136,7 @@ Copy-Item (Join-Path $crt.FullName '*.dll') $package
 if ($SigningPfx) {
   # sign.ps1 reads both from the environment, and so does the copy of it that ISCC starts in step 6.
   $env:LAUNCHHEIM_SIGNING_PFX = $SigningPfx
-  & (Join-Path $PSScriptRoot 'sign.ps1') @('LaunchHeim.exe', 'LaunchHeim.dll', 'LaunchHeim.Core.dll', 'QmlNet.dll', 'LaunchHeimAppIcon.dll', (Join-Path 'bepinex' 'LaunchHeim.InstantStart.dll') |
+  & (Join-Path $PSScriptRoot 'sign.ps1') @('LaunchHeim.exe', 'LaunchHeim.dll', 'LaunchHeim.Core.dll', 'QmlNet.dll', 'LaunchHeimAppIcon.dll', (Join-Path 'bepinex' 'LaunchHeim.GamePlugin.dll') |
     ForEach-Object { Join-Path $package $_ })
 }
 else {

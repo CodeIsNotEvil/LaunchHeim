@@ -86,8 +86,12 @@ accounts) and CurseForge (API key).
   `DirectPlay` moved to Core so the Play page, the CLI and the wrapper build launches the same way.
 
 - Start instantly (2026-10-14, for 0.7.0): per server or world, a LaunchHeim BepInEx plugin
-  (`src/InstantStart`) presses Start in the menus; vanilla gets a managed BepInEx in `instant-start/`
-  ([[0016-launchheim-instant-start-plugin]]).
+  (`src/GamePlugin`, first called InstantStart) presses Start in the menus; vanilla gets a managed
+  BepInEx in `instant-start/` ([[0016-launchheim-instant-start-plugin]]).
+- Keep achievements with mods (2026-10-14, for 0.7.0): a Settings switch; the same plugin, now in every
+  instance launch, sets the character key of Valheim's dev command
+  `yesiuseddevcommandsbutiwantmyachievementsanyway` ([[0017-launchheim-keeps-achievements-with-the-games-own-switch]]).
+- Browse cards of installed mods have a red remove button (2026-10-14), no confirmation.
 
 ## Gotchas
 - Valheim 1.0.17 runs on Unity 6000.0.75 (`strings UnityPlayer.so`), and `Game.isModded` turns off
@@ -212,6 +216,8 @@ accounts) and CurseForge (API key).
   and kills that command (2026-10-05).
 
 ## Open
+- Keep achievements (2026-10-14): untried in the real game. Check an achievement with a mod that sets
+  `Game.isModded`, and that switching it off removes the key ([[0017-launchheim-keeps-achievements-with-the-games-own-switch]]).
 - Start instantly (2026-10-14): untried in the real game. Check worlds (vanilla and modded), servers
   with and without a password, the intro film on a first start, and the "What's new" popup after a
   game update ([[0016-launchheim-instant-start-plugin]]).

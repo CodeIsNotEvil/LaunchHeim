@@ -146,10 +146,10 @@ public class PlayTargetsTests
     var switchedOn = Resolve(new PlayRequest { Server = "Our Server", Instant = true });
 
     Assert.True(remembered.Direct!.Instant);
-    Assert.Equal([InstantStart.Argument], remembered.Direct.Arguments);
+    Assert.Equal([GamePlugin.InstantArgument], remembered.Direct.Arguments);
     Assert.False(switchedOff.Direct!.Instant);
     Assert.False(switchedOff.Choice!.InstantStart);
-    Assert.Equal(InstantStart.Argument, switchedOn.Direct!.Arguments[^1]);
+    Assert.Equal(GamePlugin.InstantArgument, switchedOn.Direct!.Arguments[^1]);
     Assert.True(switchedOn.Choice!.InstantStart);
   }
 

@@ -116,14 +116,14 @@ public static class CliRunner
         throw new LaunchException("Valheim is already running. Close it, then start it again.");
       }
 
-      var instanceDirectory = await PrepareInstantStartAsync(target, instances, paths);
+      var (instanceDirectory, pluginArguments) = await PrepareGamePluginAsync(target, instances, settings, paths);
       GameLauncher.PrepareGameFolder(gameDirectory, instanceDirectory);
       var plan = GameLauncher.Plan(
         gameDirectory,
         instanceDirectory,
         target.Instance?.LaunchArguments ?? settings.VanillaLaunchArguments,
         GameLauncher.CurrentEnvironment(),
-        joinArguments: target.Direct?.Arguments,
+        joinArguments: [.. target.Direct?.Arguments ?? [], .. pluginArguments],
         steamDirectory: locator.ClientDirectory());
 
       // Valheim without a logged-in Steam client shows a black window and no error (see SteamClient).
@@ -184,14 +184,14 @@ public static class CliRunner
         target = target.WithoutDestination();
       }
 
-      var instanceDirectory = await PrepareInstantStartAsync(target, instances, paths);
+      var (instanceDirectory, pluginArguments) = await PrepareGamePluginAsync(target, instances, settings, paths);
       GameLauncher.PrepareGameFolder(Path.GetDirectoryName(Path.GetFullPath(command[gameIndex]))!, instanceDirectory);
       plan = GameLauncher.WrapSteamCommand(
         command,
         instanceDirectory,
         target.Instance?.LaunchArguments ?? settings.VanillaLaunchArguments,
         GameLauncher.CurrentEnvironment(),
-        joinArguments: target.Direct?.Arguments);
+        joinArguments: [.. target.Direct?.Arguments ?? [], .. pluginArguments]);
     }
     catch (Exception ex) when (ex is LaunchException or IOException or UnauthorizedAccessException)
     {
@@ -205,18 +205,18 @@ public static class CliRunner
   }
 
   /// <summary>
-  /// The folder to launch with: the instance's, or for vanilla with "Start instantly" LaunchHeim's own
-  /// BepInEx (see <see cref="InstantStart"/>). A launch that can't start instantly still starts.
+  /// The folder to launch with (the instance's, or for vanilla with "Start instantly" LaunchHeim's own
+  /// BepInEx) and the arguments for LaunchHeim's game plugin in it (see <see cref="GamePlugin"/>). A
+  /// launch the plugin can't join still starts.
   /// </summary>
-  private static async Task<string?> PrepareInstantStartAsync(PlayTarget target, InstanceStore instances, AppPaths paths)
+  private static async Task<(string? Directory, IReadOnlyList<string> Arguments)> PrepareGamePluginAsync(
+    PlayTarget target,
+    InstanceStore instances,
+    AppSettings settings,
+    AppPaths paths)
   {
     var instanceDirectory = target.Instance is null ? null : instances.DirectoryOf(target.Instance);
-    if (target.Direct is not { Instant: true })
-    {
-      return instanceDirectory;
-    }
-
-    var instantStart = new InstantStart(paths, store =>
+    var gamePlugin = new GamePlugin(paths, store =>
     {
       // Only when BepInExPack has to be downloaded for the vanilla setup. This process ends with the
       // game, so the client isn't disposed.
@@ -228,8 +228,9 @@ public static class CliRunner
         new CurseForgeCatalog(http, () => null));
       return new ModService(store, new ModInstaller(), new ModDownloader(http, paths), catalogs, paths);
     });
-    // A problem is logged, which also prints it; the game starts without instant start.
-    return (await instantStart.PrepareAsync(instanceDirectory, target.Direct, null, CancellationToken.None)).InstanceDirectory;
+    // A problem is logged, which also prints it; the game starts without the plugin.
+    var prepared = await gamePlugin.PrepareAsync(instanceDirectory, target.Direct, settings.KeepAchievements, null, CancellationToken.None);
+    return (prepared.InstanceDirectory, prepared.Arguments);
   }
 
   private static async Task<int> StartAndWaitAsync(PlayTarget target, LaunchPlan plan, string dataDirectory, AppPaths paths, TimeSpan steamTimeout, bool rememberLastPlay)

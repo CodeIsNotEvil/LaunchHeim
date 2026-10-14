@@ -10,8 +10,8 @@ namespace CINE.LaunchHeim.Core.Game;
 /// <param name="Arguments">Command-line arguments for the game, see <see cref="GameLauncher.JoinArguments"/>.</param>
 /// <param name="Prefs">PlayerPrefs to set first, see <see cref="ValheimPrefs"/>.</param>
 /// <param name="Instant">
-/// Start instantly: LaunchHeim's plugin presses Start in the menus (see <see cref="InstantStart"/>), and
-/// <paramref name="Arguments"/> end with <see cref="InstantStart.Argument"/>.
+/// Start instantly: LaunchHeim's plugin presses Start in the menus (see <see cref="GamePlugin"/>), and
+/// <paramref name="Arguments"/> end with <see cref="GamePlugin.InstantArgument"/>.
 /// </param>
 public sealed record DirectPlay(string Key, string Name, IReadOnlyList<string> Arguments, IReadOnlyDictionary<string, string> Prefs, bool Instant = false)
 {
@@ -23,7 +23,7 @@ public sealed record DirectPlay(string Key, string Name, IReadOnlyList<string> A
   public static DirectPlay World(string key, string name, string character, bool instant = false) =>
     new(key, name, InstantArguments(instant), new Dictionary<string, string> { [ValheimPrefs.Character] = character, [ValheimPrefs.World] = name }, instant);
 
-  private static IReadOnlyList<string> InstantArguments(bool instant) => instant ? [InstantStart.Argument] : [];
+  private static IReadOnlyList<string> InstantArguments(bool instant) => instant ? [GamePlugin.InstantArgument] : [];
 
   /// <summary>Sets the character and world Valheim's menus start on, in the game's PlayerPrefs.</summary>
   /// <remarks>
