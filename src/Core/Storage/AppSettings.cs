@@ -18,6 +18,13 @@ public sealed class AppSettings
   /// <summary>Extra arguments for the vanilla launch, which has no instance to store them on.</summary>
   public string VanillaLaunchArguments { get; set; } = "";
 
+  /// <summary>
+  /// Keeps Steam achievements working with mods, which Valheim stops once a mod marks the game as
+  /// modded: LaunchHeim's plugin gives every character the switch of Valheim's dev command
+  /// <c>yesiuseddevcommandsbutiwantmyachievementsanyway</c> (see <see cref="Game.GamePlugin"/>).
+  /// </summary>
+  public bool KeepAchievements { get; set; }
+
   /// <summary>Opens the console window with the game's log on every launch, for building and debugging modpacks.</summary>
   public bool OpenConsoleOnLaunch { get; set; }
 
@@ -108,7 +115,7 @@ public sealed class PlayChoice
 
   /// <summary>
   /// Start instantly: straight into the world, or onto the server without the character selection.
-  /// Needs BepInEx, so a vanilla setup runs from LaunchHeim's own BepInEx (see <see cref="Game.InstantStart"/>).
+  /// Needs BepInEx, so a vanilla setup runs from LaunchHeim's own BepInEx (see <see cref="Game.GamePlugin"/>).
   /// </summary>
   public bool InstantStart { get; set; }
 

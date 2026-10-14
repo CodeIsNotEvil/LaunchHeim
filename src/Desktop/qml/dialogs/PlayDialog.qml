@@ -36,7 +36,7 @@ LhDialog {
     spacing: 10
 
     // What Valheim can do by itself differs: +connect joins from the character selection, worlds have
-    // no such option. Instant start (Core/Game/InstantStart.cs) presses Start for the player.
+    // no such option. Instant start (Core/Game/GamePlugin.cs) presses Start for the player.
     Label {
       text: instantSwitch.checked
         ? (dialog.isServer ? "Valheim joins " + (dialog.destination ? dialog.destination.address : "") + " with this character as soon as it's up." : "Valheim loads this world with this character as soon as it's up.")

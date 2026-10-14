@@ -105,6 +105,17 @@ public sealed class SettingsViewModel : ViewModel
     Raise(nameof(OpenConsoleOnLaunch));
   }
 
+  /// <summary>Keeps Steam achievements with mods (see <see cref="Core.Game.GamePlugin"/>). Applies from the next launch.</summary>
+  [NotifySignal]
+  public bool KeepAchievements => _app.SettingsModel.KeepAchievements;
+
+  public void SetKeepAchievements(bool value)
+  {
+    _app.SettingsModel.KeepAchievements = value;
+    _app.SaveSettings();
+    Raise(nameof(KeepAchievements));
+  }
+
   public void OpenLogFolder()
   {
     var folder = Path.GetDirectoryName(LogFile)!;

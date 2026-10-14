@@ -60,6 +60,21 @@ Item {
           LhButton { text: "Detect again"; iconName: "refresh"; kind: "ghost"; onClicked: page.settings.detectGame() }
           LhButton { text: "Open"; iconName: "external"; kind: "ghost"; enabled: page.settings.gameFound; onClicked: page.settings.openGameDirectory() }
         }
+
+        // Core/Game/GamePlugin.cs and the plugin's Achievements: the dev command's switch, set for the player.
+        LhSwitch {
+          text: "Keep Steam achievements when playing with mods"
+          checked: page.settings.keepAchievements
+          onToggled: page.settings.setKeepAchievements(checked)
+        }
+
+        Label {
+          text: "Mods make Valheim stop giving achievements. This switches them back on for each character you play with an instance, as Valheim's dev command yesiuseddevcommandsbutiwantmyachievementsanyway does. Like that command, it also stops items and pieces made with dev commands from blocking achievements. Switching it off undoes it at the next launch."
+          wrapMode: Text.Wrap
+          color: Theme.textMuted
+          font.pointSize: Theme.small
+          Layout.fillWidth: true
+        }
       }
 
       // Cli/CliRunner.cs: Steam starts LaunchHeim, which adds the instance to Steam's own command.

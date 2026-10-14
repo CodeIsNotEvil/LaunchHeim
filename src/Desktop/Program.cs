@@ -105,7 +105,7 @@ public static class Program
       new NexusCatalog(http, () => viewModel?.SettingsModel.NexusApiKey),
       new CurseForgeCatalog(http, () => viewModel?.SettingsModel.CurseForgeApiKey));
     var mods = new ModService(instances, new ModInstaller(), new ModDownloader(http, paths), catalogs, paths);
-    var instantStart = new InstantStart(paths, store => new ModService(store, new ModInstaller(), new ModDownloader(http, paths), catalogs, paths));
+    var gamePlugin = new GamePlugin(paths, store => new ModService(store, new ModInstaller(), new ModDownloader(http, paths), catalogs, paths));
     CleanTemp(paths);
 
     viewModel = new AppViewModel(
@@ -118,7 +118,7 @@ public static class Program
       new GameFolderImporter(instances),
       new ImageCache(http, paths),
       new UpdateChecker(http),
-      instantStart);
+      gamePlugin);
 
     // A singleton instead of a context property: Qml.Net gives context-property objects JavaScript
     // ownership, so the JS garbage collector deletes the wrapper after a while and `app` turns null.

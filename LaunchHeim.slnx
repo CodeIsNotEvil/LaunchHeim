@@ -6,8 +6,8 @@
   <Folder Name="/src/Desktop/">
     <Project Path="src/Desktop/LaunchHeim.Desktop.csproj" />
   </Folder>
-  <Folder Name="/src/InstantStart/">
-    <Project Path="src/InstantStart/LaunchHeim.InstantStart.csproj" />
+  <Folder Name="/src/GamePlugin/">
+    <Project Path="src/GamePlugin/LaunchHeim.GamePlugin.csproj" />
   </Folder>
   <Folder Name="/tests/" />
   <Folder Name="/tests/Core.Tests/">
