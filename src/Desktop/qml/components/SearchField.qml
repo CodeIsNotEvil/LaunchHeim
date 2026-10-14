@@ -4,6 +4,10 @@ import QtQuick.Controls 2.15
 TextField {
   id: field
 
+  // Material pads 8 above and 16 below to leave room for its underline. The box here has none, so the
+  // text (and the placeholder, which follows these) sat 4 px high; equal padding centres it.
+  topPadding: 8
+  bottomPadding: 8
   leftPadding: 38
   rightPadding: text.length > 0 ? 36 : 12
   implicitHeight: 38

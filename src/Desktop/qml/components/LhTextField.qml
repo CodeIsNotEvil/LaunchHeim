@@ -5,6 +5,10 @@ TextField {
   id: field
 
   implicitHeight: 38
+  // Material pads 8 above and 16 below to leave room for its underline. The box here has none, so the
+  // text (and the placeholder, which follows these) sat 4 px high; equal padding centres it.
+  topPadding: 8
+  bottomPadding: 8
   leftPadding: 12
   rightPadding: 12
   selectByMouse: true
