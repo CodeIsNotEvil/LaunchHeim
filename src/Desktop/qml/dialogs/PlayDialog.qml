@@ -21,12 +21,13 @@ LhDialog {
     characterBox.currentIndex = destination.characterIndex
     setupBox.currentIndex = destination.setupIndex
     passwordField.text = destination.password
+    instantSwitch.checked = destination.instantStart
   }
 
   function play() {
     if (!canPlay)
       return
-    destination.playWith(characterBox.currentIndex, setupBox.currentIndex, passwordField.text)
+    destination.playWith(characterBox.currentIndex, setupBox.currentIndex, passwordField.text, instantSwitch.checked)
     dialog.close()
   }
 
@@ -34,11 +35,14 @@ LhDialog {
     anchors.fill: parent
     spacing: 10
 
-    // What Valheim can do differs: +connect joins from the character selection, worlds have no such option.
+    // What Valheim can do by itself differs: +connect joins from the character selection, worlds have
+    // no such option. Instant start (Core/Game/InstantStart.cs) presses Start for the player.
     Label {
-      text: dialog.isServer
-        ? "Valheim opens at the character selection with this character picked. Start joins " + (dialog.destination ? dialog.destination.address : "") + "."
-        : "Valheim can't load a world by itself, so it opens with this character and world already selected. Click Start until you're in."
+      text: instantSwitch.checked
+        ? (dialog.isServer ? "Valheim joins " + (dialog.destination ? dialog.destination.address : "") + " with this character as soon as it's up." : "Valheim loads this world with this character as soon as it's up.")
+        : dialog.isServer
+          ? "Valheim opens at the character selection with this character picked. Start joins " + (dialog.destination ? dialog.destination.address : "") + "."
+          : "Valheim opens with this character and world already selected. Click Start until you're in."
       wrapMode: Text.Wrap
       color: Theme.textMuted
       Layout.fillWidth: true
@@ -88,6 +92,22 @@ LhDialog {
         iconName: "key"
         tip: checked ? "Hide password" : "Show password"
       }
+    }
+
+    LhSwitch {
+      id: instantSwitch
+      text: "Start instantly"
+      Layout.topMargin: 4
+    }
+
+    // Vanilla has no BepInEx to run the plugin that presses Start, so LaunchHeim brings its own.
+    Label {
+      visible: instantSwitch.checked && setupBox.currentIndex === 0
+      text: "Vanilla then runs with LaunchHeim's own BepInEx, which loads nothing but the plugin that presses Start. It's downloaded the first time."
+      wrapMode: Text.Wrap
+      color: Theme.textMuted
+      font.pointSize: Theme.small
+      Layout.fillWidth: true
     }
 
     Label {

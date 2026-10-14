@@ -42,8 +42,10 @@ public sealed class AppViewModel : ViewModel
     PackService packs,
     GameFolderImporter importer,
     ImageCache images,
-    UpdateChecker updates)
+    UpdateChecker updates,
+    InstantStart instantStart)
   {
+    InstantStart = instantStart;
     Paths = paths;
     _settingsStore = settingsStore;
     SettingsModel = settingsStore.Load();
@@ -323,6 +325,9 @@ public sealed class AppViewModel : ViewModel
     }
   }
 
+  /// <summary>Gets "Start instantly" launches ready (see <see cref="Core.Game.InstantStart"/>).</summary>
+  internal InstantStart InstantStart { get; }
+
   internal void Launch(InstanceViewModel instance) => StartGame(instance);
 
   /// <param name="instance">The instance to play, or null for vanilla.</param>
@@ -338,13 +343,26 @@ public sealed class AppViewModel : ViewModel
 
     if (SteamStatus.Length > 0)
     {
-      Toast("info", "Waiting for Steam", "Valheim starts as soon as Steam is ready.");
+      Toast("info", SteamStatus, "Valheim starts as soon as that's done.");
       return;
     }
 
     try
     {
       var instanceDirectory = instance is null ? null : Instances.DirectoryOf(instance.Model);
+      if (direct is { Instant: true })
+      {
+        // Shown like Steam's state, which also keeps a second Play out while BepInEx downloads the first time.
+        SetSteamStatus("Getting instant start ready", instance is null ? "BepInEx is set up once" : "");
+        var prepared = await InstantStart.PrepareAsync(instanceDirectory, direct, null, CancellationToken.None);
+        SetSteamStatus("", "");
+        instanceDirectory = prepared.InstanceDirectory;
+        if (prepared.Problem is { } problem)
+        {
+          Toast("error", "Starting without instant start", problem);
+        }
+      }
+
       // Windows only: Doorstop's proxy has to sit in the game folder (see GameLauncher).
       GameLauncher.PrepareGameFolder(Settings.GameDirectory, instanceDirectory);
       var plan = GameLauncher.Plan(
@@ -461,7 +479,7 @@ public sealed class AppViewModel : ViewModel
   /// <summary>What the game was started with, so a launch that goes wrong can be reproduced by hand.</summary>
   private void LogLaunch(InstanceViewModel? instance, LaunchPlan plan, DirectPlay? direct)
   {
-    Log.Info($"Starting {(instance is null ? "vanilla Valheim" : $"{instance.Name} ({instance.Directory})")}{(direct is null ? "" : $" for {direct.Name}")}");
+    Log.Info($"Starting {(instance is null ? "vanilla Valheim" : $"{instance.Name} ({instance.Directory})")}{(direct is null ? "" : $" for {direct.Name}")}{(direct is { Instant: true } ? ", starting instantly" : "")}");
     foreach (var (key, value) in direct?.Prefs ?? new Dictionary<string, string>())
     {
       Log.Info($"  PlayerPrefs {key} = {value}");
