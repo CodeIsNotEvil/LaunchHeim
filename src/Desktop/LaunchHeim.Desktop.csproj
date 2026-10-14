@@ -44,12 +44,20 @@
                       ReferenceOutputAssembly="false"
                       SkipGetTargetFrameworkProperties="true"
                       GlobalPropertiesToRemove="TargetFramework;RuntimeIdentifier;SelfContained" />
-    <None Include="..\InstantStart\bin\$(Configuration)\net472\LaunchHeim.InstantStart.dll"
-          Link="bepinex\LaunchHeim.InstantStart.dll"
-          CopyToOutputDirectory="PreserveNewest"
-          CopyToPublishDirectory="PreserveNewest"
-          Visible="false" />
   </ItemGroup>
+
+  <!--
+    Ships the plugin in bepinex/. Its path comes from the project itself: Visual Studio's developer shell
+    (the Windows build) sets Platform=x64, which moves it to bin/x64/, so a written-out path broke there.
+  -->
+  <Target Name="AddInstantStartPlugin" BeforeTargets="AssignTargetPaths" DependsOnTargets="ResolveProjectReferences">
+    <MSBuild Projects="..\InstantStart\LaunchHeim.InstantStart.csproj" Targets="GetTargetPath" RemoveProperties="TargetFramework;RuntimeIdentifier;SelfContained">
+      <Output TaskParameter="TargetOutputs" ItemName="InstantStartPlugin" />
+    </MSBuild>
+    <ItemGroup>
+      <None Include="@(InstantStartPlugin)" Link="bepinex\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
 
   <!-- Set by the pacman, deb and rpm builds. See Hosting/DistroPackage.cs. -->
   <ItemGroup Condition="'$(LaunchHeimDistroPackage)' == 'true'">
