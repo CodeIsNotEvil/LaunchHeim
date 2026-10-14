@@ -163,10 +163,17 @@ Properties → General; Settings → "Start from Steam" shows the exact line and
 Play button starts what the sidebar's Play button would: the last play, with its instance, character
 and server or world. LaunchHeim doesn't have to be open. Steam runs LaunchHeim with the game's command
 in place of `%command%`, and LaunchHeim adds what its own launches add (`GameLauncher.WrapSteamCommand`):
-Doorstop for the instance (its variables on Linux, its arguments on Windows), the instance's launch
-arguments, `+connect` for a server, and the PlayerPrefs for the character and world. Then it runs
-Steam's command and waits for the game, so Steam's overlay, play time and "Running" state work as for
-any game, and Steam's environment (its runtime and overlay preload) reaches the game unchanged. Options
+Doorstop for the instance, the instance's launch arguments, `+connect` for a server, and the
+PlayerPrefs for the character and world. Then it runs Steam's command and waits for the game, so
+Steam's overlay, play time and "Running" state work as for any game, and Steam's environment (its
+runtime and overlay preload) reaches the game unchanged. On Windows Doorstop takes arguments, which go
+at the end. On Linux it goes right in front of the game inside Steam's command, never onto the whole
+command: `/usr/bin/env` with Doorstop's variables, then `/bin/sh` putting the library (by its full
+path) first in the `LD_PRELOAD` the game gets. With Steam Linux Runtime the command is a chain
+(`steam-launch-wrapper -- reaper ... -- _v2-entry-point ... -- valheim.x86_64`); 0.7.0 preloaded
+Doorstop into all of it, and the runtime's launcher then failed at once (exit 125), so modded starts
+from Steam did nothing. In front of the game, Doorstop runs inside the container, where the home
+folder and the instance are visible. Options
 before `%command%` pin a setup instead of the last play, such as `launchheim steam --instance Modded
 %command%`. Steam's own options win where they overlap: a friend's game joined from Steam keeps the
 instance but joins the friend, and doesn't become the last play. Commands that aren't Valheim, and
@@ -176,7 +183,9 @@ without BepInEx, a world that's gone), nothing starts: playing vanilla instead c
 world without its mods, and Valheim drops modded items when it saves. The reason shows as a toast in
 the open window, else as a desktop notification (`notify-send`) or a message box on Windows. The
 launch options don't work with Flatpak Steam, whose sandbox can't run a LaunchHeim installed outside
-it, or with a compatibility tool forced for Valheim.
+it, or with Proton forced for Valheim (the Windows build in Wine; LaunchHeim then only passes the
+command on). Typed into a terminal, `launchheim steam %command%` says the line belongs in Steam,
+because only Steam fills in `%command%`.
 
 **Command line.** `launchheim help` lists the commands. `launchheim play` starts Valheim without the
 window, the same way the window does (Steam first, the overlay, PlayerPrefs) and waits until it

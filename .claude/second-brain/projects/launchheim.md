@@ -94,6 +94,11 @@ accounts) and CurseForge (API key).
 - Browse cards of installed mods have a red remove button (2026-10-14), no confirmation.
 
 ## Gotchas
+- Steam Linux Runtime (2026-10-14): with it, Steam's `%command%` for Valheim is a chain of launchers
+  ending in the container's `_v2-entry-point`, which fails (exit 125) if Doorstop is preloaded into it.
+  Anything for the game alone goes right in front of `valheim.x86_64` inside the command
+  ([[0015-launchheim-steam-launch-options-wrap-steams-command]]). Test Steam starts with the runtime,
+  not only a bare `valheim.x86_64`.
 - Valheim 1.0.17 runs on Unity 6000.0.75 (`strings UnityPlayer.so`), and `Game.isModded` turns off
   Steam achievements; the game never sets it itself (2026-10-14).
 - Copy did nothing on Windows (reported 2026-10-14): Qt's clipboard and drag and drop are OLE and
