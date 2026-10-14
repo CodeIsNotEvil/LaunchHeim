@@ -7,6 +7,16 @@ Format: a `## <version> - <yyyy-mm-dd>` heading per release (the version must ma
 `src/Desktop/LaunchHeim.Desktop.csproj`), then `### Added`, `### Changed` or `### Fixed` with one
 bullet per change.
 
+## 0.7.1 - 2026-10-14
+
+### Fixed
+- Starting an instance with Steam's Play button now works when Valheim runs in Steam Linux Runtime:
+  in 0.7.0 the game didn't start at all. Vanilla wasn't affected.
+- With Proton forced for Valheim, Steam's Play button starts the game as Steam would instead of
+  failing (LaunchHeim's mods need the Linux version of the game).
+- `launchheim steam %command%` typed into a terminal explains that the line belongs in Valheim's
+  launch options instead of crashing.
+
 ## 0.7.0 - 2026-10-14
 
 ### Added

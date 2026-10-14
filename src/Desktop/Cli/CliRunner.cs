@@ -162,11 +162,18 @@ public static class CliRunner
   private static async Task<int> SteamAsync(PlayRequest request, IReadOnlyList<string> command, AppPaths paths)
   {
     Log.Info($"LaunchHeim {AppInfo.Version} started by Steam: {string.Join(' ', GameLauncher.Redact(command))}");
+    if (command.Contains("%command%"))
+    {
+      // Typed into a terminal: only Steam replaces %command% with the game's command.
+      Console.Error.WriteLine("LaunchHeim: Steam fills in %command% when it starts Valheim, so this line only works in Valheim's launch options in Steam (Settings → \"Start from Steam\" has it). To start the game from a terminal, use `launchheim play`.");
+      return 2;
+    }
+
     var gameIndex = GameLauncher.FindGame(command);
     if (gameIndex < 0 || GameLauncher.IsLaunchHeimCommand(command))
     {
       Log.Info(gameIndex < 0 ? "  Not Valheim, so it runs unchanged." : "  Planned by LaunchHeim already, so it runs unchanged.");
-      return await PassThroughAsync(command);
+      return await PassThroughAsync(command, paths);
     }
 
     PlayTarget target;
@@ -190,7 +197,6 @@ public static class CliRunner
         command,
         instanceDirectory,
         target.Instance?.LaunchArguments ?? settings.VanillaLaunchArguments,
-        GameLauncher.CurrentEnvironment(),
         joinArguments: [.. target.Direct?.Arguments ?? [], .. pluginArguments]);
     }
     catch (Exception ex) when (ex is LaunchException or IOException or UnauthorizedAccessException)
@@ -260,11 +266,21 @@ public static class CliRunner
     return exitCode ?? 0;
   }
 
-  private static async Task<int> PassThroughAsync(IReadOnlyList<string> command)
+  private static async Task<int> PassThroughAsync(IReadOnlyList<string> command, AppPaths paths)
   {
-    using var process = Process.Start(new LaunchPlan(command[0], Environment.CurrentDirectory, command.Skip(1).ToList(), new Dictionary<string, string?>()).ToStartInfo())
-      ?? throw new LaunchException("The game did not start.");
-    return await GameProcess.WaitForExitAsync(process, CancellationToken.None) ?? 0;
+    try
+    {
+      using var process = Process.Start(new LaunchPlan(command[0], Environment.CurrentDirectory, command.Skip(1).ToList(), new Dictionary<string, string?>()).ToStartInfo())
+        ?? throw new LaunchException("The game did not start.");
+      return await GameProcess.WaitForExitAsync(process, CancellationToken.None) ?? 0;
+    }
+    catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or LaunchException)
+    {
+      // A crash here showed nothing in Steam and a stack trace in a terminal (0.7.0).
+      Log.Error($"Starting {command[0]} failed: {ex.Message}");
+      ReportFailure(paths, $"{command[0]} could not be started: {ex.Message}");
+      return 1;
+    }
   }
 
   /// <summary>Stores the launch as the window would once the game is up (see <see cref="CliRunner"/>).</summary>

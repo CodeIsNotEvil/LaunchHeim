@@ -50,3 +50,13 @@ LaunchHeim installed outside it) or a compatibility tool forced for Valheim. A w
 saves its own copy of `settings.json` later and can overwrite the last play a Steam start recorded.
 
 Related: [[launchheim]], [[0010-launchheim-direct-play-uses-the-games-own-options]], [[0014-launchheim-steam-overlay]]
+
+**Fixed 2026-10-14 in 0.7.1.** Modded starts from Steam did nothing in 0.7.0 on the owner's machine:
+Valheim runs in Steam Linux Runtime (soldier) there, so `%command%` is the chain `steam-launch-wrapper
+-- reaper ... -- _v2-entry-point --verb=waitforexitandrun -- scout-on-soldier-entry-point-v2 --
+valheim.x86_64`, and Doorstop preloaded into all of it made `_v2-entry-point` fail at once (exit 125,
+reproduced with `/bin/echo` in place of the game). Doorstop now goes in front of the game inside the
+command (`/usr/bin/env DOORSTOP_*=... /bin/sh -c 'LD_PRELOAD="$1${LD_PRELOAD:+:$LD_PRELOAD}" ...'
+<libdoorstop> valheim.x86_64`), so it runs inside the container with the full library path. Checked
+in the real container: Doorstop mapped into the game process, the preloader visible. The earlier test
+ran without the runtime, which is why it missed this.
