@@ -18,10 +18,7 @@ LhDialog {
   onClosed: if (updates.dialogVisible) updates.closeDialog()
 
   function copyCommands() {
-    clipboard.text = dialog.updates.commands
-    clipboard.selectAll()
-    clipboard.copy()
-    clipboard.text = ""
+    Clipboard.copy(dialog.updates.commands)
     copied.visible = true
   }
 
@@ -37,8 +34,6 @@ LhDialog {
     // TextEdit is the only way QML 2 reaches the clipboard (the console window does the same). It lives
     // in the layout, which skips it while invisible: a second item next to the layout would leave the
     // dialog without an implicit content size, and its background then covered only the title.
-    TextEdit { id: clipboard; visible: false }
-
     Label {
       text: dialog.updates.canInstall
         ? "You have " + App.version + ". Update now to download and install the new version; LaunchHeim "

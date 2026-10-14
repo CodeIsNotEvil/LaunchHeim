@@ -126,6 +126,7 @@ public static class Program
 
     using var engine = new QQmlApplicationEngine();
     engine.SetContextProperty("screenshotPath", Environment.GetEnvironmentVariable("LAUNCHHEIM_SCREENSHOT") ?? "");
+    engine.SetContextProperty("screenshotClipboard", Environment.GetEnvironmentVariable("LAUNCHHEIM_SCREENSHOT_CLIPBOARD") ?? "");
     engine.SetContextProperty("screenshotDelay", int.TryParse(Environment.GetEnvironmentVariable("LAUNCHHEIM_SCREENSHOT_DELAY"), out var delay) ? delay : 4000);
     engine.Load(Path.Combine(AppContext.BaseDirectory, "qml", "Main.qml"));
 

@@ -25,6 +25,9 @@ ApplicationWindow {
   // a later screen change doesn't resize the window.
   // The offscreen platform of the screenshot mode reports an 800x600 screen; screenshots keep the default.
   Component.onCompleted: {
+    // The Windows smoke test (build.ps1) reads this back from the clipboard while the window is open.
+    if (screenshotClipboard.length > 0)
+      Clipboard.copy(screenshotClipboard)
     if (screenshotPath.length > 0)
       return
     width = Math.max(minimumWidth, Math.min(width, Screen.desktopAvailableWidth))

@@ -73,7 +73,6 @@ Item {
           spacing: 8
           Layout.fillWidth: true
           LhTextField {
-            id: steamOptionsField
             text: page.settings.steamLaunchOptions
             readOnly: true
             selectByMouse: true
@@ -84,9 +83,7 @@ Item {
             text: "Copy"
             iconName: "copy"
             onClicked: {
-              steamOptionsField.selectAll()
-              steamOptionsField.copy()
-              steamOptionsField.deselect()
+              Clipboard.copy(page.settings.steamLaunchOptions)
               page.settings.steamLaunchOptionsCopied()
             }
           }

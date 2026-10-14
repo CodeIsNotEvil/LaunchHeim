@@ -59,10 +59,7 @@ ApplicationWindow {
   }
 
   function copyShown() {
-    clipboard.text = log.shownText()
-    clipboard.selectAll()
-    clipboard.copy()
-    clipboard.text = ""
+    Clipboard.copy(log.shownText())
   }
 
   title: sourceName(log.source) + " log" + (log.source === "bepinex" && log.hasInstance ? " — " + log.instanceName : "") + " — LaunchHeim"
@@ -104,8 +101,6 @@ ApplicationWindow {
   Shortcut { sequence: StandardKey.Find; onActivated: filterField.forceActiveFocus() }
 
   // TextEdit is the only way QML 2 reaches the clipboard.
-  TextEdit { id: clipboard; visible: false }
-
   ListModel { id: lines }
 
   // An opaque root, like the main window's, so LAUNCHHEIM_SCREENSHOT has something to grab.
