@@ -21,6 +21,12 @@ public sealed record AppPaths(string DataDirectory, string ConfigDirectory, stri
   public string IpcSocket => Path.Combine(RuntimeDirectory, "launchheim.sock");
   public string LogFile => Path.Combine(StateDirectory, "launchheim.log");
 
+  /// <summary>
+  /// The command line's own log (<c>launchheim play</c>, and starts from Steam). Not the window's: both
+  /// may run at once, and two processes appending to one file can overwrite each other's lines.
+  /// </summary>
+  public string CommandLineLogFile => Path.Combine(StateDirectory, "launchheim-cli.log");
+
   public static AppPaths FromEnvironment()
   {
     if (OperatingSystem.IsWindows())

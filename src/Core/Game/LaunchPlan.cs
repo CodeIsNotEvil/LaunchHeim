@@ -69,6 +69,12 @@ public sealed class LaunchException(string message) : Exception(message);
 /// screenshots (found 2026-10-08). The game then isn't LaunchHeim's child, so LaunchHeim finds its
 /// process by name. Valheim's launch options in Steam's game properties apply too, as with any Steam start.
 /// </para>
+/// <para>
+/// The other way round, Steam can start LaunchHeim: <c>launchheim steam %command%</c> in Valheim's launch
+/// options hands Steam's command to <see cref="WrapSteamCommand"/>, which adds the instance to it. Steam
+/// then starts every launch, LaunchHeim's own on Windows included, so those are recognised and left as
+/// they are (<see cref="IsLaunchHeimCommand"/>).
+/// </para>
 /// </remarks>
 public static class GameLauncher
 {
@@ -76,6 +82,10 @@ public static class GameLauncher
   public const string DoorstopLibrary = "doorstop_libs/libdoorstop_x64.so";
   public const string WindowsDoorstopProxy = "winhttp.dll";
   public const string WindowsDoorstopConfig = "doorstop_config.ini";
+  public const string DoorstopEnabledArgument = "--doorstop-enabled";
+
+  /// <summary>Valheim's argument for joining a server, which Steam's "Join game" passes as well.</summary>
+  public const string ConnectArgument = "+connect";
 
   /// <summary>First line of the config LaunchHeim writes, so it can tell its own proxy from a manual install.</summary>
   public const string WindowsConfigMarker = "# Written by LaunchHeim.";
@@ -125,6 +135,14 @@ public static class GameLauncher
       var steam = steamDirectory is null ? null : Path.Combine(steamDirectory, SteamLibraryLocator.WindowsClient);
       if (steam is not null && File.Exists(steam))
       {
+        // Steam adds Valheim's launch options, which may be `LaunchHeim.exe steam %command%`
+        // (WrapSteamCommand). A Doorstop argument tells that start it is LaunchHeim's own, so it runs
+        // as planned here instead of as the last play. Valheim ignores it without a proxy.
+        if (!arguments.Contains(DoorstopEnabledArgument))
+        {
+          arguments.InsertRange(0, [DoorstopEnabledArgument, "false"]);
+        }
+
         // steam.exe hands the launch to the running client and exits; SteamClient made sure one runs.
         return new LaunchPlan(steam, steamDirectory!, ["-applaunch", SteamLibraryLocator.ValheimAppId, .. arguments], environment)
         {
@@ -164,7 +182,97 @@ public static class GameLauncher
   /// </para>
   /// </remarks>
   public static IReadOnlyList<string> JoinArguments(string address, string? password) =>
-    string.IsNullOrEmpty(password) ? ["+connect", address] : ["+connect", address, "-password", password];
+    string.IsNullOrEmpty(password) ? [ConnectArgument, address] : [ConnectArgument, address, "-password", password];
+
+  /// <summary>Where the game is in a command Steam passed with <c>%command%</c>, or -1 when it isn't there.</summary>
+  /// <remarks>
+  /// Steam may put wrappers in front of the game (its reaper, a compatibility tool, or what the user's
+  /// launch options add before LaunchHeim), so the game is found by its file name.
+  /// </remarks>
+  public static int FindGame(IReadOnlyList<string> command)
+  {
+    for (var i = 0; i < command.Count; i++)
+    {
+      var name = Path.GetFileName(command[i]);
+      if (name.Equals(SteamLibraryLocator.ExecutableFor(GamePlatform.Linux), StringComparison.OrdinalIgnoreCase)
+        || name.Equals(SteamLibraryLocator.ExecutableFor(GamePlatform.Windows), StringComparison.OrdinalIgnoreCase))
+      {
+        return i;
+      }
+    }
+
+    return -1;
+  }
+
+  /// <summary>
+  /// Whether a command from Steam is a launch LaunchHeim planned itself: on Windows every launch goes
+  /// through <c>steam.exe -applaunch</c>, and Steam then runs Valheim's launch options with LaunchHeim's
+  /// arguments in the command. Those always carry a Doorstop argument (see <see cref="Plan"/>).
+  /// </summary>
+  public static bool IsLaunchHeimCommand(IReadOnlyList<string> command) => command.Contains(DoorstopEnabledArgument);
+
+  /// <summary>Whether Steam passed a server to join, which a remembered destination must not replace.</summary>
+  public static bool JoinsServer(IReadOnlyList<string> command) => command.Contains(ConnectArgument);
+
+  /// <summary>
+  /// Turns the command Steam starts Valheim with into a modded one: what <c>launchheim steam %command%</c>
+  /// in Valheim's launch options runs.
+  /// </summary>
+  /// <remarks>
+  /// <para>
+  /// Steam's own start is kept, with the environment Steam gives it, so its overlay, the play time and the
+  /// "Running" state work as for any game. Only what LaunchHeim adds to its own launches is added:
+  /// Doorstop's variables (Linux) or arguments (Windows) for the instance, the instance's launch arguments
+  /// and the server to join. Steam's overlay preload is already in <c>LD_PRELOAD</c> and stays behind
+  /// Doorstop, the order <c>start_game_bepinex.sh %command%</c> gives.
+  /// </para>
+  /// <para>
+  /// The instance's arguments and the join arguments go at the end, after what Steam passed (such as
+  /// <c>-force-glcore</c> for the OpenGL entry), and the game's folder is the working directory, as Steam
+  /// sets it.
+  /// </para>
+  /// </remarks>
+  /// <param name="command">Steam's command, from the wrapper's arguments. It has to contain the game (<see cref="FindGame"/>).</param>
+  public static LaunchPlan WrapSteamCommand(
+    IReadOnlyList<string> command,
+    string? instanceDirectory,
+    string extraArguments,
+    IReadOnlyDictionary<string, string?> currentEnvironment,
+    GamePlatform? platform = null,
+    IReadOnlyList<string>? joinArguments = null)
+  {
+    var gameIndex = FindGame(command);
+    if (gameIndex < 0)
+    {
+      throw new LaunchException("Steam's command doesn't start Valheim. Put `%command%` after LaunchHeim's arguments in Valheim's launch options.");
+    }
+
+    var gameDirectory = Path.GetDirectoryName(Path.GetFullPath(command[gameIndex]))!;
+    var environment = new Dictionary<string, string?>(StringComparer.Ordinal);
+    foreach (var variable in HostOnlyVariables)
+    {
+      environment[variable] = null;
+    }
+
+    List<string> added = [];
+    if ((platform ?? GamePlatforms.Current) == GamePlatform.Windows)
+    {
+      added.AddRange(WindowsDoorstopArguments(gameDirectory, instanceDirectory));
+    }
+    else if (instanceDirectory is null)
+    {
+      environment["DOORSTOP_DISABLE"] = "TRUE";
+      environment["DOORSTOP_ENABLED"] = "0";
+    }
+    else
+    {
+      AddDoorstop(environment, instanceDirectory, currentEnvironment);
+    }
+
+    added.AddRange(SplitArguments(extraArguments));
+    added.AddRange(joinArguments ?? []);
+    return new LaunchPlan(command[0], gameDirectory, [.. command.Skip(1), .. added], environment);
+  }
 
   /// <summary>The arguments as they may be logged: a server password is replaced with stars.</summary>
   public static IEnumerable<string> Redact(IEnumerable<string> arguments)
@@ -183,7 +291,7 @@ public static class GameLauncher
     if (instanceDirectory is null)
     {
       // Only matters when a manual BepInEx install in the game folder has Doorstop switched on.
-      return File.Exists(Path.Combine(gameDirectory, WindowsDoorstopProxy)) ? ["--doorstop-enabled", "false"] : [];
+      return File.Exists(Path.Combine(gameDirectory, WindowsDoorstopProxy)) ? [DoorstopEnabledArgument, "false"] : [];
     }
 
     var preloader = Path.Combine(instanceDirectory, PreloaderPath);
@@ -192,7 +300,7 @@ public static class GameLauncher
       throw new LaunchException("BepInEx is not installed in this instance. Install BepInExPack_Valheim from Thunderstore first.");
     }
 
-    List<string> arguments = ["--doorstop-enabled", "true", "--doorstop-target-assembly", Path.GetFullPath(preloader)];
+    List<string> arguments = [DoorstopEnabledArgument, "true", "--doorstop-target-assembly", Path.GetFullPath(preloader)];
     var corlib = Path.Combine(instanceDirectory, "unstripped_corlib");
     if (Directory.Exists(corlib))
     {
