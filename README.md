@@ -50,6 +50,7 @@ not a C# change.
 | Project | Holds |
 |---|---|
 | `src/Core` | Everything testable, with no UI: Steam/Valheim discovery (`Game/`), Valheim's own characters, worlds, servers and prefs (`Saves/`), instances, the mod installer and dependency resolution (`Mods/`), modpack export and import (`Packs/`), the three catalogs (`Catalogs/`), the command line's parser (`Cli/`), logging and log following (`Logging/`), downloads and XDG storage. |
+| `src/InstantStart` | The BepInEx plugin behind "Start instantly" (.NET Framework, runs inside Valheim). See "Instant start". |
 | `src/Desktop` | The Qml.Net host, view models, QML pages and components, the Plasma (or Windows) colour scheme, desktop integration (single instance, `nxm://`) and the command line's runner (`Cli/`), which never loads Qt. |
 | `packaging/` | The pacman, deb, rpm and Windows builds. See [`packaging/README.md`](packaging/README.md). |
 | `android/` | LaunchHeim Companion, the Android app (Kotlin, Compose). See [`android/README.md`](android/README.md). |
@@ -124,6 +125,26 @@ and password, an instance, or vanilla before anything was played. The card names
 first because it elides the end. If the server or world is gone from Valheim's lists, or its character
 or instance is, the button opens the Play page instead.
 
+**Instant start.** "Start instantly" in the Play dialog (remembered per server or world, `--instant`
+on the command line) skips the menus: a world loads right away, and a server is joined without the
+stop at the character selection. Valheim has no option for either, so LaunchHeim's own BepInEx plugin
+(`src/InstantStart`, shipped as `bepinex/LaunchHeim.InstantStart.dll` next to the executable) presses
+Start for the player. It calls what the menu's buttons call (`FejdStartup.OnStartGame`,
+`OnCharacterStart`, `OnWorldStart`), so the game's own checks still run (a corrupt world's backup
+prompt, the cloud storage warning), and only after checking that the game selected the character and
+world LaunchHeim set; otherwise, or when a popup waits for an answer, it leaves the menu to the player
+and says why in the BepInEx log. It acts only when the game gets `-launchheim-instant`, which
+LaunchHeim passes for those launches. Before one, LaunchHeim copies the plugin into the instance's
+`BepInEx/plugins/LaunchHeim/` (packs never include it). A vanilla setup has no BepInEx, so it then runs
+from `instant-start/` in the data folder: BepInExPack, downloaded from Thunderstore the first time, with
+nothing but the plugin. Dedicated servers don't check what clients load. The plugin doesn't set
+Valheim's `Game.isModded`, which would switch off Steam achievements, because it changes nothing in
+the game. When the plugin or the vanilla setup can't be got ready, the game starts as without instant
+start and LaunchHeim says why. Valheim doesn't remember its "Start server" switch, so a world started
+instantly isn't hosted for friends; start it from the menu for that. The plugin compiles against BepInEx and Unity from BepInEx's NuGet
+feed (`nuget.config` maps only those packages to it) and reaches Valheim's classes by reflection, so
+building it needs no game files.
+
 **Start from Steam.** With `launchheim steam %command%` in Valheim's launch options (Steam → Valheim →
 Properties → General; Settings → "Start from Steam" shows the exact line and copies it), Steam's own
 Play button starts what the sidebar's Play button would: the last play, with its instance, character
@@ -147,7 +168,7 @@ it, or with a compatibility tool forced for Valheim.
 **Command line.** `launchheim help` lists the commands. `launchheim play` starts Valheim without the
 window, the same way the window does (Steam first, the overlay, PlayerPrefs) and waits until it
 closes; without options it plays the last play, and `--instance`, `--vanilla`, `--server`, `--world`,
-`--character` and `--password` pick something else, filling in the rest from the server's or world's
+`--character`, `--password` and `--instant`/`--no-instant` pick something else, filling in the rest from the server's or world's
 remembered choice (`Core/Game/PlayTarget.cs`). A server or world played the first time needs a
 character and a setup: guessing could open a modded world in vanilla. `launchheim list` shows the
 instances, characters, servers and worlds with what each was played with last. A launch from the
@@ -170,7 +191,7 @@ at the character selection, and Start joins. Before the start LaunchHeim sets th
 folder on Linux (strings in base64, edited as text so nothing else changes) and
 `HKCU\Software\IronGate\Valheim` on Windows (`<key>_h<djb2 hash>`, binary UTF-8). Valheim can't
 load a world from the command line, so a world opens with its character and world selected and the
-player clicks Start. The password never reaches LaunchHeim's log. Valheim's
+player clicks Start, unless "Start instantly" is on (see "Instant start"). The password never reaches LaunchHeim's log. Valheim's
 `-joinserverwithcharacter` would skip the character selection too, but it runs before Steam is up and
 only sees characters kept off the cloud, so it isn't used.
 

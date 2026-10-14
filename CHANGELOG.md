@@ -16,6 +16,9 @@ bullet per change.
 - A command line: `launchheim play` starts the game without the window (what you played last, or
   pick one with `--instance`, `--server`, `--world` and `--character`), and `launchheim list` shows
   what there is to pick. `launchheim help` explains it all.
+- Start instantly: switch it on for a server or world in its Play dialog, and Valheim loads the world
+  or joins the server right away, without clicking through the menus. For vanilla Valheim, LaunchHeim
+  sets up its own BepInEx for this once, without any gameplay mods; achievements keep working.
 
 ### Fixed
 - Copy buttons now work on Windows: the update commands, the console lines and the Steam line.
