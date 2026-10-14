@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    A BepInEx plugin that LaunchHeim copies into the instance it starts (see Core/Game/InstantStart.cs
+    and the README's "Instant start"). It runs inside Valheim on Unity's Mono, hence .NET Framework.
+    BepInEx and Unity are compile-time references only: the game and BepInExPack bring the real ones.
+    Valheim's own classes are reached by reflection, so nothing here needs the game installed.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>LaunchHeim.InstantStart</AssemblyName>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Core" Version="5.4.21" PrivateAssets="all" ExcludeAssets="runtime" />
+    <!-- Valheim's Unity version (UnityPlayer.so says 6000.0.75f1). -->
+    <PackageReference Include="UnityEngine.Modules" Version="6000.0.75" PrivateAssets="all" ExcludeAssets="runtime" />
+    <!-- .NET Framework reference assemblies, so it builds on Linux and in CI without Mono. -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>
