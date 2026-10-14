@@ -49,3 +49,9 @@ by the game). A game update that renames the menu's members only makes the plugi
 line in the BepInEx log.
 
 Related: [[launchheim]], [[0010-launchheim-direct-play-uses-the-games-own-options]], [[0015-launchheim-steam-launch-options-wrap-steams-command]]
+
+**Renamed 2026-10-14** (before 0.7.0 shipped): the plugin also keeps achievements now
+([[0017-launchheim-keeps-achievements-with-the-games-own-switch]]), so it is `src/GamePlugin`,
+`LaunchHeim.GamePlugin.dll`, one BepInEx plugin `io.github.codeisnotevil.launchheim`, and Core's
+`InstantStart` became `GamePlugin`. It is now copied into every instance launch, not only instant ones,
+and clears the old `LaunchHeim.InstantStart.dll` from the folder.

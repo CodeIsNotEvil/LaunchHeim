@@ -50,7 +50,7 @@ not a C# change.
 | Project | Holds |
 |---|---|
 | `src/Core` | Everything testable, with no UI: Steam/Valheim discovery (`Game/`), Valheim's own characters, worlds, servers and prefs (`Saves/`), instances, the mod installer and dependency resolution (`Mods/`), modpack export and import (`Packs/`), the three catalogs (`Catalogs/`), the command line's parser (`Cli/`), logging and log following (`Logging/`), downloads and XDG storage. |
-| `src/InstantStart` | The BepInEx plugin behind "Start instantly" (.NET Framework, runs inside Valheim). See "Instant start". |
+| `src/GamePlugin` | LaunchHeim's BepInEx plugin (.NET Framework, runs inside Valheim): "Start instantly" and keeping achievements with mods. See "Instant start". |
 | `src/Desktop` | The Qml.Net host, view models, QML pages and components, the Plasma (or Windows) colour scheme, desktop integration (single instance, `nxm://`) and the command line's runner (`Cli/`), which never loads Qt. |
 | `packaging/` | The pacman, deb, rpm and Windows builds. See [`packaging/README.md`](packaging/README.md). |
 | `android/` | LaunchHeim Companion, the Android app (Kotlin, Compose). See [`android/README.md`](android/README.md). |
@@ -128,22 +128,35 @@ or instance is, the button opens the Play page instead.
 **Instant start.** "Start instantly" in the Play dialog (remembered per server or world, `--instant`
 on the command line) skips the menus: a world loads right away, and a server is joined without the
 stop at the character selection. Valheim has no option for either, so LaunchHeim's own BepInEx plugin
-(`src/InstantStart`, shipped as `bepinex/LaunchHeim.InstantStart.dll` next to the executable) presses
+(`src/GamePlugin`, shipped as `bepinex/LaunchHeim.GamePlugin.dll` next to the executable) presses
 Start for the player. It calls what the menu's buttons call (`FejdStartup.OnStartGame`,
 `OnCharacterStart`, `OnWorldStart`), so the game's own checks still run (a corrupt world's backup
 prompt, the cloud storage warning), and only after checking that the game selected the character and
 world LaunchHeim set; otherwise, or when a popup waits for an answer, it leaves the menu to the player
 and says why in the BepInEx log. It acts only when the game gets `-launchheim-instant`, which
-LaunchHeim passes for those launches. Before one, LaunchHeim copies the plugin into the instance's
-`BepInEx/plugins/LaunchHeim/` (packs never include it). A vanilla setup has no BepInEx, so it then runs
+LaunchHeim passes for those launches. Before every instance launch, LaunchHeim copies the plugin into
+the instance's `BepInEx/plugins/LaunchHeim/` and clears anything else from that folder, such as the
+plugin's first name `LaunchHeim.InstantStart.dll` (packs never include the folder). A vanilla setup has no BepInEx, so it then runs
 from `instant-start/` in the data folder: BepInExPack, downloaded from Thunderstore the first time, with
 nothing but the plugin. Dedicated servers don't check what clients load. The plugin doesn't set
 Valheim's `Game.isModded`, which would switch off Steam achievements, because it changes nothing in
-the game. When the plugin or the vanilla setup can't be got ready, the game starts as without instant
+the game, and Valheim never sets it itself, so a vanilla game with BepInEx keeps its achievements. When the plugin or the vanilla setup can't be got ready, the game starts as without instant
 start and LaunchHeim says why. Valheim doesn't remember its "Start server" switch, so a world started
 instantly isn't hosted for friends; start it from the menu for that. The plugin compiles against BepInEx and Unity from BepInEx's NuGet
 feed (`nuget.config` maps only those packages to it) and reaches Valheim's classes by reflection, so
 building it needs no game files.
+
+**Achievements with mods.** Valheim gives no Steam achievements once the game counts as cheated, and a
+mod setting `Game.isModded` (as Iron Gate asks mods to) is enough for that
+(`Achievements.IsCheatedAtAll`). The game's own way back is the dev command
+`yesiuseddevcommandsbutiwantmyachievementsanyway 1` (after `devcommands`): it stores
+`bypasscheatchecks 1` among the character's unique keys, saved with the character, which
+`CanGetAchievements` honours. It also stops items and pieces made with dev commands from blocking
+achievements; that is the game's design. Settings → Game → "Keep Steam achievements when playing with
+mods" has the plugin set that key on every character that enters a world in an instance. Every instance
+launch passes `-launchheim-achievements 1` or `0`; with `0` the plugin removes the key again, but only
+where its own marker key (`launchheimbypasscheatchecks`) says LaunchHeim set it, so a key the player set
+with the command stays. Vanilla needs nothing: without mods nothing takes achievements away.
 
 **Start from Steam.** With `launchheim steam %command%` in Valheim's launch options (Steam → Valheim →
 Properties → General; Settings → "Start from Steam" shows the exact line and copies it), Steam's own
@@ -201,7 +214,9 @@ instance root, and each plugin gets its own `BepInEx/plugins/<Mod>/` folder. Con
 uninstalling removes exactly those files. Dependencies are resolved to the newest version, not the exact
 one listed, so two mods asking for different versions of a library both work. Removing a mod also
 removes dependencies that were only pulled in for it. Disabling renames its assemblies to
-`*.dll.disabled`. BepInExPack is added to any instance that lacks it.
+`*.dll.disabled`. BepInExPack is added to any instance that lacks it. On the Browse page, a mod that
+is installed in the selected instance has a red remove button on its card, which removes it (and the
+dependencies only it needed) without a confirmation, the same as Remove on the instance page.
 
 **Catalogs.**
 - *Thunderstore* has no search API for third-party apps, so the whole Valheim package list is

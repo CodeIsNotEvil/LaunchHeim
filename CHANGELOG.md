@@ -19,6 +19,10 @@ bullet per change.
 - Start instantly: switch it on for a server or world in its Play dialog, and Valheim loads the world
   or joins the server right away, without clicking through the menus. For vanilla Valheim, LaunchHeim
   sets up its own BepInEx for this once, without any gameplay mods; achievements keep working.
+- Keep Steam achievements when playing with mods: one switch in Settings → Game does what Valheim's
+  dev command `yesiuseddevcommandsbutiwantmyachievementsanyway` does, for every character you play
+  with an instance. Switching it off undoes it.
+- Remove an installed mod right from its card on the Browse page with the red button.
 
 ### Fixed
 - Copy buttons now work on Windows: the update commands, the console lines and the Steam line.
