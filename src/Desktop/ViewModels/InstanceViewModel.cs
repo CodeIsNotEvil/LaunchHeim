@@ -422,11 +422,14 @@ public sealed class InstanceViewModel : ViewModel
     });
   }
 
-  internal void RemoveMod(InstalledModViewModel mod) => RunExclusive("Removing " + mod.Name, async _ =>
+  internal void RemoveMod(InstalledModViewModel mod) => RemoveMod(mod.Key, mod.Name);
+
+  /// <summary>Removes a mod and the dependencies only it needed. Also used by the Browse page's cards.</summary>
+  internal void RemoveMod(string key, string name) => RunExclusive("Removing " + name, async _ =>
   {
-    var report = await Task.Run(() => _app.Mods.RemoveAsync(Model, mod.Key, CancellationToken.None));
-    var extra = report.Removed.Where(m => m.Key != mod.Key).Select(m => m.Name).ToList();
-    _app.Toast("success", $"Removed {mod.Name}", extra.Count == 0 ? "" : "Also removed unused " + string.Join(", ", extra) + ".");
+    var report = await Task.Run(() => _app.Mods.RemoveAsync(Model, key, CancellationToken.None));
+    var extra = report.Removed.Where(m => m.Key != key).Select(m => m.Name).ToList();
+    _app.Toast("success", $"Removed {name}", extra.Count == 0 ? "" : "Also removed unused " + string.Join(", ", extra) + ".");
   });
 
   internal void UpdateMod(InstalledModViewModel mod) => RunExclusive("Updating " + mod.Name, async progress =>

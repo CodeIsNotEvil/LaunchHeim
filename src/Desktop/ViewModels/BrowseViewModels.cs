@@ -302,6 +302,15 @@ public sealed class BrowseViewModel : ViewModel
   internal void Install(ModSummary mod, string? fileId, string label) =>
     _app.InstallFromCatalog(Target, new InstallRequest(mod.Source, mod.Id, fileId), label);
 
+  /// <summary>Removes a mod from the target instance right from its card, without a detour to the instance page.</summary>
+  internal void Remove(ModSummary mod)
+  {
+    if (Target is { } target && InstalledInTarget(mod) is { } installed)
+    {
+      target.RemoveMod(installed.Key, installed.Name);
+    }
+  }
+
   internal InstalledMod? InstalledInTarget(ModSummary mod) =>
     Target?.Model.FindMod(InstalledMod.MakeKey(mod.Source, mod.Id));
 
@@ -390,6 +399,8 @@ public sealed class ModCardViewModel : ViewModel
   public void OpenDetails() => _browse.OpenDetails(this);
 
   public void Install() => _browse.Install(Summary, null, Summary.Name);
+
+  public void Remove() => _browse.Remove(Summary);
 
   public void OpenWebsite() => DesktopShell.Open(Summary.WebsiteUrl);
 
