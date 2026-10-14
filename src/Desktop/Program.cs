@@ -25,6 +25,10 @@ public static class Program
   /// <summary>Runs an action on the Qt thread. Safe to call from any thread.</summary>
   public static void Dispatch(Func<Task> action) => _app?.Dispatch(() => _ = action());
 
+  // Qt's Windows clipboard and drag and drop are OLE, which only works in a single-threaded apartment.
+  // .NET makes the main thread a multithreaded one unless told otherwise; Qt's OleInitialize then
+  // fails, and every Copy button did nothing on Windows (its warning goes to the debugger, not stderr).
+  [STAThread]
   public static int Main(string[] args)
   {
     // Used by install.sh: adds LaunchHeim to the application launcher and makes it the nxm:// handler.
