@@ -86,6 +86,14 @@ accounts) and CurseForge (API key).
   `DirectPlay` moved to Core so the Play page, the CLI and the wrapper build launches the same way.
 
 ## Gotchas
+- Copy did nothing on Windows (reported 2026-10-14): Qt's clipboard and drag and drop are OLE and
+  need a single-threaded apartment, but .NET makes `Main`'s thread MTA unless it has `[STAThread]`,
+  so Qt's `OleInitialize` failed. Its warning goes to `OutputDebugString` (a GUI program has no
+  stderr), so nothing showed in CI. The smoke test now copies a marker (`Clipboard.qml`) and reads it
+  back with `Get-Clipboard`; it failed before the fix. Drag and drop on Windows (the share tile,
+  dropping mod files) had the same cause and should work now, but isn't checked by anything.
+- Material's `TextField` pads 8 px above and 16 px below for its underline; with a box instead, text
+  sits high. `LhTextField`/`SearchField` set equal padding (2026-10-14).
 - CurseForge's API offers no Valheim to third-party keys (2026-10-09): a valid key lists 38 games
   without Valheim and Valheim searches are refused. The CurseForge source can't work as built; it
   says so instead of blaming the key. Nexus wants the key it lists for Vortex.
