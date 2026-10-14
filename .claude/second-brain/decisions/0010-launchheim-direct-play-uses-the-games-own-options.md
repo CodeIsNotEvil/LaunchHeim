@@ -1,7 +1,7 @@
 ---
 tags: [decision, launchheim]
 created: 2026-10-04
-updated: 2026-10-04
+updated: 2026-10-14
 status: active
 supersedes:
 ---
@@ -36,3 +36,6 @@ the game is closed, because Unity writes them all on quit, so it happens right b
 starts the game. A server password sits in `settings.json`, which is mode 0600 for the API keys anyway.
 
 Related: [[launchheim]]
+
+**Since 2026-10-14** the clicks can be skipped with "Start instantly", a BepInEx plugin on top of
+this ([[0016-launchheim-instant-start-plugin]]); without it everything here still applies.

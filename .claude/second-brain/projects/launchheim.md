@@ -85,7 +85,13 @@ accounts) and CurseForge (API key).
   the line. `PlayTargets` resolves the last play or the CLI's options with the window's rules, and
   `DirectPlay` moved to Core so the Play page, the CLI and the wrapper build launches the same way.
 
+- Start instantly (2026-10-14, for 0.7.0): per server or world, a LaunchHeim BepInEx plugin
+  (`src/InstantStart`) presses Start in the menus; vanilla gets a managed BepInEx in `instant-start/`
+  ([[0016-launchheim-instant-start-plugin]]).
+
 ## Gotchas
+- Valheim 1.0.17 runs on Unity 6000.0.75 (`strings UnityPlayer.so`), and `Game.isModded` turns off
+  Steam achievements; the game never sets it itself (2026-10-14).
 - Copy did nothing on Windows (reported 2026-10-14): Qt's clipboard and drag and drop are OLE and
   need a single-threaded apartment, but .NET makes `Main`'s thread MTA unless it has `[STAThread]`,
   so Qt's `OleInitialize` failed. Its warning goes to `OutputDebugString` (a GUI program has no
@@ -206,6 +212,9 @@ accounts) and CurseForge (API key).
   and kills that command (2026-10-05).
 
 ## Open
+- Start instantly (2026-10-14): untried in the real game. Check worlds (vanilla and modded), servers
+  with and without a password, the intro film on a first start, and the "What's new" popup after a
+  game update ([[0016-launchheim-instant-start-plugin]]).
 - Start from Steam (2026-10-14): not yet tried with the real client and game. Check Shift+Tab and a
   modded world from Steam's Play on Linux, the Windows overlay for a `valheim.exe` that LaunchHeim
   started under Steam, and that Steam's "Join game" keeps the instance

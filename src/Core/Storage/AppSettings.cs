@@ -106,6 +106,12 @@ public sealed class PlayChoice
   /// </summary>
   public string? Password { get; set; }
 
+  /// <summary>
+  /// Start instantly: straight into the world, or onto the server without the character selection.
+  /// Needs BepInEx, so a vanilla setup runs from LaunchHeim's own BepInEx (see <see cref="Game.InstantStart"/>).
+  /// </summary>
+  public bool InstantStart { get; set; }
+
   public DateTimeOffset LastPlayedAt { get; set; }
 }
 

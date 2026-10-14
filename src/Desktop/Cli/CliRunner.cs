@@ -1,10 +1,15 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using CINE.LaunchHeim.Core;
+using CINE.LaunchHeim.Core.Catalogs.CurseForge;
+using CINE.LaunchHeim.Core.Catalogs.Nexus;
+using CINE.LaunchHeim.Core.Catalogs.Thunderstore;
 using CINE.LaunchHeim.Core.Cli;
+using CINE.LaunchHeim.Core.Downloads;
 using CINE.LaunchHeim.Core.Game;
 using CINE.LaunchHeim.Core.Instances;
 using CINE.LaunchHeim.Core.Logging;
+using CINE.LaunchHeim.Core.Mods;
 using CINE.LaunchHeim.Core.Saves;
 using CINE.LaunchHeim.Core.Storage;
 using CINE.LaunchHeim.Desktop.Hosting;
@@ -111,7 +116,7 @@ public static class CliRunner
         throw new LaunchException("Valheim is already running. Close it, then start it again.");
       }
 
-      var instanceDirectory = target.Instance is null ? null : instances.DirectoryOf(target.Instance);
+      var instanceDirectory = await PrepareInstantStartAsync(target, instances, paths);
       GameLauncher.PrepareGameFolder(gameDirectory, instanceDirectory);
       var plan = GameLauncher.Plan(
         gameDirectory,
@@ -179,7 +184,7 @@ public static class CliRunner
         target = target.WithoutDestination();
       }
 
-      var instanceDirectory = target.Instance is null ? null : instances.DirectoryOf(target.Instance);
+      var instanceDirectory = await PrepareInstantStartAsync(target, instances, paths);
       GameLauncher.PrepareGameFolder(Path.GetDirectoryName(Path.GetFullPath(command[gameIndex]))!, instanceDirectory);
       plan = GameLauncher.WrapSteamCommand(
         command,
@@ -197,6 +202,34 @@ public static class CliRunner
 
     // Steam started this, so it runs and is logged in; it has no game to wait for either.
     return await StartAndWaitAsync(target, plan, saves.DataDirectory, paths, TimeSpan.Zero, rememberLastPlay: !GameLauncher.JoinsServer(command));
+  }
+
+  /// <summary>
+  /// The folder to launch with: the instance's, or for vanilla with "Start instantly" LaunchHeim's own
+  /// BepInEx (see <see cref="InstantStart"/>). A launch that can't start instantly still starts.
+  /// </summary>
+  private static async Task<string?> PrepareInstantStartAsync(PlayTarget target, InstanceStore instances, AppPaths paths)
+  {
+    var instanceDirectory = target.Instance is null ? null : instances.DirectoryOf(target.Instance);
+    if (target.Direct is not { Instant: true })
+    {
+      return instanceDirectory;
+    }
+
+    var instantStart = new InstantStart(paths, store =>
+    {
+      // Only when BepInExPack has to be downloaded for the vanilla setup. This process ends with the
+      // game, so the client isn't disposed.
+      Say("Setting up BepInEx for instant start. This happens once.");
+      var http = Program.CreateHttpClient();
+      var catalogs = new CatalogRegistry(
+        new ThunderstoreCatalog(http, new ThunderstoreIndex(http, paths)),
+        new NexusCatalog(http, () => null),
+        new CurseForgeCatalog(http, () => null));
+      return new ModService(store, new ModInstaller(), new ModDownloader(http, paths), catalogs, paths);
+    });
+    // A problem is logged, which also prints it; the game starts without instant start.
+    return (await instantStart.PrepareAsync(instanceDirectory, target.Direct, null, CancellationToken.None)).InstanceDirectory;
   }
 
   private static async Task<int> StartAndWaitAsync(PlayTarget target, LaunchPlan plan, string dataDirectory, AppPaths paths, TimeSpan steamTimeout, bool rememberLastPlay)
@@ -334,7 +367,7 @@ public static class CliRunner
       }
 
       var setup = choice.InstanceId is null ? PlayTargets.VanillaName : instances.FirstOrDefault(i => i.Id == choice.InstanceId)?.Name ?? "a deleted instance";
-      return $"{library.Characters.FirstOrDefault(c => c.FileName == choice.Character)?.DisplayName ?? choice.Character} · {setup}";
+      return $"{library.Characters.FirstOrDefault(c => c.FileName == choice.Character)?.DisplayName ?? choice.Character} · {setup}{(choice.InstantStart ? " · instant" : "")}";
     }
 
     Console.WriteLine("Instances (--instance, by name or id)");

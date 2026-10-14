@@ -49,10 +49,13 @@ public static class CommandLine
       --world <name>             Select a world in the menus. Uses what it was last played with.
       --character <name>         The character for --server or --world.
       --password <password>      The server's password. --password= forgets a remembered one.
+      --instant, --no-instant    Start instantly: straight into the world, or onto the server
+                                 without the character selection. A vanilla setup then runs
+                                 with LaunchHeim's own BepInEx, which loads no gameplay mods.
 
     Examples:
       launchheim play --server "Our Server" --instance "Modded"
-      launchheim play --world Midgard --character Ragnar --vanilla
+      launchheim play --world Midgard --character Ragnar --vanilla --instant
       Steam → Valheim → Properties → Launch options:  launchheim steam %command%
     """;
 
@@ -138,6 +141,8 @@ public static class CommandLine
         "--world" => request with { World = Value() },
         "--character" => request with { Character = Value() },
         "--password" => request with { Password = Value() },
+        "--instant" when inlineValue is null => request with { Instant = true },
+        "--no-instant" when inlineValue is null => request with { Instant = false },
         _ => throw new CliUsageException($"Unknown option \"{argument}\". `launchheim help` lists them."),
       };
     }

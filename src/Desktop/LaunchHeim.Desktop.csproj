@@ -35,7 +35,29 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Core\LaunchHeim.Core.csproj" />
+    <!--
+      The instant-start BepInEx plugin runs inside the game (.NET Framework), not in LaunchHeim: built
+      along, never referenced, and shipped in bepinex/ next to the executable (Core/Game/InstantStart.cs).
+      It has no runtime identifier, so publish -r linux-x64 / win-x64 must not pass one on.
+    -->
+    <ProjectReference Include="..\InstantStart\LaunchHeim.InstantStart.csproj"
+                      ReferenceOutputAssembly="false"
+                      SkipGetTargetFrameworkProperties="true"
+                      GlobalPropertiesToRemove="TargetFramework;RuntimeIdentifier;SelfContained" />
   </ItemGroup>
+
+  <!--
+    Ships the plugin in bepinex/. Its path comes from the project itself: Visual Studio's developer shell
+    (the Windows build) sets Platform=x64, which moves it to bin/x64/, so a written-out path broke there.
+  -->
+  <Target Name="AddInstantStartPlugin" BeforeTargets="AssignTargetPaths" DependsOnTargets="ResolveProjectReferences">
+    <MSBuild Projects="..\InstantStart\LaunchHeim.InstantStart.csproj" Targets="GetTargetPath" RemoveProperties="TargetFramework;RuntimeIdentifier;SelfContained">
+      <Output TaskParameter="TargetOutputs" ItemName="InstantStartPlugin" />
+    </MSBuild>
+    <ItemGroup>
+      <None Include="@(InstantStartPlugin)" Link="bepinex\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
 
   <!-- Set by the pacman, deb and rpm builds. See Hosting/DistroPackage.cs. -->
   <ItemGroup Condition="'$(LaunchHeimDistroPackage)' == 'true'">

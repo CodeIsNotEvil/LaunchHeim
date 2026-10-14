@@ -214,7 +214,7 @@ public sealed class PlayViewModel : ViewModel
     return index < 0 ? -1 : index + 1;
   }
 
-  internal void Launch(DestinationViewModel destination, int characterIndex, int setupIndex, string password)
+  internal void Launch(DestinationViewModel destination, int characterIndex, int setupIndex, string password, bool instant)
   {
     if (characterIndex < 0 || characterIndex >= _characters.Count)
     {
@@ -231,14 +231,15 @@ public sealed class PlayViewModel : ViewModel
       Character = character.FileName,
       InstanceId = instance?.Id,
       Password = isServer && password.Length > 0 ? password : null,
+      InstantStart = instant,
       LastPlayedAt = DateTimeOffset.UtcNow,
     };
     _app.SaveSettings();
     destination.RaiseChoice();
 
     var direct = isServer
-      ? DirectPlay.Server(destination.Key, destination.Name, destination.Address, character.FileName, password)
-      : DirectPlay.World(destination.Key, destination.Name, character.FileName);
+      ? DirectPlay.Server(destination.Key, destination.Name, destination.Address, character.FileName, password, instant)
+      : DirectPlay.World(destination.Key, destination.Name, character.FileName, instant);
     _app.Launch(instance, direct);
   }
 
@@ -440,7 +441,7 @@ public sealed class DestinationViewModel : ViewModel
       }
 
       var setup = ChoiceSetupIndex == 0 ? PlayViewModel.VanillaName : _play.App.InstanceList[ChoiceSetupIndex - 1].Name;
-      return $"{_play.CharacterList[ChoiceCharacterIndex].DisplayName} · {setup}";
+      return $"{_play.CharacterList[ChoiceCharacterIndex].DisplayName} · {setup}{(InstantStart ? " · instant" : "")}";
     }
   }
 
@@ -455,18 +456,22 @@ public sealed class DestinationViewModel : ViewModel
   [NotifySignal]
   public string Password => Choice?.Password ?? "";
 
+  /// <summary>Start instantly, as last time. Off for a server or world played the first time.</summary>
+  [NotifySignal]
+  public bool InstantStart => Choice?.InstantStart ?? false;
+
   /// <summary>Plays with the remembered choice. QML opens the dialog instead when there is none.</summary>
   public void Play()
   {
     if (HasChoice)
     {
-      _play.Launch(this, ChoiceCharacterIndex, ChoiceSetupIndex, Password);
+      _play.Launch(this, ChoiceCharacterIndex, ChoiceSetupIndex, Password, InstantStart);
     }
   }
 
   // Not trimmed: a space may be part of a server password.
-  public void PlayWith(int characterIndex, int setupIndex, string password) =>
-    _play.Launch(this, characterIndex, setupIndex, password ?? "");
+  public void PlayWith(int characterIndex, int setupIndex, string password, bool instant) =>
+    _play.Launch(this, characterIndex, setupIndex, password ?? "", instant);
 
   internal void RaiseChoice()
   {
@@ -475,6 +480,7 @@ public sealed class DestinationViewModel : ViewModel
     Raise(nameof(CharacterIndex));
     Raise(nameof(SetupIndex));
     Raise(nameof(Password));
+    Raise(nameof(InstantStart));
   }
 
   internal async Task QueryStatusAsync()

@@ -5,6 +5,7 @@ using CINE.LaunchHeim.Core.Catalogs.Nexus;
 using CINE.LaunchHeim.Core.Catalogs.Thunderstore;
 using CINE.LaunchHeim.Core.Cli;
 using CINE.LaunchHeim.Core.Downloads;
+using CINE.LaunchHeim.Core.Game;
 using CINE.LaunchHeim.Core.Instances;
 using CINE.LaunchHeim.Core.Logging;
 using CINE.LaunchHeim.Core.Mods;
@@ -104,6 +105,7 @@ public static class Program
       new NexusCatalog(http, () => viewModel?.SettingsModel.NexusApiKey),
       new CurseForgeCatalog(http, () => viewModel?.SettingsModel.CurseForgeApiKey));
     var mods = new ModService(instances, new ModInstaller(), new ModDownloader(http, paths), catalogs, paths);
+    var instantStart = new InstantStart(paths, store => new ModService(store, new ModInstaller(), new ModDownloader(http, paths), catalogs, paths));
     CleanTemp(paths);
 
     viewModel = new AppViewModel(
@@ -115,7 +117,8 @@ public static class Program
       new PackService(instances, mods, paths),
       new GameFolderImporter(instances),
       new ImageCache(http, paths),
-      new UpdateChecker(http));
+      new UpdateChecker(http),
+      instantStart);
 
     // A singleton instead of a context property: Qml.Net gives context-property objects JavaScript
     // ownership, so the JS garbage collector deletes the wrapper after a while and `app` turns null.
@@ -162,7 +165,7 @@ public static class Program
     return exitCode;
   }
 
-  private static HttpClient CreateHttpClient()
+  internal static HttpClient CreateHttpClient()
   {
     var handler = new SocketsHttpHandler
     {
