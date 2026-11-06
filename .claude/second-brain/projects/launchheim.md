@@ -177,6 +177,15 @@ accounts) and CurseForge (API key).
   `QtRuntime.SetForQt` also calls libc `setenv` (2026-09-30). `QT_QUICK_CONTROLS_MATERIAL_VARIANT=Dense`
   in `Program.cs` has the same problem and is still not applied; switching it on would change the
   look. Qt 5.15.1's portal dialog sends no suggested file name, so the export dialog starts empty.
+- The portal theme was only set for the bundled runtime, so the packages (system Qt) had no file
+  dialogs on Plasma 6 either: Plasma 6's platform theme is Qt 6 only, Qt 5 falls back to its built-in
+  KDE theme, and that has no file dialog without Qt Widgets. Reported on 0.7.1 from the Arch package
+  ("Install from file" did nothing, 2026-11-06); fixed for 0.7.2 by setting it for every Linux runtime
+  unless `QT_QPA_PLATFORMTHEME` is already set. To check a theme without opening a window: a tiny
+  C++ program asking `QGuiApplicationPrivate::platformTheme()->createPlatformDialogHelper(FileDialog)`,
+  after half a second of event loop (the KDE-patched portal theme learns the portal's version over
+  D-Bus first, and says no until then). In the running app, `/proc/<pid>/maps` shows which
+  `platformthemes/*.so` got loaded; Qt's stderr doesn't reach the log.
 - A Unix socket path may be at most 108 characters. Screenshot runs with every XDG folder pointed at
   Claude's long scratchpad path crash in `SingleInstance.Listen`; keep `XDG_RUNTIME_DIR` short
   (2026-09-30).

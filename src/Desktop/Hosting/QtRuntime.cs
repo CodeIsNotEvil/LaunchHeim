@@ -57,6 +57,8 @@ public static class QtRuntime
       TarFile.ExtractToDirectory(gzip, destination, overwriteFiles: true);
     };
 
+    UsePortalFileDialogs();
+
     var requested = Environment.GetEnvironmentVariable("LAUNCHHEIM_QT");
     var useSystem = string.IsNullOrEmpty(requested)
       ? DistroPackage.IsInstalled
@@ -77,11 +79,27 @@ public static class QtRuntime
     RuntimeManager.DiscoverOrDownloadSuitableQtRuntime();
     UsesBundledRuntime = true;
     Description = "Qt 5.15.1 (Qml.Net runtime)";
+  }
 
-    // The bundled Qt has no KDE platform theme. The portal theme gives native Plasma file dialogs
-    // and opens links through the desktop portal instead.
-    // Without it Qt.labs.platform has no file dialog at all (it would need Qt Widgets), so every "Choose
-    // folder", "Install from file" and "Export" silently did nothing.
+  /// <summary>Makes Qt use the desktop portal's file dialogs on Linux, unless the user chose a theme.</summary>
+  /// <remarks>
+  /// <para>
+  /// The UI is QML only, without Qt Widgets, so Qt.labs.platform can only show a file dialog that the
+  /// platform theme provides. Without one, every "Install from file", "Import a modpack", "Export",
+  /// "Choose folder" and icon picture silently does nothing. The xdg-desktop-portal theme (part of
+  /// qt5-base everywhere) asks the desktop for its own dialog, Plasma's on KDE and GTK's on GNOME, and
+  /// opens links through the portal too.
+  /// </para>
+  /// <para>
+  /// This was first done for the bundled runtime only (2026-09-30), which has no KDE theme. The system
+  /// Qt of the distribution packages has none on Plasma 6 either: Plasma 6 ships its platform theme for
+  /// Qt 6 only, so Qt 5 falls back to its built-in KDE theme, which has no file dialog. 0.7.1 from the
+  /// Arch package did nothing on "Install from file" (2026-11-06). A probe against Arch's qt5-base
+  /// 5.15.19+kde confirmed it: built-in KDE theme, no file dialog; portal theme, a file dialog.
+  /// </para>
+  /// </remarks>
+  private static void UsePortalFileDialogs()
+  {
     if (OperatingSystem.IsLinux() && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("QT_QPA_PLATFORMTHEME")))
     {
       SetForQt("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
