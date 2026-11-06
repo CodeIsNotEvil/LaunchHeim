@@ -132,6 +132,10 @@ accounts) and CurseForge (API key).
   This was checked by watching the client's `logs/content_log.txt` and the vdf's mtime during a run.
   Steam's content log shows which process wrote what ("Triggered async write of Steam library folders
   configuration (N libraries)").
+- `activity.CreateProgress()` must be called on the Qt thread, before `Task.Run`, never inside its
+  lambda. `Progress<T>` posts reports to the context it was created on, and from the thread pool the
+  first report raised a Qml.Net signal off the UI thread, which killed LaunchHeim ("You must be on the
+  UI thread", qmlnet#112). This crashed the first server start (owner, 2026-11-07).
 - `DesktopShell.Open` silently drops anything but web links and local paths (mod descriptions are
   untrusted), so "Install with Steam" with `steam://install/896660` did nothing (owner, 2026-11-07).
   LaunchHeim's own `steam://` links go through `DesktopShell.OpenSteamLink` (xdg-open on Linux, the

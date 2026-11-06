@@ -557,7 +557,10 @@ public sealed class ServerViewModel : ViewModel
     var activity = App.BeginActivity("Starting " + Model.Name);
     try
     {
-      await Task.Run(() => Manager.StartAsync(Model, replaceConfigs, activity.CreateProgress(), CancellationToken.None));
+      // Created here, on the Qt thread, not inside Task.Run: Progress<T> reports on the thread it was
+      // made on, and a report from the thread pool crashed LaunchHeim (Qml.Net signals need the UI thread).
+      var progress = activity.CreateProgress();
+      await Task.Run(() => Manager.StartAsync(Model, replaceConfigs, progress, CancellationToken.None));
       App.Toast("success", $"{Model.Name} is starting", $"Players join at {JoinAddress} once the world is loaded. The console shows the progress.");
       App.DebugConsole.ShowForServer(this, onlyIfOpen: true);
     }
