@@ -82,9 +82,10 @@ Locally the same values go in the environment variables `LAUNCHHEIM_KEYSTORE` (t
 `LAUNCHHEIM_KEYSTORE_PASSWORD`, `LAUNCHHEIM_KEY_ALIAS` and `LAUNCHHEIM_KEY_PASSWORD`.
 
 Where else it could go, beyond the GitHub release and the download page:
-- **Obtainium** needs nothing from us: it installs and updates straight from GitHub releases. Because
-  this repository also releases GroceryTracker, it needs the release title filter `^LaunchHeim` (every
-  LaunchHeim release is titled "LaunchHeim x.y.z"); the download page walks through it. Obtainium
+- **Obtainium** needs nothing from us: it installs and updates straight from GitHub releases. Since
+  LaunchHeim has its own repository (2026-11-06) it needs no release title filter any more; people who
+  added it while it lived in MyMonoRepo (filter `^LaunchHeim`) have to add it again with this
+  repository's URL, the download page walks through it. Obtainium
   strips the `launchheim-v` tag prefix when comparing with the app's version, as its wiki says it
   does with prefixes and suffixes; not yet checked on a phone.
 - **IzzyOnDroid**, an F-Droid repository that takes the APK from the GitHub releases. Request it there

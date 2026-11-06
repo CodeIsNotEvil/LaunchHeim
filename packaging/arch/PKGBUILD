@@ -4,14 +4,14 @@
 # pkgver comes from the app version plus the commit, so `makepkg -si` after a pull is an upgrade.
 #
 # Building from a local checkout instead of GitHub (for example to try a branch):
-#   LAUNCHHEIM_GIT="file://$HOME/repos/MyMonoRepo#branch=my-branch" makepkg -si
+#   LAUNCHHEIM_GIT="file://$HOME/repos/LaunchHeim#branch=my-branch" makepkg -si
 
 pkgname=launchheim-git
 pkgver=0.1.0.r0.g0000000
 pkgrel=1
 pkgdesc='Valheim mod launcher with separate modded instances (Thunderstore, Nexus Mods, CurseForge)'
 arch=('x86_64')
-url='https://github.com/CodeIsNotEvil/MyMonoRepo/tree/main/Applications/LaunchHeim'
+url='https://github.com/CodeIsNotEvil/LaunchHeim'
 # LaunchHeim is MIT. It also ships NetNativeLibLoader (LGPL), Markdig (BSD) and Kode Mono (OFL); the
 # other bundled libraries are MIT. THIRD-PARTY-NOTICES.txt has the details.
 license=('MIT' 'LGPL-3.0-or-later' 'BSD-2-Clause' 'OFL-1.1')
@@ -26,20 +26,20 @@ conflicts=('launchheim')
 options=('!strip' '!debug')
 # The ufw profile (stage.sh) is the one file under /etc; pacman keeps a user's edits to it.
 backup=('etc/ufw/applications.d/launchheim')
-source=("mymonorepo::git+${LAUNCHHEIM_GIT:-https://github.com/CodeIsNotEvil/MyMonoRepo.git}")
+source=("launchheim::git+${LAUNCHHEIM_GIT:-https://github.com/CodeIsNotEvil/LaunchHeim.git}")
 sha256sums=('SKIP')
 
-_app=Applications/LaunchHeim
-
 pkgver() {
-  cd mymonorepo
+  cd launchheim
   local version
-  version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$_app/Directory.Build.props")
+  # The commit count restarted when LaunchHeim moved out of MyMonoRepo (2026-11-06): 0.7.1 was r240
+  # there and is about r195 here. The app version leads, so every newer version still sorts higher.
+  version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
   printf '%s.r%s.g%s' "$version" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
 }
 
 build() {
-  cd "mymonorepo/$_app"
+  cd launchheim
   export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
   # Framework-dependent: pacman provides the .NET runtime, like it provides Qt.
   dotnet publish src/Desktop -c Release -r linux-x64 --self-contained false \
@@ -47,14 +47,14 @@ build() {
 }
 
 check() {
-  cd "mymonorepo/$_app"
+  cd launchheim
   dotnet test tests/Core.Tests -c Release
 }
 
 package() {
-  "$srcdir/mymonorepo/$_app/packaging/stage.sh" "$srcdir/publish" "$pkgdir" /usr/lib
+  "$srcdir/launchheim/packaging/stage.sh" "$srcdir/publish" "$pkgdir" /usr/lib
   # MIT names the copyright holder, so Arch wants the text itself, not just the identifier.
-  install -Dm644 "$srcdir/mymonorepo/$_app/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 "$srcdir/launchheim/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
   # The third-party notices and texts ship with the app (the About page opens them from there).
   ln -s /usr/lib/launchheim/THIRD-PARTY-NOTICES.txt "$pkgdir/usr/share/licenses/$pkgname/THIRD-PARTY-NOTICES.txt"
   ln -s /usr/lib/launchheim/licenses "$pkgdir/usr/share/licenses/$pkgname/licenses"

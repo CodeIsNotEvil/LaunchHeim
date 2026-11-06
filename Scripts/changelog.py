@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Reads an app's CHANGELOG.md, for the release workflows and the download page.
+"""Reads CHANGELOG.md, for the release workflow and the download page.
 
-  Scripts/changelog.py notes Applications/LaunchHeim/CHANGELOG.md 0.2.0   # that release's notes (Markdown)
-  Scripts/changelog.py check Applications/LaunchHeim/CHANGELOG.md 0.2.0   # fails unless 0.2.0 is listed
+  Scripts/changelog.py notes CHANGELOG.md 0.2.0   # that release's notes (Markdown)
+  Scripts/changelog.py check CHANGELOG.md 0.2.0   # fails unless 0.2.0 is listed
 
 The changelog is the one place a release's changes are written down. The release workflows put a
 version's section at the top of its GitHub release notes, and site/build.py shows every version on the

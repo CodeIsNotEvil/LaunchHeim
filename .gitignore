@@ -1,7 +1,14 @@
+# .NET build output, everywhere (it was the monorepo's root .gitignore before LaunchHeim moved out).
+bin/
+obj/
+.vscode
+# Python bytecode, e.g. from site/build.py importing Scripts/changelog.py
+__pycache__/
+
 # Packages built by packaging/build-packages.sh and makepkg.
 /packaging/dist/
 /packaging/arch/*.pkg.tar.*
 /packaging/arch/src/
 /packaging/arch/pkg/
-/packaging/arch/mymonorepo/
+/packaging/arch/launchheim/
 /packaging/windows/build/
