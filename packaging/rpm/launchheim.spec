@@ -14,7 +14,7 @@ Release:        1%{?dist}
 Summary:        Valheim mod launcher with separate modded instances
 # LaunchHeim is MIT; the rest is what it bundles (see THIRD-PARTY-NOTICES.txt).
 License:        MIT AND LGPL-3.0-or-later AND BSD-2-Clause AND OFL-1.1
-URL:            https://github.com/CodeIsNotEvil/MyMonoRepo/tree/main/Applications/LaunchHeim
+URL:            https://github.com/CodeIsNotEvil/LaunchHeim
 Source0:        launchheim-root.tar
 Source1:        LICENSE
 Source2:        THIRD-PARTY-NOTICES.txt

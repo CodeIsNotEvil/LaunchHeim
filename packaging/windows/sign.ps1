@@ -45,7 +45,7 @@ if (-not $signtool) { throw 'signtool.exe was not found. It comes with the Windo
 $signed = $false
 foreach ($timestampServer in 'http://timestamp.digicert.com', 'http://timestamp.sectigo.com') {
   & $signtool sign /fd sha256 /f $pfx /p $env:LAUNCHHEIM_SIGNING_PASSWORD /tr $timestampServer /td sha256 `
-    /d LaunchHeim /du 'https://codeisnotevil.github.io/MyMonoRepo/' @Files
+    /d LaunchHeim /du 'https://codeisnotevil.github.io/LaunchHeim/' @Files
   if ($LASTEXITCODE -eq 0) { $signed = $true; break }
   Write-Host "Signing with the time stamp server $timestampServer failed."
 }

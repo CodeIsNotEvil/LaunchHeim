@@ -39,7 +39,7 @@ class Container(context: Context) {
     .connectTimeout(15, TimeUnit.SECONDS)
     .readTimeout(60, TimeUnit.SECONDS)
     .addInterceptor { chain ->
-      chain.proceed(chain.request().newBuilder().header("User-Agent", "LaunchHeimCompanion/$version (+https://github.com/CodeIsNotEvil/MyMonoRepo)").build())
+      chain.proceed(chain.request().newBuilder().header("User-Agent", "LaunchHeimCompanion/$version (+https://github.com/CodeIsNotEvil/LaunchHeim)").build())
     }
     .build()
 

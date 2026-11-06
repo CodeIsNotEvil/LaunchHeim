@@ -20,8 +20,8 @@
     </p>
   </description>
   <launchable type="desktop-id">launchheim.desktop</launchable>
-  <url type="homepage">https://github.com/CodeIsNotEvil/MyMonoRepo/tree/main/Applications/LaunchHeim</url>
-  <url type="bugtracker">https://github.com/CodeIsNotEvil/MyMonoRepo/issues</url>
+  <url type="homepage">https://github.com/CodeIsNotEvil/LaunchHeim</url>
+  <url type="bugtracker">https://github.com/CodeIsNotEvil/LaunchHeim/issues</url>
   <categories>
     <category>Game</category>
   </categories>
