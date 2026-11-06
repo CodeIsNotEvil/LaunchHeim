@@ -1,13 +1,16 @@
 ---
 tags: [project, site, github-pages]
 created: 2026-09-27
-updated: 2026-10-11
+updated: 2026-11-06
 status: active
 ---
 # App site
 
-The public page for the owner's apps: https://codeisnotevil.github.io/MyMonoRepo/ (promotion,
-downloads, install guides, Ko-fi at https://ko-fi.com/codeisnotevil). Code: `site/`, how it works:
+LaunchHeim's public page: https://codeisnotevil.github.io/LaunchHeim/ (features, screenshots,
+downloads, install guides, the privacy policy, Ko-fi at https://ko-fi.com/codeisnotevil). Until
+2026-11-06 it was part of MyMonoRepo's site for all of the owner's apps,
+https://codeisnotevil.github.io/MyMonoRepo/, which now forwards LaunchHeim's addresses here
+([[0018-launchheim-own-repository]]). Notes below from before that date describe the shared site. Code: `site/`, how it works:
 `site/README.md`. Why it's built this way: [[0007-per-app-releases-and-prebuilt-images]].
 
 ## Gotchas
@@ -29,8 +32,9 @@ downloads, install guides, Ko-fi at https://ko-fi.com/codeisnotevil). Code: `sit
   follows the visitor's locale (2026-10-11).
 - The download picker is CSS-only (radio buttons + `~`), because the site has no JavaScript. The radios
   must come before the tabs and panels in the markup, since CSS only reaches later siblings (2026-10-11).
-- The download page shows one app at a time via `:target` + `:has()`, so the hash in the address is
-  the state: front-page links must keep pointing at `download.html#<app>` (2026-10-11).
+- The download page showed one app at a time via `:target` + `:has()` (2026-10-11). With only
+  LaunchHeim on it that picker went (2026-11-06); the section keeps its `#launchheim` id, so old links
+  to `download.html#launchheim` still land on it.
 - The owner wants the site short: the front page says little, the Store is only on the download page,
   and there are no "first steps" (people know how to use the apps) (2026-10-11).
 

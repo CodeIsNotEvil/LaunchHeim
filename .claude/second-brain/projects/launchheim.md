@@ -1,15 +1,16 @@
 ---
 tags: [project, dotnet, qml, gaming]
 created: 2026-09-26
-updated: 2026-10-14
+updated: 2026-11-06
 status: active
 ---
 # LaunchHeim
 
 A Valheim mod launcher for the owner's CachyOS / Plasma 6 desktop, also packaged for Debian/Ubuntu
-and Fedora/RHEL and ported to Windows. Code: `Applications/LaunchHeim/`. Behaviour, build and the Qt
-runtime workarounds: `Applications/LaunchHeim/README.md`. Installing and packaging:
-`Applications/LaunchHeim/packaging/README.md`.
+and Fedora/RHEL and ported to Windows. Behaviour, build and the Qt runtime workarounds: `README.md`.
+Installing and packaging: `packaging/README.md`. Until 2026-11-06 it lived in MyMonoRepo under
+`Applications/LaunchHeim/`; old commit messages, journal entries and notes still use those paths
+([[0018-launchheim-own-repository]]).
 
 ## Shape in one breath
 Instances (own BepInEx + plugins + configs under `~/.local/share/LaunchHeim/instances`) → Valheim is
@@ -18,8 +19,7 @@ vanilla. Mods come from Thunderstore (full index cached locally), Nexus (API key
 accounts) and CurseForge (API key).
 
 ## Key ideas
-- MIT-licensed (owner's choice, 2026-09-26), `Applications/LaunchHeim/LICENSE`. Only LaunchHeim, not the
-  whole monorepo.
+- MIT-licensed (owner's choice, 2026-09-26), `LICENSE`.
 - Third-party licenses (2026-09-30): `THIRD-PARTY-NOTICES.txt` + `licenses/` ship with every build (the
   csproj copies them), Settings → About names Qt and its LGPL and opens the file, and the download
   page links Qt 5.15.2's source next to the Windows zip. Qt's bundled third-party list is generated
@@ -30,7 +30,7 @@ accounts) and CurseForge (API key).
   (tar extraction, `libdl.so`, the native signal fix). They're listed in the README. Any upgrade of
   .NET, glibc or Qt should re-check them.
 - Colours come from `kdeglobals` because Plasma 6 has no Qt 5 platform theme.
-- Branding: accent `#DE5833` and Kode Mono are fixed (Theme.qml), matching the repo's logos. Logos are SVG
+- Branding: accent `#DE5833` and Kode Mono are fixed (Theme.qml), matching the owner's other logos. Logos are SVG
   from `Scripts/text_logo.py`, and raster files are always rendered from the SVG (2026-09-27).
 
 - Modpacks (2026-09-30) are r2modman `.r2z` exports with LaunchHeim's `launchheim.json` beside
@@ -43,7 +43,7 @@ accounts) and CurseForge (API key).
   remembered character and setup, through `+connect` and the game's PlayerPrefs
   ([[0010-launchheim-direct-play-uses-the-games-own-options]]). The README's "Servers and worlds" has
   the file locations and formats.
-- LaunchHeim Companion (2026-10-05): the Android app in `Applications/LaunchHeim/android/` (Kotlin,
+- LaunchHeim Companion (2026-10-05): the Android app in `android/` (Kotlin,
   Compose). It edits mod lists, browses Thunderstore and shows player counts; packs and the server list
   travel over LocalSend, and a returning pack updates its instance after a confirmation
   ([[0011-launchheim-companion-syncs-packs-over-localsend]]). Its README has the SDK setup.
@@ -92,6 +92,9 @@ accounts) and CurseForge (API key).
   instance launch, sets the character key of Valheim's dev command
   `yesiuseddevcommandsbutiwantmyachievementsanyway` ([[0017-launchheim-keeps-achievements-with-the-games-own-switch]]).
 - Browse cards of installed mods have a red remove button (2026-10-14), no confirmation.
+
+- Own repository (2026-11-06): history, tags (`launchheim-v*`, unchanged) and the site moved out of
+  MyMonoRepo ([[0018-launchheim-own-repository]]).
 
 ## Gotchas
 - Steam Linux Runtime (2026-10-14): with it, Steam's `%command%` for Valheim is a chain of launchers
@@ -221,6 +224,9 @@ accounts) and CurseForge (API key).
   and kills that command (2026-10-05).
 
 ## Open
+- The move out of MyMonoRepo (2026-11-06): the first release from here must also be published in
+  MyMonoRepo, or copies up to 0.7.1 never see it; the signing secrets have to be set here; the
+  Microsoft Store listing needs the new site's URLs ([[0018-launchheim-own-repository]]).
 - Keep achievements (2026-10-14): untried in the real game. Check an achievement with a mod that sets
   `Game.isModded`, and that switching it off removes the key ([[0017-launchheim-keeps-achievements-with-the-games-own-switch]]).
 - Start instantly (2026-10-14): untried in the real game. Check worlds (vanilla and modded), servers
