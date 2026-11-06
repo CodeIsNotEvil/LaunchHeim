@@ -122,6 +122,16 @@ accounts) and CurseForge (API key).
 - `devcommands` and other game commands that print hit a null `Terminal` on a server; the plugin says
   they only work in game. `Application.version` is Unity's "1.0"; the game's version is
   `Version.GetVersionString()` (optional parameter, so reflection must pass its default).
+- Linux SteamCMD keeps its data in `~/.steam/steam`, which with Steam installed is the Steam client's
+  own folder. LaunchHeim's SteamCMD downloads (the owner's click and Claude's test run on 2026-11-06/07)
+  rewrote the client's `steamapps/libraryfolders.vdf` and `config/libraryfolders.vdf` with only
+  `~/.local/share/Steam` in them. `/mnt/games/SteamLibrary` dropped out of the list, so LaunchHeim found
+  neither Valheim nor Steam's dedicated server, and Steam would have lost the library on its next start.
+  The running client kept it in memory, which is why its own install of 896660 still went to
+  `/mnt/games`. SteamCMD now runs with `HOME` (and `XDG_DATA_HOME`) set to `~/.cache/LaunchHeim/steamcmd/home`.
+  This was checked by watching the client's `logs/content_log.txt` and the vdf's mtime during a run.
+  Steam's content log shows which process wrote what ("Triggered async write of Steam library folders
+  configuration (N libraries)").
 - `DesktopShell.Open` silently drops anything but web links and local paths (mod descriptions are
   untrusted), so "Install with Steam" with `steam://install/896660` did nothing (owner, 2026-11-07).
   LaunchHeim's own `steam://` links go through `DesktopShell.OpenSteamLink` (xdg-open on Linux, the

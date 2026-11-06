@@ -36,6 +36,9 @@ public sealed partial class SteamCmd(HttpClient http, AppPaths paths)
 
   public string Directory => Path.Combine(paths.CacheDirectory, "steamcmd");
 
+  /// <summary>The home folder SteamCMD runs with on Linux, so it never touches the Steam client's files.</summary>
+  public string PrivateHome => Path.Combine(Directory, "home");
+
   private string Executable => Path.Combine(Directory, OperatingSystem.IsWindows() ? "steamcmd.exe" : "steamcmd.sh");
 
   /// <summary>Installs or updates the dedicated server for <paramref name="platform"/> in <paramref name="directory"/>.</summary>
@@ -61,6 +64,20 @@ public sealed partial class SteamCmd(HttpClient http, AppPaths paths)
     foreach (var variable in GameLauncher.HostOnlyVariables)
     {
       info.Environment.Remove(variable);
+    }
+
+    if (!OperatingSystem.IsWindows())
+    {
+      // A home of its own. Linux SteamCMD keeps its data in ~/.steam/steam, which on a PC with Steam is
+      // the Steam client's own folder: it then rewrote the client's steamapps/libraryfolders.vdf with
+      // only that folder in it, and every other Steam library (with Valheim on it) was gone from the
+      // list, for LaunchHeim and for Steam's next start (found 2026-11-07).
+      var home = PrivateHome;
+      System.IO.Directory.CreateDirectory(home);
+      info.Environment["HOME"] = home;
+      info.Environment["XDG_DATA_HOME"] = Path.Combine(home, ".local", "share");
+      info.Environment.Remove("STEAM_RUNTIME");
+      info.Environment.Remove("STEAMROOT");
     }
 
     Log.Info($"Running SteamCMD for the {platform} dedicated server in {directory}");
