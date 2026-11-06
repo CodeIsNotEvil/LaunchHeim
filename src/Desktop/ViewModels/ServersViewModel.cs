@@ -366,6 +366,7 @@ public sealed class ServerViewModel : ViewModel
   public string StatusText => _isBusy ? _busyText
     : !_isRunning ? "Stopped"
     : !_isOnline ? "Starting… (the world loads before players can join)"
+    : _players < 0 ? "Online"
     : $"Online · {_players} of {_maxPlayers} players";
 
   [NotifySignal]

@@ -252,7 +252,9 @@ FTP. The console window's Server tab follows `server.log` and has a command line
 `unban`, `banned`, `admins`, `permitted`, and Valheim's own non-cheat console commands. Stopping asks the
 plugin to save and quit (`Application.Quit`, which saves through `Game.OnApplicationQuit`); without it,
 SIGINT on Linux and a Ctrl+C on the server's console on Windows. A server that ignores all of that can
-be killed after a confirmation, which loses what happened since its last save.
+be killed after a confirmation, which loses what happened since its last save. The status comes from
+Steam's server query when the server answers it (a private server didn't), else the plugin's `status`,
+else the server's log line "Game server connected".
 
 **Installing mods.** The file layout follows r2modman's BepInEx rules: BepInExPack goes into the
 instance root, and each plugin gets its own `BepInEx/plugins/<Mod>/` folder. Configs go into

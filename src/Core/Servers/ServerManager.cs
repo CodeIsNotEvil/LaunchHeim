@@ -60,6 +60,17 @@ public sealed class ServerManager(
 
   public Process? FindProcess(ServerProfile server) => ServerProcess.Find(store.DirectoryOf(server));
 
+  /// <summary>Valheim's player limit; the server creates its Steam lobby with room for ten.</summary>
+  public const int MaxPlayers = 10;
+
+  /// <summary>Whether the server runs, accepts players, and how many are on.</summary>
+  /// <remarks>
+  /// Steam's server query (A2S) is the usual way, but a private local server didn't answer it at all
+  /// (2026-11-06: its query port's receive queue sat full, nothing in the server read it). So when A2S
+  /// is silent the plugin's <c>status</c> is asked over RCON, and without the plugin the server's own
+  /// log says when it's up ("Game server connected"; the log is new for every start). Players are
+  /// unknown (-1) in that last case.
+  /// </remarks>
   public async Task<ServerState> StateAsync(ServerProfile server, CancellationToken cancellationToken)
   {
     using var process = FindProcess(server);
@@ -68,8 +79,66 @@ public sealed class ServerManager(
       return new ServerState(false, false, 0, 0);
     }
 
-    var status = await ServerQuery.QueryAsync(server.JoinAddress(), TimeSpan.FromSeconds(1), cancellationToken);
-    return new ServerState(true, status is not null, status?.Players ?? 0, status?.MaxPlayers ?? 0);
+    if (await ServerQuery.QueryAsync(server.JoinAddress(), TimeSpan.FromSeconds(1), cancellationToken) is { } status)
+    {
+      return new ServerState(true, true, status.Players, status.MaxPlayers);
+    }
+
+    if (server.ConsoleEnabled)
+    {
+      try
+      {
+        using var quick = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        quick.CancelAfter(TimeSpan.FromSeconds(2));
+        var client = await RconAsync(server, quick.Token);
+        if (ParsePlayers(await client.SendAsync("status", quick.Token)) is { } players)
+        {
+          return new ServerState(true, true, players, MaxPlayers);
+        }
+      }
+      catch (Exception ex) when (ex is RconException or OperationCanceledException && !cancellationToken.IsCancellationRequested)
+      {
+        // Still loading, or the plugin isn't there; the log may know.
+        await DropConsoleAsync(server);
+      }
+    }
+
+    return new ServerState(true, LogSaysUp(store.LogFileOf(server)), -1, MaxPlayers);
+  }
+
+  /// <summary>The count from the plugin's <c>status</c> ("Players: 2"), or null when it isn't up yet.</summary>
+  internal static int? ParsePlayers(string status)
+  {
+    foreach (var line in status.Split('\n'))
+    {
+      if (line.StartsWith("Players: ", StringComparison.Ordinal) && int.TryParse(line["Players: ".Length..].Trim(), out var players))
+      {
+        return players;
+      }
+    }
+
+    return null;
+  }
+
+  private static bool LogSaysUp(string logFile)
+  {
+    try
+    {
+      using var stream = new FileStream(logFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+      using var reader = new StreamReader(stream);
+      while (reader.ReadLine() is { } line)
+      {
+        if (line.Contains("Game server connected", StringComparison.Ordinal))
+        {
+          return true;
+        }
+      }
+    }
+    catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException or IOException or UnauthorizedAccessException)
+    {
+    }
+
+    return false;
   }
 
   public async Task StartAsync(ServerProfile server, bool replaceConfigs, IProgress<InstallProgress>? progress, CancellationToken cancellationToken)

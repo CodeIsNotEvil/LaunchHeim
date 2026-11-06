@@ -95,6 +95,14 @@ public class ServerConsoleTests : IDisposable
     await serve;
   }
 
+  [Theory]
+  [InlineData("Server: S\nWorld: W\nPlayers: 3\nUp: 0h 5m", 3)]
+  [InlineData("Error: The server isn't up yet.", null)]
+  public void Player_count_is_read_from_the_plugins_status(string status, int? players)
+  {
+    Assert.Equal(players, ServerManager.ParsePlayers(status));
+  }
+
   [Fact]
   public void Packets_round_trip_through_the_wire_format()
   {

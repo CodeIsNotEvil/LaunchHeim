@@ -109,7 +109,11 @@ internal sealed class ServerCommands(ManualLogSource logger, Action stopServer)
     var serverName = znet.GetType().GetField("m_ServerName", Any)?.GetValue(null) as string ?? "?";
     var peers = Peers().Count;
     var uptime = DateTime.UtcNow - _startedAt;
-    return $"Server: {serverName}\nWorld: {worldName}\nPlayers: {peers}\nUp: {(int)uptime.TotalHours}h {uptime.Minutes}m\nValheim: {Application.version}";
+    // Application.version is Unity's project version ("1.0"); the game's own is Version.GetVersionString.
+    // Its one parameter (includeMercurialHash) is optional, which reflection doesn't fill in.
+    var versionMethod = Type("Version")?.GetMethods(Any).FirstOrDefault(m => m.Name == "GetVersionString" && m.GetParameters().All(p => p.IsOptional));
+    var version = versionMethod?.Invoke(null, versionMethod.GetParameters().Select(p => p.DefaultValue).ToArray()) as string ?? Application.version;
+    return $"Server: {serverName}\nWorld: {worldName}\nPlayers: {peers}\nUp: {(int)uptime.TotalHours}h {uptime.Minutes}m\nValheim: {version}";
   }
 
   private string Players()
@@ -185,7 +189,16 @@ internal sealed class ServerCommands(ManualLogSource logger, Action stopServer)
 
     // There is no terminal to print into on a server (Context is null): commands that only print fail
     // with an error, the rest do their work.
-    run.Invoke(command, new[] { constructor.Invoke(new object?[] { line, null, command }) });
+    try
+    {
+      run.Invoke(command, new[] { constructor.Invoke(new object?[] { line, null, command }) });
+    }
+    catch (TargetInvocationException ex) when (ex.InnerException is NullReferenceException)
+    {
+      // It wanted to print into the in-game console, which a server doesn't have.
+      return $"{name} only works in the game's own console.";
+    }
+
     return $"Ran {name}.";
   }
 

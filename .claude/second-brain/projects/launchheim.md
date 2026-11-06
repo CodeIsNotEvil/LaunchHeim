@@ -109,6 +109,19 @@ accounts) and CurseForge (API key).
 - Valheim's dedicated server checks a public server's password against the *world* name (and seed),
   not the server name, and a missing `-public` means public (`FejdStartup.ParseServerArguments`,
   decompiled 2026-11-06). `-backups` isn't followed by `i++` in the game's parser, which is harmless.
+- A private local dedicated server (`-public 0`, Valheim 1.0.21) never answered A2S: its query port
+  (game port + 1) was bound but the receive queue sat full, so nothing read it. Server status therefore
+  falls back to the plugin's `status` over RCON, then the log's "Game server connected"
+  (`ServerManager.StateAsync`). The 2026-10-04 A2S check was against a public server (2026-11-06).
+- An end-to-end run on 2026-11-06 used a throwaway harness in the scratchpad. It did a SteamCMD
+  download of 896660 (2.1 GB, it works on CachyOS with Steam's 32-bit libraries), started a server with
+  a copied instance's mods (Jotunn and two others), ran commands over RCON and the file channel, and
+  stopped it three ways: plugin `stop` from another process, plugin `stop` from the starting one, and
+  SIGINT without the plugin. Every stop saved the world (a new `_main.<n>` each time). Each start took
+  about 25 s on a fresh world, much less on an existing one.
+- `devcommands` and other game commands that print hit a null `Terminal` on a server; the plugin says
+  they only work in game. `Application.version` is Unity's "1.0"; the game's version is
+  `Version.GetVersionString()` (optional parameter, so reflection must pass its default).
 - `CHANGELOG.md` can't have an "Unreleased" section: `Scripts/changelog.py` (and so the site build)
   rejects any `## ` heading that isn't `<version> - <date>`. Write the entry when preparing the release
   (2026-11-06).
