@@ -120,7 +120,8 @@ public sealed class ServerManager(
     {
       try
       {
-        await SendAsync(server, "stop", cancellationToken);
+        // Not the file channel's usual 30 s: a plugin that isn't answering shouldn't hold up SIGINT.
+        await SendAsync(server, "stop", cancellationToken, fileChannelTimeout: TimeSpan.FromSeconds(10));
         asked = true;
       }
       catch (RconException ex)
@@ -161,7 +162,7 @@ public sealed class ServerManager(
 
   /// <summary>Runs a console command on the server and returns its answer.</summary>
   /// <exception cref="RconException">Neither RCON nor the file channel got an answer.</exception>
-  public async Task<string> SendAsync(ServerProfile server, string command, CancellationToken cancellationToken)
+  public async Task<string> SendAsync(ServerProfile server, string command, CancellationToken cancellationToken, TimeSpan? fileChannelTimeout = null)
   {
     if (!server.ConsoleEnabled)
     {
@@ -179,7 +180,7 @@ public sealed class ServerManager(
       Log.Info($"RCON to {server.Name} failed ({ex.Message}), trying the file channel.");
     }
 
-    return await new ServerCommandChannel(new LocalServerFiles(store.DirectoryOf(server))).SendAsync(command, cancellationToken: cancellationToken);
+    return await new ServerCommandChannel(new LocalServerFiles(store.DirectoryOf(server))).SendAsync(command, fileChannelTimeout, cancellationToken);
   }
 
   /// <summary>Copies the server's mods in, or returns null for a plain vanilla start.</summary>

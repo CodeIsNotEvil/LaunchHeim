@@ -200,7 +200,12 @@ internal sealed class ServerCommands(ManualLogSource logger, Action stopServer)
 
   private static object? Call(object target, string method, params object[] arguments)
   {
-    var info = target.GetType().GetMethods(Any).FirstOrDefault(m => m.Name == method && m.GetParameters().Length == arguments.Length)
+    // Matched on the argument types too, so an overload added by a game update (Kick(long)) isn't picked.
+    var info = target.GetType().GetMethods(Any).FirstOrDefault(m =>
+        m.Name == method
+        && m.GetParameters() is var parameters
+        && parameters.Length == arguments.Length
+        && parameters.Zip(arguments, (p, a) => p.ParameterType.IsInstanceOfType(a)).All(ok => ok))
       ?? throw new InvalidOperationException($"Valheim's {target.GetType().Name}.{method} wasn't found.");
     return info.Invoke(target, arguments);
   }
