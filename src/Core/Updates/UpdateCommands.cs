@@ -14,9 +14,9 @@ public static class UpdateCommands
     InstallKind.WindowsSetup => WindowsSetup(update),
     InstallKind.InstallScript =>
     [
-      "# in your MyMonoRepo checkout",
+      "# in your LaunchHeim checkout",
       "git pull",
-      "Applications/LaunchHeim/install.sh",
+      "./install.sh",
     ],
     _ => [],
   };

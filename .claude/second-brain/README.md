@@ -1,6 +1,7 @@
 # Second Brain
 
-A plain-Markdown knowledge base for this monorepo, shared by the owner and Claude Code. It holds what
+A plain-Markdown knowledge base for LaunchHeim, shared by the owner and Claude Code, in the same
+layout as the ones in MyMonoRepo (where it started), RcinelTranslate and RcinelLevel. It holds what
 the code and git history *can't* tell you: why decisions were made, what's in flight, open questions,
 gotchas found the hard way, and reference notes worth keeping.
 
@@ -12,12 +13,12 @@ Any editor works too, since it's only Markdown.
 | Folder | Holds | Example |
 |---|---|---|
 | `inbox/` | Quick, unsorted captures. Triage them into another folder later | a half-formed idea |
-| `projects/` | Work with a goal and an end | [[grocerytracker]] |
-| `areas/` | Ongoing responsibilities with no end date | [[raspberry-pi-homelab]], [[dotfiles]] |
-| `resources/` | Reusable knowledge that isn't tied to one project | [[offline-first-sync]] |
-| `decisions/` | ADR-style records: context, decision, consequences. Never rewritten, only superseded | [[0001-syncstamp-counter]] |
-| `journal/` | Dated session logs (`YYYY-MM-DD.md`) | [[2026-09-25]] |
-| `archive/` | Finished or abandoned things, kept for context | [[shoppingmanager]] |
+| `projects/` | Work with a goal and an end | [[launchheim]] |
+| `areas/` | Ongoing responsibilities with no end date | |
+| `resources/` | Reusable knowledge that isn't tied to one project | |
+| `decisions/` | ADR-style records: context, decision, consequences. Never rewritten, only superseded | [[0018-launchheim-own-repository]] |
+| `journal/` | Dated session logs (`YYYY-MM-DD.md`) | [[2026-11-06]] |
+| `archive/` | Finished or abandoned things, kept for context | |
 | `templates/` | Starting points for new notes | |
 
 Start at [[index]], the map of content.
@@ -28,10 +29,13 @@ Start at [[index]], the map of content.
 - **Frontmatter** on every note: `tags`, `created`, `updated`, and `status` (`active` | `done` | `superseded` | `idea`).
 - **Link liberally** with `[[note-name]]`. A link to a note that doesn't exist yet is fine: it marks
   something worth writing.
-- **Point, don't copy.** Link to repo files (`Applications/GroceryTracker/src/...`) instead of pasting
+- **Point, don't copy.** Link to repo files (`src/Core/...`) instead of pasting
   code, and don't duplicate `CLAUDE.md` or the READMEs. Notes cover the *why* and the *what next*.
 - **Absolute dates only** (`2026-09-25`, never "last week").
 - **Decisions are append-only.** To change one, write a new record and mark the old one `superseded`.
+- **Say where copied knowledge came from.** Notes taken over from another of the owner's repositories
+  name the source, so a later correction can be made in both places. Everything up to 2026-11-06
+  came from MyMonoRepo ([[0018-launchheim-own-repository]]).
 
 ## How Claude uses it
 

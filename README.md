@@ -339,9 +339,9 @@ arguments over a Unix socket in `$XDG_RUNTIME_DIR` and exits.
 **Theme.** The window, text and card colours come from the active Plasma colour scheme
 (`~/.config/kdeglobals`), and change live when it changes. Breeze Dark is the fallback outside Plasma.
 The accent is always LaunchHeim's own orange `#DE5833`, and the font is always Kode Mono (SIL OFL 1.1,
-shipped in `qml/fonts`), so the app matches its icon and the repo's other logos. Qt 5 can't read
+shipped in `qml/fonts`), so the app matches its icon and the owner's other logos. Qt 5 can't read
 woff2 or pick weights from a variable font, so `Scripts/kodemono_static.py` cuts static Regular and
-Bold TTFs out of the variable font GroceryTracker ships. The logos come from `Scripts/text_logo.py`
+Bold TTFs out of the variable font in `assets/fonts` (copied from GroceryTracker in MyMonoRepo). The logos come from `Scripts/text_logo.py`
 as SVG, and the `.ico` and the PNGs in `packaging/icons` (16 to 256 px) are rendered from that SVG.
 
 **Window icon.** Qml.Net can't set it, so `native/app_icon.cpp` (called from `Hosting/AppIcon.cs`)

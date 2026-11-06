@@ -5,7 +5,7 @@ LaunchHeim Companion is Copyright (c) 2026 CodeIsNotEvil and licensed under the 
 LICENSE file of LaunchHeim). It is built on the software listed below; each part keeps its own
 license. All of it is used unmodified.
 
-Source code of the app: https://github.com/CodeIsNotEvil/MyMonoRepo/tree/main/Applications/LaunchHeim/android
+Source code of the app: https://github.com/CodeIsNotEvil/LaunchHeim/tree/main/android
 
 When a dependency is added or upgraded, update this file (README "Licenses"). `./gradlew
 :app:dependencies --configuration releaseRuntimeClasspath` lists everything the APK contains.

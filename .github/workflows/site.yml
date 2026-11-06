@@ -1,7 +1,7 @@
-# Builds site/ and publishes it on GitHub Pages: https://codeisnotevil.github.io/MyMonoRepo/
+# Builds site/ and publishes it on GitHub Pages: https://codeisnotevil.github.io/LaunchHeim/
 #
-# It rebuilds when the site or the logos change, and whenever a release is published, because the
-# download page links each app's newest release files (site/build.py asks the GitHub API).
+# It rebuilds when the site, the logo or the screenshots change, and whenever a release is published,
+# because the download page links the newest release's files (site/build.py asks the GitHub API).
 # Pull requests only build it, as a check. One-time setup: Settings → Pages → Source: GitHub Actions.
 name: Site
 
@@ -10,20 +10,16 @@ on:
     branches: [main]
     paths:
       - site/**
-      - Assets/**
-      - Applications/GroceryTracker/assets/**
-      - Applications/LaunchHeim/src/Desktop/packaging/launchheim.svg
-      - Applications/LaunchHeim/assets/**
-      # The download page shows every version from the changelogs.
-      - Applications/GroceryTracker/CHANGELOG.md
-      - Applications/LaunchHeim/CHANGELOG.md
+      - assets/**
+      - src/Desktop/packaging/launchheim.svg
+      # The download page shows every version from the changelog.
+      - CHANGELOG.md
       - Scripts/changelog.py
       - .github/workflows/site.yml
   pull_request:
     paths:
       - site/**
-      - Applications/GroceryTracker/CHANGELOG.md
-      - Applications/LaunchHeim/CHANGELOG.md
+      - CHANGELOG.md
       - Scripts/changelog.py
       - .github/workflows/site.yml
   release:
@@ -44,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Deployments also carry LaunchHeim's Windows setups, which the Microsoft Store downloads from
+      # Deployments also carry the Windows setups, which the Microsoft Store downloads from
       # here because GitHub's release links redirect. Pull requests skip the download (about 140 MB).
       - name: Build the site
         env:

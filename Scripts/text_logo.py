@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Render text as a square SVG logo made of glyph outlines.
 
-The repo's logos (Assets/c-logo/C-logo.svg, the GroceryTracker GT logo, the LaunchHeim icon) share one
-look: Kode Mono Bold in the orange #DE5833 on a transparent background. The glyphs are converted
+LaunchHeim's icon shares its look with the owner's other logos (the C logo, GroceryTracker's GT, both
+in MyMonoRepo, where this script came from): Kode Mono Bold in the orange #DE5833 on a transparent background. The glyphs are converted
 to paths, not left as <text>. Otherwise every viewer without Kode Mono installed (browsers, icon
 themes, Windows Explorer) would silently substitute another font.
 
 Needs fontTools (`pip install fonttools`). Kode Mono is a variable font, so the bold weight is
 instanced out of it here rather than needing a separate static file.
 
-  Scripts/text_logo.py GT Applications/GroceryTracker/assets/GT-logo-optimized.svg
+  Scripts/text_logo.py LH src/Desktop/packaging/launchheim.svg
 
 The SVG is always the source. Raster files (PNG, .ico) are rendered from it, never drawn directly,
 and each size is rendered from the vector rather than scaled down from a big PNG, so small icons
@@ -27,7 +27,7 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib.instancer import instantiateVariableFont
 
 ORANGE = "#DE5833"
-DEFAULT_FONT = Path(__file__).resolve().parent.parent / "Applications/GroceryTracker/src/UI/GroceryTracker.UI.Blazor/wwwroot/fonts/KodeMono.woff2"
+DEFAULT_FONT = Path(__file__).resolve().parent.parent / "assets/fonts/KodeMono.woff2"
 
 
 def main() -> None:

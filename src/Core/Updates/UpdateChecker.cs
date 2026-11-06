@@ -24,9 +24,12 @@ public sealed record AvailableUpdate(string Version, string ReleaseUrl, IReadOnl
 /// <summary>Asks GitHub whether a newer LaunchHeim has been released.</summary>
 /// <remarks>
 /// <para>
-/// The monorepo releases several apps, so GitHub's "latest release" may well be another app's. The
-/// list of releases is read instead and the newest <c>launchheim-v*</c> one taken that is neither a
-/// draft nor a pre-release, the same rule <c>site/build.py</c> follows for the download page.
+/// The list of releases is read rather than GitHub's "latest release", and the newest
+/// <c>launchheim-v*</c> one taken that is neither a draft nor a pre-release, the same rule
+/// <c>site/build.py</c> follows for the download page. That rule dates from MyMonoRepo, which released
+/// other apps too; it stays because ordering by version also keeps a late bugfix release from
+/// counting as the newest. Copies up to 0.7.1 still ask MyMonoRepo, where LaunchHeim lived until
+/// 2026-11-06; the first release from this repository has to be published there as well to reach them.
 /// </para>
 /// <para>
 /// Anonymous: GitHub allows 60 such requests an hour per address, and LaunchHeim asks once at start and
@@ -35,8 +38,8 @@ public sealed record AvailableUpdate(string Version, string ReleaseUrl, IReadOnl
 /// </remarks>
 public sealed class UpdateChecker(HttpClient http)
 {
-  public const string ReleasesApi = "https://api.github.com/repos/CodeIsNotEvil/MyMonoRepo/releases?per_page=30";
-  public const string DownloadPage = "https://codeisnotevil.github.io/MyMonoRepo/download.html#launchheim";
+  public const string ReleasesApi = "https://api.github.com/repos/CodeIsNotEvil/LaunchHeim/releases?per_page=30";
+  public const string DownloadPage = "https://codeisnotevil.github.io/LaunchHeim/download.html";
   public const string TagPrefix = "launchheim-v";
 
   /// <summary>How the setup's name ends (LaunchHeim-0.5.3-win-x64-setup.exe, from build.ps1).</summary>

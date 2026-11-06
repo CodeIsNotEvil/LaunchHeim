@@ -3,19 +3,24 @@
 # setup and the screenshots as an artifact. With the
 # LAUNCHHEIM_WINDOWS_SIGNING_* secrets, LaunchHeim.exe and its own DLLs are signed (packaging/README.md,
 # "Code signing").
-# The Windows build needs MSVC, so this is where it gets built and tested; see
-# Applications/LaunchHeim/packaging/README.md.
+# The Windows build needs MSVC, so this is where it gets built and tested; see packaging/README.md.
 name: LaunchHeim Windows
 
 on:
+  # Everything but the files that can't change the Windows build (the site, the notes, the other
+  # workflows and the Android app, which has its own).
   push:
-    paths:
-      - Applications/LaunchHeim/**
-      - .github/workflows/launchheim-windows.yml
+    paths-ignore: &not-windows
+      - .claude/**
+      - site/**
+      - android/**
+      - Scripts/changelog.py
+      - '**.md'
+      - .github/workflows/launchheim-android.yml
+      - .github/workflows/launchheim-release.yml
+      - .github/workflows/site.yml
   pull_request:
-    paths:
-      - Applications/LaunchHeim/**
-      - .github/workflows/launchheim-windows.yml
+    paths-ignore: *not-windows
   workflow_dispatch:
   # The release workflow (launchheim-release.yml) builds the Windows zip through this one.
   workflow_call:
@@ -34,9 +39,6 @@ jobs:
     env:
       # Secrets can't be used in a step's `if` directly.
       HAS_SIGNING_KEY: ${{ secrets.LAUNCHHEIM_WINDOWS_SIGNING_PFX != '' }}
-    defaults:
-      run:
-        working-directory: Applications/LaunchHeim
     steps:
       - uses: actions/checkout@v4
 
@@ -61,7 +63,7 @@ jobs:
         if: inputs.release && env.HAS_SIGNING_KEY != 'true'
         shell: pwsh
         run: |
-          Write-Host '::error::The LAUNCHHEIM_WINDOWS_SIGNING_* secrets are missing. See Applications/LaunchHeim/packaging/README.md, "Code signing".'
+          Write-Host '::error::The LAUNCHHEIM_WINDOWS_SIGNING_* secrets are missing. See packaging/README.md, "Code signing".'
           exit 1
 
       - name: Signing certificate
@@ -87,7 +89,7 @@ jobs:
         with:
           name: LaunchHeim-win-x64
           path: |
-            Applications/LaunchHeim/packaging/dist/*.zip
-            Applications/LaunchHeim/packaging/dist/*-setup.exe
-            Applications/LaunchHeim/packaging/dist/test-windows-*
+            packaging/dist/*.zip
+            packaging/dist/*-setup.exe
+            packaging/dist/test-windows-*
           if-no-files-found: warn

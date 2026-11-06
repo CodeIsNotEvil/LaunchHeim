@@ -1,4 +1,4 @@
-# Builds LaunchHeim Companion, the Android app in Applications/LaunchHeim/android, runs its unit tests
+# Builds LaunchHeim Companion, the Android app in android/, runs its unit tests
 # and keeps the APK as an artifact. The app takes its version from LaunchHeim's Directory.Build.props,
 # so a change there rebuilds it too. The release workflow (launchheim-release.yml) builds the APK
 # it publishes through this one, with release: true.
@@ -7,13 +7,13 @@ name: LaunchHeim Android
 on:
   push:
     paths:
-      - Applications/LaunchHeim/android/**
-      - Applications/LaunchHeim/Directory.Build.props
+      - android/**
+      - Directory.Build.props
       - .github/workflows/launchheim-android.yml
   pull_request:
     paths:
-      - Applications/LaunchHeim/android/**
-      - Applications/LaunchHeim/Directory.Build.props
+      - android/**
+      - Directory.Build.props
       - .github/workflows/launchheim-android.yml
   workflow_dispatch:
   workflow_call:
@@ -34,7 +34,7 @@ jobs:
       HAS_RELEASE_KEY: ${{ secrets.LAUNCHHEIM_ANDROID_KEYSTORE != '' }}
     defaults:
       run:
-        working-directory: Applications/LaunchHeim/android
+        working-directory: android
     steps:
       - uses: actions/checkout@v4
 
@@ -56,7 +56,7 @@ jobs:
       - name: A release needs the release key
         if: inputs.release && env.HAS_RELEASE_KEY != 'true'
         run: |
-          echo "::error::The LAUNCHHEIM_ANDROID_KEYSTORE secrets are missing. See Applications/LaunchHeim/android/README.md, \"Releases\"."
+          echo "::error::The LAUNCHHEIM_ANDROID_KEYSTORE secrets are missing. See android/README.md, \"Releases\"."
           exit 1
 
       - name: Release key
@@ -83,12 +83,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: LaunchHeimCompanion-apk
-          path: Applications/LaunchHeim/android/app/build/outputs/apk/release/*.apk
+          path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: LaunchHeimCompanion-test-reports
-          path: Applications/LaunchHeim/android/app/build/reports/tests/
+          path: android/app/build/reports/tests/
           if-no-files-found: ignore

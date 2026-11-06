@@ -28,11 +28,11 @@ package, built at the tag.
 ### Install from a release
 
 Each `launchheim-v*` release has the built package. The
-[download page](https://codeisnotevil.github.io/MyMonoRepo/download.html#launchheim) shows these
+[download page](https://codeisnotevil.github.io/LaunchHeim/download.html) shows these
 commands with the current file name and its SHA-256 filled in:
 
 ```fish
-curl -LO https://github.com/CodeIsNotEvil/MyMonoRepo/releases/download/launchheim-v0.3.0/launchheim-git-0.3.0.r106.g81bca63-1-x86_64.pkg.tar.zst
+curl -LO https://github.com/CodeIsNotEvil/LaunchHeim/releases/download/launchheim-v0.3.0/launchheim-git-0.3.0.r106.g81bca63-1-x86_64.pkg.tar.zst
 echo "<sha256>  launchheim-git-0.3.0.r106.g81bca63-1-x86_64.pkg.tar.zst" | sha256sum -c
 sudo pacman -U ./launchheim-git-0.3.0.r106.g81bca63-1-x86_64.pkg.tar.zst
 ```
@@ -47,7 +47,7 @@ To update, do the same with the newer release.
 ### Build and install
 
 ```fish
-cd Applications/LaunchHeim/packaging/arch
+cd packaging/arch
 makepkg -si        # -s installs the build dependencies, -i installs the package
 ```
 
@@ -61,7 +61,7 @@ to `pacman -U`. The dependencies all come from the official repos:
 To build a branch or your local checkout instead of GitHub's `main`:
 
 ```fish
-env LAUNCHHEIM_GIT="file://$HOME/repos/MyMonoRepo#branch=launchheim-valheim-launcher" makepkg -si
+env LAUNCHHEIM_GIT="file://$HOME/repos/LaunchHeim#branch=my-branch" makepkg -si
 ```
 
 Once installed, it shows up in the application launcher, and `nxm://` links from Nexus open it. There's
@@ -133,7 +133,7 @@ rpm -ql launchheim
 ### Setup (recommended)
 
 1. Download `LaunchHeim-<version>-win-x64-setup.exe` from the
-   [download page](https://codeisnotevil.github.io/MyMonoRepo/download.html#launchheim) (or the
+   [download page](https://codeisnotevil.github.io/LaunchHeim/download.html) (or the
    `launchheim-v*` release on GitHub) and run it. .NET, Qt and the Visual C++ runtime are included.
 2. Choose *Install for me only* (the default: `%LOCALAPPDATA%\Programs\LaunchHeim`, no administrator
    needed) or *Install for all users* (`C:\Program Files\LaunchHeim`, asks for an administrator).
@@ -260,7 +260,6 @@ phone fails. Settings → Phone sync notices ufw doing that and shows the comman
 ## Building the packages
 
 ```fish
-cd Applications/LaunchHeim
 packaging/build-packages.sh          # .deb and .rpm into packaging/dist/ (or pass deb / rpm / arch)
 packaging/test-packages.sh           # install them in clean containers and take screenshots
 ```

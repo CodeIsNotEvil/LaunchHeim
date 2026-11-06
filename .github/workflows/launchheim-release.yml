@@ -15,7 +15,7 @@ on:
     tags: ["launchheim-v*"]
   pull_request:
     paths:
-      - Applications/LaunchHeim/packaging/**
+      - packaging/**
       - .github/workflows/launchheim-release.yml
   workflow_dispatch:
 
@@ -31,13 +31,13 @@ jobs:
       - name: Tag matches the app version and the changelog
         if: startsWith(github.ref, 'refs/tags/launchheim-v')
         run: |
-          app=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Applications/LaunchHeim/Directory.Build.props)
+          app=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
           tag="${GITHUB_REF_NAME#launchheim-v}"
           if [ "$app" != "$tag" ]; then
             echo "::error::Tag says $tag but Directory.Build.props says $app. Bump <Version> first."
             exit 1
           fi
-          python3 Scripts/changelog.py check Applications/LaunchHeim/CHANGELOG.md "$tag"
+          python3 Scripts/changelog.py check CHANGELOG.md "$tag"
 
   # On a tag the Windows files must be signed with the code signing certificate (packaging/README.md
   # "Code signing"); dry runs without the secret stay unsigned.
@@ -60,9 +60,6 @@ jobs:
   linux:
     needs: version
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: Applications/LaunchHeim
     steps:
       # Full history: the Arch package's version counts commits.
       - uses: actions/checkout@v4
@@ -92,10 +89,10 @@ jobs:
         with:
           name: LaunchHeim-linux
           path: |
-            Applications/LaunchHeim/packaging/dist/*.deb
-            Applications/LaunchHeim/packaging/dist/*.rpm
-            Applications/LaunchHeim/packaging/dist/*.pkg.tar.zst
-            Applications/LaunchHeim/packaging/dist/test-*.png
+            packaging/dist/*.deb
+            packaging/dist/*.rpm
+            packaging/dist/*.pkg.tar.zst
+            packaging/dist/test-*.png
           if-no-files-found: error
 
   release:
@@ -120,7 +117,7 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           version="${TAG#launchheim-v}"
-          python3 Scripts/changelog.py notes Applications/LaunchHeim/CHANGELOG.md "$version" > notes.md
+          python3 Scripts/changelog.py notes CHANGELOG.md "$version" > notes.md
           cat >> notes.md <<EOF
 
           ---
@@ -149,7 +146,7 @@ jobs:
           cat >> notes.md <<EOF
           \`\`\`
 
-          Getting started: https://codeisnotevil.github.io/MyMonoRepo/download.html#launchheim
+          Getting started: https://codeisnotevil.github.io/LaunchHeim/download.html
           EOF
           gh release create "$TAG" \
             artifacts/LaunchHeim-win-x64/*-setup.exe \
@@ -158,7 +155,7 @@ jobs:
             artifacts/LaunchHeim-linux/*.deb \
             artifacts/LaunchHeim-linux/*.rpm \
             artifacts/LaunchHeimCompanion-apk/*.apk \
-            --title "LaunchHeim ${version}" --notes-file notes.md --latest=false
+            --title "LaunchHeim ${version}" --notes-file notes.md
 
       # A release made with GITHUB_TOKEN triggers no other workflows (GitHub's loop protection), so
       # "release: published" in site.yml won't fire. A manual dispatch is the allowed way round it.

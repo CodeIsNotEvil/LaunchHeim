@@ -13,7 +13,7 @@ was installed:
   pacman, .rpm        everything except Qt, Mesa, the Visual C++ runtime and the .NET runtime
   install.sh          like pacman; Qml.Net downloads its own Qt runtime on first start (see Qt)
 
-Source code of LaunchHeim itself: https://github.com/CodeIsNotEvil/MyMonoRepo/tree/main/Applications/LaunchHeim
+Source code of LaunchHeim itself: https://github.com/CodeIsNotEvil/LaunchHeim
 
 
 ------------------------------------------------------------------------------
@@ -32,7 +32,7 @@ the Qt Project:
   https://download.qt.io/archive/qt/5.15/5.15.2/single/qt-everywhere-src-5.15.2.tar.xz
 
 If that download ever stops working, open an issue at
-https://github.com/CodeIsNotEvil/MyMonoRepo/issues and you will be sent the source.
+https://github.com/CodeIsNotEvil/LaunchHeim/issues and you will be sent the source.
 
 LaunchHeim links Qt dynamically. To use a modified Qt, build Qt 5.15 with MSVC 2019 for x64 and
 replace the DLLs and plugin folders next to LaunchHeim.exe with yours; nothing in LaunchHeim stops
