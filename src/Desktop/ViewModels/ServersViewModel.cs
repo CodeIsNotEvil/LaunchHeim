@@ -124,6 +124,12 @@ public sealed class ServersViewModel(AppViewModel app, ServerManager manager, St
     {
       _refreshing = false;
     }
+
+    // The server program may have appeared since (Steam finished installing it), which enables Start.
+    foreach (var server in _items)
+    {
+      server.RaiseBinary();
+    }
   }
 
   public void Open(string? id)
@@ -188,7 +194,21 @@ public sealed class ServersViewModel(AppViewModel app, ServerManager manager, St
   }
 
   /// <summary>Opens Steam's install dialog for Valheim Dedicated Server.</summary>
-  public void InstallWithSteam() => DesktopShell.Open(DedicatedServer.SteamInstallUrl);
+  /// <remarks>
+  /// The page notices the finished install on its next status refresh, since the Steam copy is looked
+  /// up each time (<see cref="DedicatedServer.FindInSteam"/>).
+  /// </remarks>
+  public void InstallWithSteam()
+  {
+    if (DesktopShell.OpenSteamLink(DedicatedServer.SteamInstallUrl))
+    {
+      app.Toast("info", "Steam's install dialog should open", "Install Valheim Dedicated Server there. Servers using Steam's copy can start once Steam is done.");
+    }
+    else
+    {
+      app.Toast("error", "Couldn't reach Steam", "Install Valheim Dedicated Server from Steam yourself (Library → Tools), or let LaunchHeim download it.");
+    }
+  }
 
   /// <summary>Downloads or updates LaunchHeim's own copy with SteamCMD.</summary>
   public async void DownloadServer()

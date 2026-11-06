@@ -122,6 +122,10 @@ accounts) and CurseForge (API key).
 - `devcommands` and other game commands that print hit a null `Terminal` on a server; the plugin says
   they only work in game. `Application.version` is Unity's "1.0"; the game's version is
   `Version.GetVersionString()` (optional parameter, so reflection must pass its default).
+- `DesktopShell.Open` silently drops anything but web links and local paths (mod descriptions are
+  untrusted), so "Install with Steam" with `steam://install/896660` did nothing (owner, 2026-11-07).
+  LaunchHeim's own `steam://` links go through `DesktopShell.OpenSteamLink` (xdg-open on Linux, the
+  shell on Windows).
 - `CHANGELOG.md` can't have an "Unreleased" section: `Scripts/changelog.py` (and so the site build)
   rejects any `## ` heading that isn't `<version> - <date>`. Write the entry when preparing the release
   (2026-11-06).

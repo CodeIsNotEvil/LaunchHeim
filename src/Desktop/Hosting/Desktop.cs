@@ -42,6 +42,39 @@ public static class DesktopShell
     Run("xdg-open", target);
   }
 
+  /// <summary>Hands a <c>steam://</c> link to the Steam client, such as the install dialog for the dedicated server.</summary>
+  /// <remarks>
+  /// Kept apart from <see cref="Open"/>, which refuses everything but web pages and files because its
+  /// links can come from mod descriptions. These come only from LaunchHeim's own constants
+  /// (<see cref="Core.Servers.DedicatedServer.SteamInstallUrl"/>). The desktop's handler for the scheme
+  /// passes it on to the running client (and starts Steam when it isn't); that is Steam's own
+  /// <c>steam.desktop</c> on Linux, Flatpak's included, and the registry's <c>steam</c> protocol on Windows.
+  /// </remarks>
+  /// <returns>False when nothing could be started for the link.</returns>
+  public static bool OpenSteamLink(string url)
+  {
+    if (!url.StartsWith("steam://", StringComparison.OrdinalIgnoreCase))
+    {
+      return false;
+    }
+
+    if (OperatingSystem.IsWindows())
+    {
+      try
+      {
+        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();
+        return true;
+      }
+      catch (System.ComponentModel.Win32Exception)
+      {
+        return false;
+      }
+    }
+
+    using var process = Run("xdg-open", url);
+    return process is not null;
+  }
+
   /// <summary>Opens the file manager on the file's folder with the file selected.</summary>
   /// <remarks>
   /// Windows: <c>explorer /select,</c>. Linux: the freedesktop <c>org.freedesktop.FileManager1.ShowItems</c>
