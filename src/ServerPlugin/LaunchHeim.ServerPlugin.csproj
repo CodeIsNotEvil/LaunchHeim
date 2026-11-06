@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    LaunchHeim's BepInEx plugin for dedicated servers: a console for Valheim's server, which has none
+    (decision 0020). It speaks Source RCON and also takes commands as files, for hosts that only offer
+    FTP. LaunchHeim copies it into the servers it manages (Core/Servers/ServerPluginInstaller.cs); it is
+    a server-only plugin, so players never need it.
+    Like the game plugin: .NET Framework for Unity's Mono, BepInEx and Unity as compile-time references,
+    Valheim's own classes by reflection.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>LaunchHeim.ServerPlugin</AssemblyName>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Core" Version="5.4.21" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Include="UnityEngine.Modules" Version="6000.0.75" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The same protocol code LaunchHeim's client uses. -->
+    <Compile Include="..\Shared\SourceRcon.cs" Link="SourceRcon.cs" />
+  </ItemGroup>
+
+</Project>
