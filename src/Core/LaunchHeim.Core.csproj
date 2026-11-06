@@ -11,6 +11,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Source RCON, shared with the server plugin so both ends of the protocol stay in step (decision 0020). -->
+    <Compile Include="..\Shared\SourceRcon.cs" Link="Servers\SourceRcon.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="LaunchHeim.Core.Tests" />
   </ItemGroup>
 

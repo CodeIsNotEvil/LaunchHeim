@@ -84,7 +84,7 @@ public sealed class GamePlugin(AppPaths paths, Func<InstanceStore, ModService> m
 
     try
     {
-      var target = instanceDirectory ?? await EnsureVanillaSetupAsync(progress, cancellationToken);
+      var target = instanceDirectory ?? (await EnsureVanillaSetupAsync(progress, cancellationToken)).Directory;
       InstallPlugin(target);
       // Always 1 or 0: with 0 the plugin takes back what an earlier "keep" set (see its Achievements).
       return new Result(target, [AchievementsArgument, keepAchievements ? "1" : "0"], null);
@@ -128,14 +128,18 @@ public sealed class GamePlugin(AppPaths paths, Func<InstanceStore, ModService> m
     File.Copy(_plugin, target, overwrite: true);
   }
 
-  /// <summary>The vanilla setup's folder, with BepInExPack installed the first time.</summary>
-  private async Task<string> EnsureVanillaSetupAsync(IProgress<InstallProgress>? progress, CancellationToken cancellationToken)
+  /// <summary>The vanilla setup and its folder, with BepInExPack installed the first time.</summary>
+  /// <remarks>
+  /// Vanilla dedicated servers take their BepInEx from here too, for LaunchHeim's server plugin
+  /// (<see cref="Servers.ServerManager"/>): one download of BepInExPack serves both.
+  /// </remarks>
+  internal async Task<(Instance Setup, string Directory)> EnsureVanillaSetupAsync(IProgress<InstallProgress>? progress, CancellationToken cancellationToken)
   {
     var setup = VanillaStore.LoadAll().FirstOrDefault() ?? VanillaStore.Create("Vanilla instant start");
     var directory = VanillaStore.DirectoryOf(setup);
     if (File.Exists(Path.Combine(directory, GameLauncher.PreloaderPath)))
     {
-      return directory;
+      return (setup, directory);
     }
 
     Log.Info($"Setting up BepInEx for instant start in {directory}");
@@ -145,6 +149,6 @@ public sealed class GamePlugin(AppPaths paths, Func<InstanceStore, ModService> m
       throw new LaunchException(report.Warnings.FirstOrDefault() ?? "BepInEx could not be set up for instant start.");
     }
 
-    return directory;
+    return (setup, directory);
   }
 }

@@ -102,26 +102,37 @@ public sealed class SteamLibraryLocator(IEnumerable<string> steamRoots, GamePlat
     }
   }
 
-  public string? FindValheim()
+  public string? FindValheim() => FindApp(ValheimAppId, "Valheim", directory => IsValheimDirectory(directory, platform));
+
+  /// <summary>
+  /// The folder Steam installed an app into, in whichever library holds it: Valheim, or its dedicated
+  /// server (<see cref="Servers.DedicatedServer.SteamAppId"/>, a tool in the Steam library).
+  /// </summary>
+  /// <param name="defaultInstallDir">The folder name under <c>steamapps/common</c> when the manifest doesn't say.</param>
+  /// <param name="isInstalled">Whether a folder really holds the app; a manifest can outlive its files.</param>
+  public string? FindApp(string appId, string defaultInstallDir, Func<string, bool> isInstalled)
   {
     foreach (var library in LibraryFolders())
     {
-      var manifest = Path.Combine(library, "steamapps", $"appmanifest_{ValheimAppId}.acf");
+      var manifest = Path.Combine(library, "steamapps", $"appmanifest_{appId}.acf");
       if (!File.Exists(manifest))
       {
         continue;
       }
 
-      var installDir = VdfNode.Parse(File.ReadAllText(manifest))["AppState"]?.Value("installdir") ?? "Valheim";
-      var gameDir = Path.Combine(library, "steamapps", "common", installDir);
-      if (IsValheimDirectory(gameDir, platform))
+      var installDir = VdfNode.Parse(File.ReadAllText(manifest))["AppState"]?.Value("installdir") ?? defaultInstallDir;
+      var appDir = Path.Combine(library, "steamapps", "common", installDir);
+      if (isInstalled(appDir))
       {
-        return gameDir;
+        return appDir;
       }
     }
 
     return null;
   }
+
+  /// <summary>The platform whose builds this locator looks for.</summary>
+  public GamePlatform Platform => platform;
 
   /// <summary>The folder chosen in Settings while it still holds Valheim, else the one in the Steam libraries.</summary>
   /// <returns>The chosen folder when neither holds the game, so the error names it, or empty when none was chosen.</returns>
