@@ -7,6 +7,18 @@ Format: a `## <version> - <yyyy-mm-dd>` heading per release (the version must ma
 `src/Desktop/LaunchHeim.Desktop.csproj`), then `### Added`, `### Changed` or `### Fixed` with one
 bullet per change.
 
+## 0.7.2 - 2026-11-06
+
+### Changed
+- LaunchHeim has a home of its own: https://codeisnotevil.github.io/LaunchHeim/ for downloads and
+  https://github.com/CodeIsNotEvil/LaunchHeim for the source and issues. Update reminders now come
+  from there; this update is the one that takes you over, so there's nothing to do.
+
+### Fixed
+- File dialogs now open when LaunchHeim is installed as a package (pacman, deb or rpm): "Install
+  from file", importing and exporting modpacks, picking an instance picture and choosing a folder in
+  Settings did nothing on some desktops, such as Plasma 6 with the Arch package.
+
 ## 0.7.1 - 2026-10-14
 
 ### Fixed
