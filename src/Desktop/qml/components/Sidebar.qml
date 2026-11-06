@@ -55,6 +55,15 @@ Rectangle {
     }
 
     NavButton {
+      text: "Servers"
+      iconName: "server"
+      count: Vm.servers.runningCount > 0 ? "▶ " + Vm.servers.runningCount : ""
+      active: App.currentPage === "servers" || App.currentPage === "server"
+      Layout.fillWidth: true
+      onClicked: App.navigate("servers")
+    }
+
+    NavButton {
       text: "Screenshots"
       iconName: "image"
       active: App.currentPage === "screenshots"

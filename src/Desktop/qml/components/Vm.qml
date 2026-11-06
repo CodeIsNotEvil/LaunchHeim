@@ -22,6 +22,8 @@ QtObject {
   readonly property var phone: App.phoneSync
   readonly property var updates: App.updates
   readonly property var screenshots: App.screenshots
+  readonly property var servers: App.servers
+  readonly property var server: servers.selected
   readonly property var selected: App.selectedInstance
   readonly property var recent: App.recentInstance
   readonly property var details: browse.details
@@ -31,8 +33,10 @@ QtObject {
   readonly property var toasts: Net.toVariantList(App.toasts)
   readonly property var results: Net.toVariantList(browse.results)
   readonly property var detailFiles: details ? Net.toVariantList(details.files) : []
-  readonly property var servers: Net.toVariantList(play.servers)
+  readonly property var playServers: Net.toVariantList(play.servers)
   readonly property var worlds: Net.toVariantList(play.worlds)
   readonly property var peers: Net.toVariantList(phone.peers)
   readonly property var screenshotItems: Net.toVariantList(screenshots.items)
+  readonly property var serverItems: Net.toVariantList(servers.items)
+  readonly property var serverMods: server ? Net.toVariantList(server.mods) : []
 }

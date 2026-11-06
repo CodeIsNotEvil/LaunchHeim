@@ -7,6 +7,7 @@ using CINE.LaunchHeim.Core.Logging;
 using CINE.LaunchHeim.Core.Mods;
 using CINE.LaunchHeim.Core.Packs;
 using CINE.LaunchHeim.Core.Saves;
+using CINE.LaunchHeim.Core.Servers;
 using CINE.LaunchHeim.Core.Storage;
 using CINE.LaunchHeim.Core.Updates;
 using CINE.LaunchHeim.Desktop.Hosting;
@@ -43,7 +44,9 @@ public sealed class AppViewModel : ViewModel
     GameFolderImporter importer,
     ImageCache images,
     UpdateChecker updates,
-    GamePlugin gamePlugin)
+    GamePlugin gamePlugin,
+    ServerManager servers,
+    SteamCmd steamCmd)
   {
     GamePlugin = gamePlugin;
     Paths = paths;
@@ -63,6 +66,7 @@ public sealed class AppViewModel : ViewModel
     DebugConsole = new ConsoleViewModel(this);
     Play = new PlayViewModel(this);
     Screenshots = new ScreenshotsViewModel(this);
+    Servers = new ServersViewModel(this, servers, steamCmd);
     PhoneSync = new PhoneSyncViewModel(this);
     Updates = new UpdateViewModel(this, updates);
 
@@ -101,6 +105,10 @@ public sealed class AppViewModel : ViewModel
   [NotifySignal]
   public ScreenshotsViewModel Screenshots { get; }
 
+  /// <summary>The dedicated servers LaunchHeim runs on this machine.</summary>
+  [NotifySignal]
+  public ServersViewModel Servers { get; }
+
   /// <summary>The reminder that a newer LaunchHeim is out. Not called Update: QML items have an update().</summary>
   [NotifySignal]
   public UpdateViewModel Updates { get; }
@@ -116,7 +124,7 @@ public sealed class AppViewModel : ViewModel
   [NotifySignal]
   public string Version => Core.AppInfo.Version;
 
-  /// <summary>library, play, instance, browse, screenshots or settings.</summary>
+  /// <summary>library, play, instance, browse, screenshots, servers, server or settings.</summary>
   [NotifySignal]
   public string CurrentPage { get => _page; private set => Set(ref _page, value); }
 
@@ -222,6 +230,10 @@ public sealed class AppViewModel : ViewModel
     else if (page == "screenshots")
     {
       Screenshots.Refresh();
+    }
+    else if (page is "servers" or "server")
+    {
+      Servers.EnsureLoaded();
     }
   }
 
@@ -689,6 +701,7 @@ public sealed class AppViewModel : ViewModel
     Raise(nameof(LastPlayName));
     Browse.InstancesChanged();
     Play.InstancesChanged();
+    Servers.InstancesChanged();
   }
 
   internal void InstallStateChanged(InstanceViewModel instance)

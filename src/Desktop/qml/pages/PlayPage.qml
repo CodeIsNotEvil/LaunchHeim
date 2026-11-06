@@ -114,7 +114,7 @@ Item {
           spacing: 2
 
           Repeater {
-            model: Vm.servers
+            model: Vm.playServers
             delegate: DestinationRow {
               destination: modelData
               Layout.fillWidth: true

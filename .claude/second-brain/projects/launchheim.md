@@ -95,8 +95,23 @@ accounts) and CurseForge (API key).
 
 - Own repository (2026-11-06): history, tags (`launchheim-v*`, unchanged) and the site moved out of
   MyMonoRepo ([[0018-launchheim-own-repository]]).
+- Dedicated servers (2026-11-06, unreleased): a Servers page for local servers. They run Steam's
+  or SteamCMD's copy and take their mods from an instance. A server plugin (`src/ServerPlugin`) gives
+  them a console over Source RCON and through files. Roadmap and backup plan: [[server-manager]]
+  ([[0019-launchheim-server-manager]], [[0020-launchheim-server-plugin-speaks-source-rcon]]).
 
 ## Gotchas
+- QML's JavaScript reserves `public` (and the other future reserved words), so a Qml.Net property named
+  `Public` breaks the whole page: "Unexpected token `public'" and "Type ServerPage unavailable". The
+  same goes for a key in a JS object literal. Hence `ServerViewModel.IsPublic` (2026-11-06).
+- A QML object literal like `validator: IntValidator { ... }` can't be followed by `;` on the same
+  line; put the item on lines of its own (2026-11-06).
+- Valheim's dedicated server checks a public server's password against the *world* name (and seed),
+  not the server name, and a missing `-public` means public (`FejdStartup.ParseServerArguments`,
+  decompiled 2026-11-06). `-backups` isn't followed by `i++` in the game's parser, which is harmless.
+- `CHANGELOG.md` can't have an "Unreleased" section: `Scripts/changelog.py` (and so the site build)
+  rejects any `## ` heading that isn't `<version> - <date>`. Write the entry when preparing the release
+  (2026-11-06).
 - Steam Linux Runtime (2026-10-14): with it, Steam's `%command%` for Valheim is a chain of launchers
   ending in the container's `_v2-entry-point`, which fails (exit 125) if Doorstop is preloaded into it.
   Anything for the game alone goes right in front of `valheim.x86_64` inside the command
@@ -233,6 +248,8 @@ accounts) and CurseForge (API key).
   and kills that command (2026-10-05).
 
 ## Open
+- Dedicated servers: see [[server-manager]] "Open" (Windows untested, keyring, firewall hint, picking an
+  existing world).
 - The move out of MyMonoRepo (2026-11-06): the first release from here must also be published in
   MyMonoRepo, or copies up to 0.7.1 never see it; the signing secrets have to be set here; the
   Microsoft Store listing needs the new site's URLs ([[0018-launchheim-own-repository]]).

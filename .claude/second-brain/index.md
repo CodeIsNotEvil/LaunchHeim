@@ -13,6 +13,7 @@ lived in CodeIsNotEvil/MyMonoRepo; the notes below came from its second brain
 ## Projects
 - [[launchheim]]: the launcher, the companion app, key ideas, gotchas and what's open
 - [[app-site]]: the GitHub Pages site with downloads, install guides and the privacy policy
+- [[server-manager]]: dedicated servers (local now; FTP hosts, G-Portal, backups and SSH next), with the backup plan
 
 ## Decisions
 Numbers 0001 to 0003 are GroceryTracker's and stayed in MyMonoRepo; the numbers here were kept so the
@@ -32,6 +33,8 @@ references in code and READMEs stay right.
 - [[0016-launchheim-instant-start-plugin]]: "Start instantly" is a BepInEx plugin pressing Start in Valheim's menus, opt-in per server or world
 - [[0017-launchheim-keeps-achievements-with-the-games-own-switch]]: "Keep Steam achievements with mods" sets the dev command's character key, and only undoes its own
 - [[0018-launchheim-own-repository]]: LaunchHeim, its history and its site moved out of MyMonoRepo
+- [[0019-launchheim-server-manager]]: servers are folders that take their mods from an instance, run detached, and reach remote hosts through file access
+- [[0020-launchheim-server-plugin-speaks-source-rcon]]: LaunchHeim's server plugin gives Valheim's server a console over Source RCON and through files
 
 ## Inbox
 Untriaged captures live in `inbox/`. Empty it now and then.

@@ -5,8 +5,9 @@ import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
 import "../components"
 
-// The console: a second top-level window that follows one log live (BepInEx, Unity or LaunchHeim's
-// own), so it can sit next to the game. The lines come from Vm.debugConsole.poll() as JSON batches
+// The console: a second top-level window that follows one log live (BepInEx, Unity, LaunchHeim's own
+// or a dedicated server's), so it can sit next to the game. For a server with LaunchHeim's plugin a
+// command line runs console commands on it. The lines come from Vm.debugConsole.poll() as JSON batches
 // and are only ever appended to a QML ListModel, which keeps the scroll position while the log grows.
 ApplicationWindow {
   id: window
@@ -18,11 +19,28 @@ ApplicationWindow {
   // Set while the window moves the view itself, so that doesn't count as the user scrolling away.
   property bool autoScrolling: false
 
+  // The Server tab only once a server was opened; there's no log to show before.
   readonly property var sources: [
     { key: "bepinex", name: "BepInEx" },
     { key: "unity", name: "Unity" },
     { key: "app", name: "LaunchHeim" }
-  ]
+  ].concat(log.hasServer ? [{ key: "server", name: "Server" }] : [])
+
+  // Commands typed this session, newest last, for the arrow keys.
+  property var history: []
+  property int historyIndex: 0
+
+  function sendCommand() {
+    var line = commandField.text.trim()
+    if (line.length === 0)
+      return
+    if (history.length === 0 || history[history.length - 1] !== line)
+      history = history.concat([line])
+    historyIndex = history.length
+    commandField.text = ""
+    log.sendCommand(line)
+    follow = true
+  }
 
   function sourceName(key) {
     for (var i = 0; i < sources.length; i++)
@@ -62,7 +80,7 @@ ApplicationWindow {
     Clipboard.copy(log.shownText())
   }
 
-  title: sourceName(log.source) + " log" + (log.source === "bepinex" && log.hasInstance ? " — " + log.instanceName : "") + " — LaunchHeim"
+  title: sourceName(log.source) + " log" + (log.source === "bepinex" && log.hasInstance ? " — " + log.instanceName : log.source === "server" ? " — " + log.serverName : "") + " — LaunchHeim"
   width: 1040
   height: 660
   minimumWidth: 680
@@ -168,7 +186,7 @@ ApplicationWindow {
         }
 
         Label {
-          text: window.log.source === "bepinex" && window.log.hasInstance ? window.log.instanceName : ""
+          text: window.log.source === "bepinex" && window.log.hasInstance ? window.log.instanceName : window.log.source === "server" ? window.log.serverName : ""
           visible: text.length > 0
           font.bold: true
           elide: Text.ElideRight
@@ -305,6 +323,33 @@ ApplicationWindow {
           kind: "primary"
           onClicked: window.scrollToEnd()
         }
+      }
+
+      // Commands for the server's plugin. The answers appear in the log above, after a "> command" line.
+      RowLayout {
+        visible: window.log.canSendCommands
+        spacing: 10
+        Layout.fillWidth: true
+
+        LhTextField {
+          id: commandField
+          placeholderText: "Command for the server, e.g. players, say Hello, save (help lists them; ↑ for the last ones)"
+          font.family: Theme.fontFamily
+          Layout.fillWidth: true
+          onAccepted: window.sendCommand()
+          Keys.onUpPressed: {
+            if (window.history.length > 0) {
+              window.historyIndex = Math.max(0, window.historyIndex - 1)
+              text = window.history[window.historyIndex]
+            }
+          }
+          Keys.onDownPressed: {
+            window.historyIndex = Math.min(window.history.length, window.historyIndex + 1)
+            text = window.historyIndex < window.history.length ? window.history[window.historyIndex] : ""
+          }
+        }
+
+        LhButton { text: "Send"; kind: "primary"; enabled: commandField.text.trim().length > 0; onClicked: window.sendCommand() }
       }
 
       RowLayout {
