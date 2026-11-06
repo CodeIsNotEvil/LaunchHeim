@@ -3,19 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Downloads · GroceryTracker and LaunchHeim</title>
-  <meta name="description" content="Download GroceryTracker and LaunchHeim, with a quick guide to installing and using them.">
-  <link rel="icon" href="img/c-logo.svg" type="image/svg+xml">
+  <title>Download · LaunchHeim</title>
+  <meta name="description" content="Download LaunchHeim, the Valheim mod launcher, with a quick guide to installing and using it.">
+  <link rel="icon" href="img/launchheim.svg" type="image/svg+xml">
   <link rel="preload" href="fonts/KodeMono.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/site.css">
 </head>
 <body>
   <header class="site-header">
     <div class="wrap">
-      <a class="brand" href="./"><span class="glint glint-c"><img src="img/c-logo.svg" alt="" width="32" height="32"></span>CodeIsNotEvil</a>
+      <a class="brand" href="./"><span class="glint glint-lh"><img src="img/launchheim.svg" alt="" width="32" height="32"></span>LaunchHeim</a>
       <nav aria-label="Main">
-        <a href="./">Apps</a>
-        <a href="download.html" aria-current="page">Downloads</a>
+        <a href="./">Home</a>
+        <a href="download.html" aria-current="page">Download</a>
         <a href="{{ repo_url }}">GitHub</a>
         <a href="https://ko-fi.com/codeisnotevil">Ko-fi</a>
       </nav>
@@ -23,93 +23,8 @@
   </header>
 
   <main class="wrap">
-    <h1>Downloads</h1>
-    <p class="lead">Everything here is free. Pick an app to see how to install it.</p>
-    <nav class="toc" aria-label="Apps on this page">
-      <a class="button" href="#grocerytracker"><span class="glint glint-gt"><img src="img/grocerytracker.svg" alt="" width="22" height="22"></span>GroceryTracker</a>
-      <a class="button" href="#launchheim"><span class="glint glint-lh"><img src="img/launchheim.svg" alt="" width="22" height="22"></span>LaunchHeim</a>
-    </nav>
-
-    <!-- ================= GroceryTracker ================= -->
-    <section class="app-section card" id="grocerytracker" aria-labelledby="gt-title">
-      <header>
-        <span class="glint glint-gt"><img src="img/grocerytracker.svg" alt="" width="48" height="48"></span>
-        <div>
-          <h2 id="gt-title">GroceryTracker</h2>
-          <!-- if:gt_release -->
-          <p class="version">Version {{ gt_version }} · released {{ gt_date }} · <a href="#grocerytracker-changes">what's new</a> · <a href="{{ gt_release_url }}">release notes</a> · MIT license</p>
-          <!-- else -->
-          <p class="version">No release yet · MIT license</p>
-          <!-- end -->
-        </div>
-      </header>
-
-      <p>GroceryTracker runs on a computer in your home, such as a Raspberry Pi 4 or 5, a NAS or any
-        Linux machine, and every phone and laptop in the household uses it in the browser. It comes as
-        ready-made containers for x86-64 and ARM64, so there is nothing to build.</p>
-      <!-- Shown only while no app is picked (site.css, "One app at a time"). -->
-      <a class="button primary app-open" href="#grocerytracker">Download and install</a>
-      <div class="app-more">
-
-      <div class="note">
-        <p><strong>Keep it at home.</strong> GroceryTracker has no login: anyone who can reach it can
-          read and change everything. Use it on your home network or over a VPN such as Tailscale,
-          and don't open it to the internet.</p>
-      </div>
-
-      <h3>You need</h3>
-      <ul>
-        <li>A Linux machine that stays on (x86-64 or ARM64).</li>
-        <li><a href="https://podman.io/docs/installation">Podman</a> with <code>podman compose</code>,
-          or <a href="https://docs.docker.com/engine/install/">Docker</a> with its Compose plugin.</li>
-      </ul>
-
-      <!-- if:gt_release -->
-      <h3>Install</h3>
-      <ol class="steps">
-        <li>Make a folder for it and download the two setup files:
-<pre><code>mkdir grocerytracker &amp;&amp; cd grocerytracker
-curl -LO {{ gt_compose_url }}
-curl -LO {{ gt_env_url }}</code></pre></li>
-        <li>Create your settings and choose a database password:
-<pre><code>cp env.example .env
-nano .env        # set POSTGRES_PASSWORD</code></pre></li>
-        <li>Start it. The first start downloads the images:
-<pre><code>podman compose up -d        # or: docker compose up -d</code></pre></li>
-        <li>Open <code>http://&lt;your-machine&gt;:8080</code> on any device in your home.</li>
-      </ol>
-
-      <h3>Update</h3>
-<pre><code>podman compose pull &amp;&amp; podman compose up -d</code></pre>
-      <p>Your data stays in its own volume, and database changes are applied automatically when the
-        new version starts. To stay on one version until you choose to update, set
-        <code>GROCERYTRACKER_VERSION={{ gt_version }}</code> in <code>.env</code>.</p>
-      <!-- else -->
-      <div class="note">
-        <p>The first release with prebuilt containers is on its way. Until then you can build it
-          from source with the <a href="{{ repo_url }}/tree/main/Applications/GroceryTracker#deploying-to-the-raspberry-pi">Raspberry Pi guide</a>.</p>
-      </div>
-      <!-- end -->
-
-      <details>
-        <summary>Install it on your phone (HTTPS)</summary>
-        <p>Browsers only let you install GroceryTracker as an app, and use it offline, over HTTPS.
-          Put a certificate named <code>grocerytracker.crt</code> with its key
-          <code>grocerytracker.key</code> in a <code>certs</code> folder next to
-          <code>compose.yaml</code>. It is then served on port 8443. The
-          <a href="{{ repo_url }}/blob/main/Applications/GroceryTracker/deploy/https.md">HTTPS guide</a>
-          shows how to make a certificate your devices trust.</p>
-      </details>
-
-      <h3 id="grocerytracker-changes">What's new</h3>
-      <!-- Built from Applications/GroceryTracker/CHANGELOG.md by build.py. -->
-      <div class="changelog">
-{{{ gt_changes }}}
-      </div>
-
-      <p>More in the <a href="{{ repo_url }}/tree/main/Applications/GroceryTracker#readme">GroceryTracker README</a>.</p>
-      </div>
-    </section>
+    <h1>Download</h1>
+    <p class="lead">LaunchHeim is free. Pick how you want to get it.</p>
 
     <!-- ================= LaunchHeim ================= -->
     <section class="app-section card" id="launchheim" aria-labelledby="lh-title">
@@ -127,9 +42,6 @@ nano .env        # set POSTGRES_PASSWORD</code></pre></li>
 
       <p>A Valheim mod launcher. Each instance is its own modpack with its own BepInEx, mods and
         configs, and the game install stays vanilla. You need Valheim on Steam.</p>
-      <!-- Shown only while no app is picked (site.css, "One app at a time"). -->
-      <a class="button primary app-open" href="#launchheim">Download and install</a>
-      <div class="app-more">
 
       <!-- if:lh_release -->
       <!-- One way to get it at a time: the tabs are radio buttons, so picking one shows its download and
@@ -228,7 +140,7 @@ nano .env        # set POSTGRES_PASSWORD</code></pre></li>
             Qt 5 and .NET come from the official repositories.</p>
           <p>To update, run the same commands for the new version. <code>pacman -Syu</code> doesn't
             see new releases, because LaunchHeim isn't in a repository. To build it yourself instead,
-            run <code>makepkg -si</code> in <code>Applications/LaunchHeim/packaging/arch</code>.</p>
+            run <code>makepkg -si</code> in <code>packaging/arch</code> of a checkout.</p>
         </div>
         <!-- end -->
 
@@ -273,8 +185,6 @@ nano .env        # set POSTGRES_PASSWORD</code></pre></li>
             <ol class="steps">
               <li>In <a href="https://obtainium.imranr.dev/">Obtainium</a>, tap <strong>Add App</strong> and
                 enter <code>{{ repo_url }}</code> as the source URL.</li>
-              <li>Set <strong>Filter release titles by regular expression</strong> to <code>^LaunchHeim</code>.
-                The repository also releases GroceryTracker, which has no APK.</li>
               <li>Tap <strong>Add</strong>. Obtainium recognises the installed companion and installs new
                 versions when they come out.</li>
             </ol>
@@ -292,19 +202,19 @@ echo "{{ lh_android_sha256 }}  {{ lh_android_file }}" | sha256sum -c</code></pre
       <!-- LGPL-3.0: the Windows builds ship Qt, so where to get its source has to sit next to the download. -->
       <p class="fine-print">LaunchHeim is MIT licensed and built on open-source software, including Qt 5.15
         under the GNU LGPL v3. Every download contains <code>THIRD-PARTY-NOTICES.txt</code> and the
-        license texts (<a href="{{ repo_url }}/blob/main/Applications/LaunchHeim/THIRD-PARTY-NOTICES.txt">read them online</a>).
+        license texts (<a href="{{ repo_url }}/blob/main/THIRD-PARTY-NOTICES.txt">read them online</a>).
         The Qt in the Windows builds (the Store's, the setup and the zip) is the unmodified Qt 5.15.2; its source is at
         <a href="https://download.qt.io/archive/qt/5.15/5.15.2/single/">download.qt.io</a>.</p>
       <!-- else -->
       <div class="note">
         <p>The first release is on its way. Until then, the
-          <a href="{{ repo_url }}/blob/main/Applications/LaunchHeim/packaging/README.md">packaging guide</a>
+          <a href="{{ repo_url }}/blob/main/packaging/README.md">packaging guide</a>
           shows how to build it for Arch (<code>makepkg -si</code>), Debian, Fedora and Windows.</p>
       </div>
       <!-- end -->
 
       <h3 id="launchheim-changes">What's new</h3>
-      <!-- Built from Applications/LaunchHeim/CHANGELOG.md by build.py. -->
+      <!-- Built from CHANGELOG.md by build.py. -->
       <div class="changelog">
 {{{ lh_changes }}}
       </div>
@@ -332,14 +242,13 @@ echo "{{ lh_android_sha256 }}  {{ lh_android_file }}" | sha256sum -c</code></pre
           options in Valheim's Steam properties apply too. On Linux, LaunchHeim starts the game itself
           and loads the overlay the same way Steam does.</p>
       </details>
-      <p>More in the <a href="{{ repo_url }}/tree/main/Applications/LaunchHeim#readme">LaunchHeim README</a>.</p>
-      </div>
+      <p>More in the <a href="{{ repo_url }}#readme">LaunchHeim README</a>.</p>
     </section>
 
     <section class="card support" aria-labelledby="support-title">
       <div>
-        <h2 id="support-title">Like the apps?</h2>
-        <p>They're free and stay that way. If they save you time, a coffee on Ko-fi is a lovely way to
+        <h2 id="support-title">Like LaunchHeim?</h2>
+        <p>It's free and stays that way. If it saves you time, a coffee on Ko-fi is a lovely way to
           say thanks.</p>
       </div>
       <a class="button primary" href="https://ko-fi.com/codeisnotevil">Support me on Ko-fi</a>
@@ -349,7 +258,7 @@ echo "{{ lh_android_sha256 }}  {{ lh_android_file }}" | sha256sum -c</code></pre
   <footer class="site-footer">
     <div class="wrap">
       <p>© {{ year }} CodeIsNotEvil</p>
-      <p><a href="{{ repo_url }}">Source on GitHub</a> · <a href="privacy.html">LaunchHeim privacy policy</a></p>
+      <p><a href="{{ repo_url }}">Source on GitHub</a> · <a href="privacy.html">Privacy policy</a></p>
       <p>Set in <a href="fonts/OFL.txt">Kode Mono</a> (SIL Open Font License)</p>
     </div>
   </footer>

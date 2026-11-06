@@ -6,13 +6,12 @@
 
 What it does:
 - Copies the pages from site/src and fills in {{placeholders}}.
-- Copies the logos and the font from where they already live (Assets/, the apps), so the site never
-  holds its own drifting copies.
-- Renders each app's CHANGELOG.md (through Scripts/changelog.py) into a version history, so users see
-  what changed between the version they run and the newest one.
-- Asks the GitHub API for each app's newest release (tags grocerytracker-v* and launchheim-v*) and
-  links its files directly, with the SHA-256 GitHub computed for each. The repository holds several
-  apps, so GitHub's single "latest release" link can't be used. Before an app has a release, <!-- if:key --> ... <!-- else --> ... <!-- end -->
+- Copies the logo, the screenshots and the font from where they already live (the app, assets/), so
+  the site never holds its own drifting copies.
+- Renders CHANGELOG.md (through Scripts/changelog.py) into a version history, so users see what
+  changed between the version they run and the newest one.
+- Asks the GitHub API for the newest release (tags launchheim-v*) and links its files directly, with
+  the SHA-256 GitHub computed for each. Before the first release, <!-- if:key --> ... <!-- else --> ... <!-- end -->
   blocks show build instructions instead.
 
 With --mirror-installers it also publishes the newest LaunchHeim Windows setups under downloads/,
@@ -35,7 +34,8 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 
-REPO = "CodeIsNotEvil/MyMonoRepo"
+REPO = "CodeIsNotEvil/LaunchHeim"
+SITE_URL = "https://codeisnotevil.github.io/LaunchHeim"
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "site" / "src"
 
@@ -43,19 +43,17 @@ sys.path.insert(0, str(ROOT / "Scripts"))
 import changelog  # noqa: E402 - lives in Scripts/, shared with the release workflows
 
 CHANGELOGS = {
-  "gt": ROOT / "Applications/GroceryTracker/CHANGELOG.md",
-  "lh": ROOT / "Applications/LaunchHeim/CHANGELOG.md",
+  "lh": ROOT / "CHANGELOG.md",
 }
 
 # Files the site shows, taken from their real homes.
 ASSETS = {
-  "img/c-logo.svg": ROOT / "Assets/c-logo/C-logo.svg",
-  "img/grocerytracker.svg": ROOT / "Applications/GroceryTracker/assets/GT-logo-optimized.svg",
-  "img/launchheim.svg": ROOT / "Applications/LaunchHeim/src/Desktop/packaging/launchheim.svg",
-  "fonts/KodeMono.woff2": ROOT / "Applications/GroceryTracker/src/UI/GroceryTracker.UI.Blazor/wwwroot/fonts/KodeMono.woff2",
-  "fonts/OFL.txt": ROOT / "Applications/GroceryTracker/src/UI/GroceryTracker.UI.Blazor/wwwroot/fonts/OFL.txt",
+  "img/launchheim.svg": ROOT / "src/Desktop/packaging/launchheim.svg",
+  # The variable Kode Mono, copied from GroceryTracker in MyMonoRepo when LaunchHeim got its own repository.
+  "fonts/KodeMono.woff2": ROOT / "assets/fonts/KodeMono.woff2",
+  "fonts/OFL.txt": ROOT / "assets/fonts/OFL.txt",
   # The Microsoft Store listing's screenshots, downsized for the web (site/README.md).
-  **{f"img/launchheim/{path.name}": path for path in sorted((ROOT / "Applications/LaunchHeim/assets/screenshots").glob("*.webp"))},
+  **{f"img/launchheim/{path.name}": path for path in sorted((ROOT / "assets/screenshots").glob("*.webp"))},
 }
 
 # LaunchHeim's Microsoft Store listing. Without ?hl=&gl= the Store picks the visitor's language and country.
@@ -70,10 +68,6 @@ LAUNCHHEIM_FILES = {
   "rpm": ".x86_64.rpm",
   # LaunchHeim Companion, the Android app, released under the same tag.
   "android": ".apk",
-}
-GROCERYTRACKER_FILES = {
-  "compose": "compose.yaml",
-  "env": "env.example",
 }
 
 
@@ -225,8 +219,8 @@ def check(name: str, page: str) -> None:
   """Fails the build on a page that lost part of itself.
 
   A deleted stretch of template can leave the <!-- if --> markers balanced and still render. That
-  happened to download.html on 2026-10-01: GroceryTracker's install steps and LaunchHeim's header were
-  cut out, and the page went live mixing the two apps. Every in-page link still needs its target, and
+  happened to download.html on 2026-10-01 (when the site still showed GroceryTracker too): one app's
+  install steps and the other's header were cut out, and the page went live mixing the two. Every in-page link still needs its target, and
   every section its end, so such a cut stops here.
   """
   ids = set(ELEMENT_ID.findall(page))
@@ -251,7 +245,6 @@ def main() -> None:
     "repo_url": f"https://github.com/{REPO}",
     "lh_store_url": LAUNCHHEIM_STORE_URL,
     "year": str(datetime.now().year),
-    **release_values(newest(releases, "grocerytracker-v"), "gt", "grocerytracker-v", GROCERYTRACKER_FILES),
     **release_values(newest(releases, "launchheim-v"), "lh", "launchheim-v", LAUNCHHEIM_FILES),
   }
   for key, path in CHANGELOGS.items():
@@ -279,7 +272,7 @@ def main() -> None:
 
   if args.mirror_installers:
     for path in mirror_windows_setups(releases, args.output):
-      print(f"Mirrored https://codeisnotevil.github.io/MyMonoRepo/{path}")
+      print(f"Mirrored {SITE_URL}/{path}")
 
   found = ", ".join(f"{k.removesuffix('_version')} {v}" for k, v in values.items() if k.endswith("_version")) or "none"
   print(f"Built {args.output} (releases: {found})")
