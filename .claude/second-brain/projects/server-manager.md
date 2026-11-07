@@ -29,7 +29,9 @@ works: README "Dedicated servers".
    - tested against podman `vsftpd` and `atmoz/sftp` containers.
 3. **G-Portal:** a preset over item 2, with its FTP layout, log path and panel link. It has no public
    API. Needs a real G-Portal server to find the paths.
-4. **Backups** (below).
+4. **Backups** (`server-backups`, 2026-11-07, [[0022-launchheim-server-backups]]). Built from the plan
+   below. Proton Drive goes through Proton's own CLI (released June 2026) instead of rclone's beta
+   backend. Item 3 (G-Portal) waits for a real G-Portal login.
 5. **Later:**
    - SSH: SteamCMD on the remote, a systemd user unit or a Windows scheduled task, `tail -F`.
    - The Pterodactyl/Pelican client API (websocket console, power, files) and Nitrado's API.
@@ -75,6 +77,11 @@ works: README "Dedicated servers".
   folder as both the program and BepInEx root).
 
 ## Open
+- **Backups:**
+  - Proton Drive is untested with a real account. The CLI's `--json` list format was read from its
+    source, not seen.
+  - There's no timer setup from the UI (it shows the command).
+  - A backup of a big world on a slow FTP host has no cancel button.
 - **Hosted servers:**
   - FTPS hasn't been tried against a real TLS server; the pinning code path is untested.
   - No start script is written for a VPS; its owner starts `start_server_bepinex.sh` themselves.

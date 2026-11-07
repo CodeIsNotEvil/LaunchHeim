@@ -175,6 +175,26 @@ public class ServerBackupTests : IDisposable
     Assert.Equal([("friday-20261107-120000.zip", 2048L), ("friday-20261106-120000.zip", 1024L)], list);
   }
 
+  [Theory]
+  [InlineData(BackupCloud.Rclone, "", "backupCloudPath")]
+  [InlineData(BackupCloud.Rclone, "no-colon", "backupCloudPath")]
+  [InlineData(BackupCloud.ProtonDrive, "Valheim", "backupCloudPath")]
+  public void Cloud_settings_name_what_is_missing(BackupCloud cloud, string path, string field)
+  {
+    var settings = new BackupSettings { Cloud = cloud, CloudPath = path };
+
+    Assert.Contains(settings.Validate(), p => p.Field == field);
+  }
+
+  [Fact]
+  public void Good_backup_settings_have_no_problems()
+  {
+    Assert.Empty(new BackupSettings().Validate());
+    Assert.Empty(new BackupSettings { Cloud = BackupCloud.Rclone, CloudPath = "gdrive:Valheim" }.Validate());
+    Assert.Empty(new BackupSettings { Cloud = BackupCloud.ProtonDrive, CloudPath = "/my-files/Valheim backups" }.Validate());
+    Assert.Equal(["backupInterval", "backupKeepLast"], new BackupSettings { IntervalHours = 0, KeepLast = 0 }.Validate().Select(p => p.Field));
+  }
+
   [Fact]
   public async Task Folder_targets_keep_backups_as_files()
   {

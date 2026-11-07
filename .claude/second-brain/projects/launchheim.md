@@ -147,6 +147,17 @@ accounts) and CurseForge (API key).
   untrusted), so "Install with Steam" with `steam://install/896660` did nothing (owner, 2026-11-07).
   LaunchHeim's own `steam://` links go through `DesktopShell.OpenSteamLink` (xdg-open on Linux, the
   shell on Windows).
+- Valheim 1.0.21's `ZNet.SaveWorldAndPlayerProfiles` (the `save` console command) throws on a dedicated
+  server within 60 s of the last save: `HardSaveBlock` reads `PlatformManager.DistributionPlatform`,
+  which is null there. Every other backup in a row saved nothing. The plugin calls `ZNet.Save(sync:
+  true, …)` directly (2026-11-07).
+- BepInEx's Unity log listener only gets main-thread messages. Valheim's "World save (n/5)" lines come
+  from its save thread, so they're in `-logFile` but never in BepInEx's `LogOutput.log`, which is what a
+  host's console follows (2026-11-07).
+- rclone prints notices on stderr even when it succeeds ("Config file … not found"). Mixing both
+  streams broke parsing `lsjson`, so `BackupTool` keeps them apart (2026-11-07).
+- A scratch harness built against an older Core silently drops profile fields it doesn't know when it
+  saves `server.json`. Rebuild harnesses after Core changes (2026-11-07).
 - BepInEx's `LogOutput.log` carries Unity's own lines too ("Game server connected" and so on), so a
   hosted server's console follows that by default. Valheim's `-logFile` may be anywhere at a host
   (2026-11-07).
