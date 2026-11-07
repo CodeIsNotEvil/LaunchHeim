@@ -41,8 +41,31 @@ Item {
       readonly property var binaries: ["steam", "launchheim", "custom"]
       property string customDirectory: ""
       property string saveDirectory: ""
-      property string problems: ""
+      // {"field": "message"} from the view model; shown once the player tried to save or act, then kept
+      // current while they type, so the outlines go away as the fields get filled in.
+      property var errors: ({})
+      property bool showErrors: false
+      readonly property bool hasErrors: Object.keys(errors).length > 0
+
+      function err(field) {
+        return showErrors && errors[field] !== undefined ? errors[field] : ""
+      }
+
+      function takeErrors(json) {
+        errors = json.length > 0 ? JSON.parse(json) : ({})
+        showErrors = true
+        return !hasErrors
+      }
+
+      // After each change, once errors are showing: the form as it stands, checked without saving.
+      function recheck() {
+        if (!showErrors)
+          return
+        errors = JSON.parse(server.isHosted ? server.checkHosted(hostedForm()) : server.check(localForm()))
+      }
       property string keyFile: ""
+      onKeyFileChanged: recheck()
+      onCustomDirectoryChanged: recheck()
       readonly property var protocols: ["sftp", "ftps", "ftp"]
 
       // The form starts from the saved profile, and again when another server is opened.
@@ -62,7 +85,8 @@ Item {
         instanceBox.currentIndex = Math.max(0, instanceIds.indexOf(server.instanceId))
         customDirectory = server.customDirectory
         saveDirectory = server.saveDirectoryIsCustom ? server.saveDirectory : ""
-        problems = ""
+        errors = ({})
+        showErrors = false
         if (server.isHosted)
           loadHosted()
       }
@@ -84,11 +108,12 @@ Item {
         serverPasswordField.text = server.password
         hostConsoleSwitch.checked = server.consoleEnabled
         hostInstanceBox.currentIndex = Math.max(0, instanceIds.indexOf(server.instanceId))
-        problems = ""
+        errors = ({})
+        showErrors = false
       }
 
-      function saveHosted() {
-        problems = server.applyHosted(JSON.stringify({
+      function hostedForm() {
+        return JSON.stringify({
           name: hostNameField.text,
           protocol: protocols[protocolBox.currentIndex],
           address: hostAddressField.text,
@@ -105,11 +130,19 @@ Item {
           serverPassword: serverPasswordField.text,
           consoleEnabled: hostConsoleSwitch.checked,
           instanceId: instanceIds[hostInstanceBox.currentIndex]
-        }))
+        })
       }
 
-      function save() {
-        problems = server.apply(JSON.stringify({
+      function saveHosted() {
+        takeErrors(server.saveHosted(hostedForm()))
+      }
+
+      function testHosted() {
+        takeErrors(server.testConnection(hostedForm()))
+      }
+
+      function localForm() {
+        return JSON.stringify({
           name: nameField.text,
           world: worldField.text,
           port: parseInt(portField.text) || 0,
@@ -125,13 +158,28 @@ Item {
           customDirectory: customDirectory,
           saveDirectory: saveDirectory,
           instanceId: instanceIds[instanceBox.currentIndex]
-        }))
+        })
+      }
+
+      function save() {
+        takeErrors(server.apply(localForm()))
       }
 
       Component.onCompleted: load()
       onServerChanged: if (server) load()
 
       JoinServerDialog { id: joinDialog; server: root.server }
+
+      // Start or Upload with something missing: outline it, and bring the form into view.
+      Connections {
+        target: root.server
+        function onSettingsIncomplete() {
+          if (root.server.isHosted)
+            root.loadHosted()
+          root.takeErrors(root.server.fieldErrors)
+          flick.contentY = Math.max(0, (root.server.isHosted ? connectionSection.y : settingsSection.y) - 16)
+        }
+      }
 
       Connections {
         target: Vm.servers
@@ -231,7 +279,7 @@ Item {
                 iconName: root.server.isRunning ? "power" : "play"
                 kind: root.server.isRunning ? "secondary" : "primary"
                 large: !root.server.isRunning
-                enabled: !root.server.isBusy && (root.server.isRunning || (root.server.serverDirectory.length > 0 && root.server.problems.length === 0))
+                enabled: !root.server.isBusy && (root.server.isRunning || root.server.serverDirectory.length > 0)
                 onClicked: root.server.isRunning ? root.server.stop() : root.server.start()
               }
               // A hosted server starts in the host's panel; stopping goes through the plugin.
@@ -268,9 +316,9 @@ Item {
           }
 
           Banner {
-            visible: root.server.problems.length > 0
-            kind: "error"
-            text: root.server.problems
+            visible: root.server.problems.length > 0 && !root.showErrors
+            kind: "warning"
+            text: "Some settings are missing. Save or start once and LaunchHeim outlines them below."
             Layout.fillWidth: true
           }
 
@@ -478,6 +526,7 @@ Item {
 
           // How LaunchHeim reaches a hosted server. Saved as one form, like the local settings.
           SettingsSection {
+            id: connectionSection
             visible: root.server.isHosted
             iconName: "link"
             title: "Connection"
@@ -490,45 +539,49 @@ Item {
               rowSpacing: 10
               Layout.fillWidth: true
 
-              Label { text: "Name" }
-              LhTextField { id: hostNameField; Layout.fillWidth: true }
+              Label { text: "Name"; Layout.alignment: Qt.AlignTop; Layout.topMargin: 10 }
+              LhTextField { id: hostNameField; errorText: root.err("name"); onTextChanged: root.recheck(); Layout.fillWidth: true }
 
               Label { text: "Protocol" }
               ComboBox {
                 id: protocolBox
+                onCurrentIndexChanged: root.recheck()
                 model: ["SFTP (SSH)", "FTPS (FTP with TLS)", "FTP (unencrypted)"]
                 Layout.fillWidth: true
                 Material.foreground: Theme.text
               }
 
-              Label { text: "Host" }
+              Label { text: "Host"; Layout.alignment: Qt.AlignTop; Layout.topMargin: 10 }
               RowLayout {
                 spacing: 8
                 Layout.fillWidth: true
-                LhTextField { id: hostAddressField; placeholderText: "e.g. ftp.example-host.com or 203.0.113.7"; Layout.fillWidth: true }
-                Label { text: "Port"; color: Theme.textMuted }
+                LhTextField { id: hostAddressField; Layout.alignment: Qt.AlignTop; errorText: root.err("address"); onTextChanged: root.recheck(); placeholderText: "e.g. ftp.example-host.com or 203.0.113.7"; Layout.fillWidth: true }
+                // Top-aligned: a field showing its error grows downwards, and the others stay level with it.
+                Label { text: "Port"; color: Theme.textMuted; Layout.alignment: Qt.AlignTop; Layout.topMargin: 10 }
                 LhTextField {
-                  id: hostPortField
+                  id: hostPortField; errorText: root.err("port"); onTextChanged: root.recheck()
+                  Layout.alignment: Qt.AlignTop
                   placeholderText: protocolBox.currentIndex === 0 ? "22" : "21"
                   validator: IntValidator { bottom: 1; top: 65535 }
                   Layout.preferredWidth: 90
                 }
               }
 
-              Label { text: "User" }
-              LhTextField { id: hostUserField; Layout.fillWidth: true }
+              Label { text: "User"; Layout.alignment: Qt.AlignTop; Layout.topMargin: 10 }
+              LhTextField { id: hostUserField; errorText: root.err("user"); onTextChanged: root.recheck(); Layout.fillWidth: true }
 
-              Label { text: "Password" }
+              Label { text: "Password"; Layout.alignment: Qt.AlignTop; Layout.topMargin: 10 }
               RowLayout {
                 spacing: 8
                 Layout.fillWidth: true
                 LhTextField {
-                  id: hostPasswordField
+                  id: hostPasswordField; errorText: root.err("password"); onTextChanged: root.recheck()
+                  Layout.alignment: Qt.AlignTop
                   echoMode: revealHost.checked ? TextInput.Normal : TextInput.Password
                   placeholderText: root.keyFile.length > 0 ? "The key's passphrase, if it has one" : ""
                   Layout.fillWidth: true
                 }
-                IconButton { id: revealHost; checkable: true; iconName: "key"; tip: checked ? "Hide password" : "Show password" }
+                IconButton { id: revealHost; checkable: true; iconName: "key"; tip: checked ? "Hide password" : "Show password"; Layout.alignment: Qt.AlignTop }
               }
 
               Label { text: "SSH key"; visible: protocolBox.currentIndex === 0 }
@@ -537,8 +590,9 @@ Item {
                 spacing: 8
                 Layout.fillWidth: true
                 Label {
-                  text: root.keyFile.length > 0 ? decodeURIComponent(root.keyFile.replace(/^file:\/\//, "")) : "None, log in with the password"
-                  color: Theme.textMuted
+                  text: root.err("keyFile").length > 0 ? root.err("keyFile")
+                    : root.keyFile.length > 0 ? decodeURIComponent(root.keyFile.replace(/^file:\/\//, "")) : "None, log in with the password"
+                  color: root.err("keyFile").length > 0 ? Theme.negative : Theme.textMuted
                   font.family: Theme.fontFamily
                   elide: Text.ElideMiddle
                   Layout.fillWidth: true
@@ -553,8 +607,8 @@ Item {
               Label { text: "Log file" }
               LhTextField { id: hostLogField; placeholderText: "BepInEx/LogOutput.log"; font.family: Theme.fontFamily; Layout.fillWidth: true }
 
-              Label { text: "Players join at" }
-              LhTextField { id: gameAddressField; placeholderText: "host:port from your host's panel, e.g. 203.0.113.7:2456"; Layout.fillWidth: true }
+              Label { text: "Players join at"; Layout.alignment: Qt.AlignTop; Layout.topMargin: 10 }
+              LhTextField { id: gameAddressField; errorText: root.err("gameAddress"); onTextChanged: root.recheck(); placeholderText: "host:port from your host's panel, e.g. 203.0.113.7:2456"; Layout.fillWidth: true }
 
               Label { text: "Server password" }
               LhTextField { id: serverPasswordField; echoMode: TextInput.Password; placeholderText: "For Join; empty if it has none"; Layout.fillWidth: true }
@@ -570,12 +624,12 @@ Item {
                 Material.foreground: Theme.text
               }
 
-              Label { text: "RCON port" }
+              Label { text: "RCON port"; Layout.alignment: Qt.AlignTop; Layout.topMargin: 10 }
               RowLayout {
                 spacing: 8
                 Layout.fillWidth: true
                 LhTextField {
-                  id: rconPortField
+                  id: rconPortField; errorText: root.err("rconPort"); onTextChanged: root.recheck()
                   placeholderText: "None"
                   validator: IntValidator { bottom: 1; top: 65535 }
                   Layout.preferredWidth: 90
@@ -615,8 +669,8 @@ Item {
             }
 
             Label {
-              text: root.problems
-              visible: root.problems.length > 0
+              text: "Fill in the outlined fields, then save."
+              visible: root.showErrors && root.hasErrors
               color: Theme.negative
               wrapMode: Text.Wrap
               Layout.fillWidth: true
@@ -626,7 +680,7 @@ Item {
               spacing: 8
               LhButton { text: "Save"; kind: "primary"; iconName: "check"; onClicked: root.saveHosted() }
               LhButton { text: "Undo changes"; kind: "ghost"; onClicked: root.loadHosted() }
-              LhButton { text: "Test connection"; iconName: "refresh"; kind: "ghost"; onClicked: root.server.testConnection() }
+              LhButton { text: "Test connection"; iconName: "refresh"; kind: "ghost"; onClicked: root.testHosted() }
             }
 
             Label {
@@ -639,6 +693,7 @@ Item {
           }
 
           SettingsSection {
+            id: settingsSection
             visible: !root.server.isHosted
             iconName: "settings"
             title: "Settings"
@@ -651,26 +706,26 @@ Item {
               rowSpacing: 10
               Layout.fillWidth: true
 
-              Label { text: "Name" }
-              LhTextField { id: nameField; Layout.fillWidth: true }
+              Label { text: "Name"; Layout.alignment: Qt.AlignTop; Layout.topMargin: 10 }
+              LhTextField { id: nameField; errorText: root.err("name"); onTextChanged: root.recheck(); Layout.fillWidth: true }
 
-              Label { text: "World" }
-              LhTextField { id: worldField; placeholderText: "Dedicated"; Layout.fillWidth: true }
+              Label { text: "World"; Layout.alignment: Qt.AlignTop; Layout.topMargin: 10 }
+              LhTextField { id: worldField; errorText: root.err("world"); onTextChanged: root.recheck(); placeholderText: "Dedicated"; Layout.fillWidth: true }
 
-              Label { text: "Port" }
+              Label { text: "Port"; Layout.alignment: Qt.AlignTop; Layout.topMargin: 10 }
               LhTextField {
-                id: portField
+                id: portField; errorText: root.err("port"); onTextChanged: root.recheck()
                 validator: IntValidator { bottom: 1; top: 65534 }
                 Layout.preferredWidth: 140
               }
 
-              Label { text: "Password" }
+              Label { text: "Password"; Layout.alignment: Qt.AlignTop; Layout.topMargin: 10 }
               RowLayout {
                 spacing: 8
                 Layout.fillWidth: true
 
                 LhTextField {
-                  id: passwordField
+                  id: passwordField; errorText: root.err("password"); onTextChanged: root.recheck()
                   echoMode: revealPassword.checked ? TextInput.Normal : TextInput.Password
                   placeholderText: publicSwitch.checked ? "At least 5 characters, not part of the world name" : "Empty for none"
                   Layout.fillWidth: true
@@ -709,6 +764,7 @@ Item {
 
                 ComboBox {
                   id: binaryBox
+                  onCurrentIndexChanged: root.recheck()
                   model: ["Steam's Valheim Dedicated Server", "LaunchHeim's download (SteamCMD)", "A folder I choose"]
                   Layout.fillWidth: true
                   Material.foreground: Theme.text
@@ -729,8 +785,9 @@ Item {
               Label { text: ""; visible: binaryBox.currentIndex === 2 }
               Label {
                 visible: binaryBox.currentIndex === 2
-                text: root.customDirectory.length > 0 ? decodeURIComponent(root.customDirectory.replace(/^file:\/\//, "")) : "No folder chosen"
-                color: Theme.textMuted
+                text: root.err("customDirectory").length > 0 ? root.err("customDirectory")
+                  : root.customDirectory.length > 0 ? decodeURIComponent(root.customDirectory.replace(/^file:\/\//, "")) : "No folder chosen"
+                color: root.err("customDirectory").length > 0 ? Theme.negative : Theme.textMuted
                 font.family: Theme.fontFamily
                 elide: Text.ElideMiddle
                 Layout.fillWidth: true
@@ -789,8 +846,8 @@ Item {
             }
 
             Label {
-              text: root.problems
-              visible: root.problems.length > 0
+              text: "Fill in the outlined fields, then save."
+              visible: root.showErrors && root.hasErrors
               color: Theme.negative
               wrapMode: Text.Wrap
               Layout.fillWidth: true
@@ -846,9 +903,9 @@ Item {
 
               RowLayout {
                 spacing: 8
-                LhButton { text: "Upload mods"; iconName: "export"; kind: "primary"; enabled: !root.server.isDeploying && root.server.problems.length === 0; onClicked: root.server.deployMods() }
-                LhButton { text: "With the instance's configs"; kind: "ghost"; visible: root.server.instanceId.length > 0; enabled: !root.server.isDeploying && root.server.problems.length === 0; onClicked: root.server.deployModsWithConfigs() }
-                LhButton { text: "Everything again"; kind: "ghost"; enabled: !root.server.isDeploying && root.server.problems.length === 0; onClicked: root.server.deployModsAgain() }
+                LhButton { text: "Upload mods"; iconName: "export"; kind: "primary"; enabled: !root.server.isDeploying; onClicked: root.server.deployMods() }
+                LhButton { text: "With the instance's configs"; kind: "ghost"; visible: root.server.instanceId.length > 0; enabled: !root.server.isDeploying; onClicked: root.server.deployModsWithConfigs() }
+                LhButton { text: "Everything again"; kind: "ghost"; enabled: !root.server.isDeploying; onClicked: root.server.deployModsAgain() }
               }
 
               ProgressBar {
@@ -894,7 +951,7 @@ Item {
               LhButton {
                 text: "Upload Valheim's server"
                 iconName: "export"
-                enabled: !root.server.isDeploying && !Vm.servers.isDownloading && root.server.problems.length === 0
+                enabled: !root.server.isDeploying && !Vm.servers.isDownloading
                 onClicked: root.server.uploadServerProgram()
               }
             }

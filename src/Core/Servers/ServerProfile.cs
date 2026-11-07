@@ -81,6 +81,14 @@ public sealed class HostAccess
 
   public int EffectivePort => Port > 0 ? Port : Protocol == FileProtocol.Sftp ? 22 : 21;
 
+  /// <summary>What's missing or wrong for connecting, by form field (see <see cref="ServerProfile.Validate"/>).</summary>
+  public IReadOnlyList<FieldProblem> Validate()
+  {
+    var problems = new List<FieldProblem>();
+    ServerProfile.ValidateHost(this, problems);
+    return problems;
+  }
+
   /// <summary><c>sftp://user@host:22/folder</c>, for messages and the log; never with the password.</summary>
   public string Describe() =>
     $"{Protocol.ToString().ToLowerInvariant()}://{(User.Length > 0 ? User + "@" : "")}{Address}:{EffectivePort}/{Directory.TrimStart('/')}";
@@ -98,6 +106,10 @@ public enum ServerBinary
   /// <summary>A folder the user picked, such as one copied from another machine.</summary>
   Custom,
 }
+
+/// <summary>Something wrong in a server's settings, and the form field it's about.</summary>
+/// <param name="Field">The form's key for the field, such as <c>address</c> or <c>user</c>.</param>
+public sealed record FieldProblem(string Field, string Message);
 
 /// <summary>One dedicated server LaunchHeim manages: <c>server.json</c> in the server's folder.</summary>
 public sealed class ServerProfile
@@ -221,71 +233,126 @@ public sealed class ServerProfile
   /// servers, at least five characters, and not part of the <em>world's</em> name. A server that breaks
   /// them logs "Error bad password" and quits right away.
   /// </remarks>
-  public IReadOnlyList<string> Problems()
+  public IReadOnlyList<string> Problems() => Validate().Select(p => p.Message).ToList();
+
+  /// <summary>
+  /// The same checks as <see cref="Problems"/>, each tied to the form field it's about, so the window
+  /// can outline the fields that are missing or wrong instead of listing them somewhere else. The
+  /// field names are the keys the server page's forms send.
+  /// </summary>
+  public IReadOnlyList<FieldProblem> Validate()
   {
-    var problems = new List<string>();
+    var problems = new List<FieldProblem>();
     if (string.IsNullOrWhiteSpace(Name))
     {
-      problems.Add("The server needs a name.");
+      problems.Add(new("name", "The server needs a name."));
     }
 
     // A hosted server's world, port and password are set at the host; only the way in matters here.
     if (IsHosted)
     {
-      if (Host is null || string.IsNullOrWhiteSpace(Host.Address))
-      {
-        problems.Add("Enter the host's address for FTP or SFTP.");
-      }
-      else if (Host.Port is < 0 or > 65535 || Host.RconPort is < 0 or > 65535)
-      {
-        problems.Add("Ports have to be between 1 and 65535.");
-      }
-
+      ValidateHost(Host ?? new HostAccess(), problems);
       return problems;
     }
 
     if (string.IsNullOrWhiteSpace(World))
     {
-      problems.Add("The server needs a world name.");
+      problems.Add(new("world", "The server needs a world name."));
     }
     else if (World.IndexOfAny([.. Path.GetInvalidFileNameChars(), '/', '\\']) >= 0)
     {
-      problems.Add("The world name can't contain slashes or other characters files can't have.");
+      problems.Add(new("world", "The world name can't contain slashes or other characters files can't have."));
     }
 
     if (Port is < 1 or > 65534)
     {
-      problems.Add("The port has to be between 1 and 65534 (the server also uses the port after it).");
+      problems.Add(new("port", "The port has to be between 1 and 65534 (the server also uses the port after it)."));
     }
 
     if (Public)
     {
       if (Password.Length < MinimumPasswordLength)
       {
-        problems.Add($"A public server needs a password of at least {MinimumPasswordLength} characters.");
+        problems.Add(new("password", $"A public server needs a password of at least {MinimumPasswordLength} characters."));
       }
       else if (World.Contains(Password, StringComparison.Ordinal))
       {
-        problems.Add("Valheim refuses a password that is part of the world's name.");
+        problems.Add(new("password", "Valheim refuses a password that is part of the world's name."));
       }
     }
 
     if (Preset.Length > 0 && !Presets.Contains(Preset, StringComparer.OrdinalIgnoreCase))
     {
-      problems.Add($"Unknown world preset \"{Preset}\".");
+      problems.Add(new("preset", $"Unknown world preset \"{Preset}\"."));
     }
 
     if (ConsoleEnabled && EffectiveRconPort is < 1 or > 65535)
     {
-      problems.Add("The console port has to be between 1 and 65535.");
+      problems.Add(new("port", "The console uses the port after the game's two; pick a lower game port."));
     }
 
     if (Binary == ServerBinary.Custom && string.IsNullOrWhiteSpace(CustomDirectory))
     {
-      problems.Add("Choose the folder of the dedicated server.");
+      problems.Add(new("customDirectory", "Choose the folder of the dedicated server."));
     }
 
     return problems;
+  }
+
+  internal static void ValidateHost(HostAccess host, List<FieldProblem> problems)
+  {
+    var address = host.Address.Trim();
+    if (address.Length == 0)
+    {
+      problems.Add(new("address", "Enter the host's FTP or SFTP address."));
+    }
+    else if (address.Contains("://", StringComparison.Ordinal) || address.Contains('/') || address.Any(char.IsWhiteSpace))
+    {
+      problems.Add(new("address", "Only the host's name or IP, without sftp:// or a folder."));
+    }
+    else if (address.Count(c => c == ':') == 1)
+    {
+      problems.Add(new("address", "Put the port into the Port field, not after the host."));
+    }
+
+    if (host.Port is < 0 or > 65535)
+    {
+      problems.Add(new("port", "The port has to be between 1 and 65535, or empty for the usual one."));
+    }
+
+    // SSH has no anonymous logins; FTP has, though game hosts don't use them.
+    if (host.Protocol == FileProtocol.Sftp && string.IsNullOrWhiteSpace(host.User))
+    {
+      problems.Add(new("user", "SFTP needs a user name."));
+    }
+
+    if (host.Protocol == FileProtocol.Sftp && host.Password.Length == 0 && string.IsNullOrWhiteSpace(host.KeyFile))
+    {
+      problems.Add(new("password", "Enter the password, or choose an SSH key."));
+    }
+
+    if (host.Protocol == FileProtocol.Sftp && !string.IsNullOrWhiteSpace(host.KeyFile) && !File.Exists(host.KeyFile))
+    {
+      problems.Add(new("keyFile", "The SSH key file isn't there anymore."));
+    }
+
+    if (host.GameAddress.Trim().Length > 0 && !IsHostAndPort(host.GameAddress.Trim()))
+    {
+      problems.Add(new("gameAddress", "Write it as host:port, e.g. 203.0.113.7:2456."));
+    }
+
+    if (host.RconPort is < 0 or > 65535)
+    {
+      problems.Add(new("rconPort", "The RCON port has to be between 1 and 65535, or empty for none."));
+    }
+  }
+
+  private static bool IsHostAndPort(string address)
+  {
+    var colon = address.LastIndexOf(':');
+    var hostPart = colon < 0 ? address : address[..colon];
+    var portOk = colon < 0 || int.TryParse(address[(colon + 1)..], out var port) && port is > 0 and <= 65535;
+    return hostPart.Length > 0 && !hostPart.Any(char.IsWhiteSpace) && !hostPart.Contains('/') && portOk;
   }
 
   /// <summary>A random password for RCON: 24 characters nobody has to type.</summary>

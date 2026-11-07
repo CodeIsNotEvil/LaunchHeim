@@ -221,8 +221,9 @@ public sealed class SftpServerFiles : IServerFiles
     {
       throw new IOException($"The host refused the login for {_access.User}: {ex.Message}", ex);
     }
-    catch (Exception ex) when (ex is SshException or System.Net.Sockets.SocketException or TimeoutException or SftpPathNotFoundException or SftpPermissionDeniedException)
+    catch (Exception ex) when (ex is not IOException and not OperationCanceledException)
     {
+      // Whatever SSH.NET or the network throws becomes one kind of failure the callers handle.
       throw new IOException($"SFTP to {_access.Address} failed: {ex.Message}", ex);
     }
     finally
@@ -260,11 +261,42 @@ public sealed class SftpServerFiles : IServerFiles
   }
 }
 
+/// <summary>The settings can't make a connection: something is missing or wrong, by form field.</summary>
+/// <remarks>An <see cref="IOException"/>, so every caller that handles a failed connection handles this too.</remarks>
+public sealed class ServerSetupException(IReadOnlyList<FieldProblem> problems)
+  : IOException(string.Join(" ", problems.Select(p => p.Message)))
+{
+  public IReadOnlyList<FieldProblem> Problems => problems;
+}
+
 /// <summary>Opens a hosted server's files with the protocol its profile names.</summary>
 public static class ServerConnections
 {
   /// <param name="learned">Called when a host key or certificate was pinned for the first time, to save the profile.</param>
+  /// <exception cref="ServerSetupException">The settings are incomplete; nothing was tried.</exception>
+  /// <exception cref="IOException">The key file can't be read, or the library refused the settings.</exception>
   public static IServerFiles Open(HostAccess access, Action? learned = null)
+  {
+    if (access.Validate() is { Count: > 0 } problems)
+    {
+      throw new ServerSetupException(problems);
+    }
+
+    try
+    {
+      return Create(access, learned);
+    }
+    catch (Exception ex) when (ex is ArgumentException or SshException or InvalidOperationException or FileNotFoundException or UnauthorizedAccessException or NotSupportedException)
+    {
+      // A key in a format SSH.NET doesn't read, a wrong passphrase, or anything else the libraries reject
+      // before connecting: a message, never a crash (owner, 2026-11-07).
+      throw new IOException(ex is SshException or InvalidOperationException && !string.IsNullOrEmpty(access.KeyFile)
+        ? $"The SSH key can't be used: {ex.Message} An encrypted key needs its passphrase in the password field."
+        : $"These settings can't be used: {ex.Message}", ex);
+    }
+  }
+
+  private static IServerFiles Create(HostAccess access, Action? learned)
   {
     if (access.Protocol == FileProtocol.Sftp)
     {

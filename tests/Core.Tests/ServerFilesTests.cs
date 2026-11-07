@@ -37,6 +37,58 @@ public class ServerFilesTests(ITestOutputHelper output) : IDisposable
   }
 
   [Fact]
+  public void Missing_settings_are_named_by_field_and_nothing_is_tried()
+  {
+    // The settings that crashed LaunchHeim on 2026-11-07: SFTP without a user name.
+    var access = new HostAccess { Protocol = FileProtocol.Sftp, Address = "vps.example" };
+
+    var error = Assert.Throws<ServerSetupException>(() => ServerConnections.Open(access));
+    Assert.Equal(["user", "password"], error.Problems.Select(p => p.Field));
+    Assert.IsAssignableFrom<IOException>(error);
+  }
+
+  [Theory]
+  [InlineData("", "address")]
+  [InlineData("sftp://vps.example", "address")]
+  [InlineData("vps.example:22", "address")]
+  [InlineData("vps.example/valheim", "address")]
+  public void The_host_address_is_only_a_name(string address, string field)
+  {
+    var access = new HostAccess { Protocol = FileProtocol.Ftp, Address = address };
+
+    Assert.Contains(access.Validate(), p => p.Field == field);
+  }
+
+  [Theory]
+  [InlineData("203.0.113.7:2456", true)]
+  [InlineData("valheim.example", true)]
+  [InlineData("203.0.113.7:99999", false)]
+  [InlineData("203.0.113.7:abc", false)]
+  [InlineData("my server:2456", false)]
+  public void The_join_address_is_host_and_port(string gameAddress, bool valid)
+  {
+    var access = new HostAccess { Protocol = FileProtocol.Ftp, Address = "ftp.example", GameAddress = gameAddress };
+
+    Assert.Equal(valid, access.Validate().All(p => p.Field != "gameAddress"));
+  }
+
+  [Fact]
+  public void Ftp_may_log_in_without_a_user_but_sftp_needs_one_and_a_secret()
+  {
+    Assert.Empty(new HostAccess { Protocol = FileProtocol.Ftp, Address = "ftp.example" }.Validate());
+    Assert.Empty(new HostAccess { Protocol = FileProtocol.Sftp, Address = "vps.example", User = "foo", Password = "pw" }.Validate());
+    Assert.Equal(["keyFile"], new HostAccess { Protocol = FileProtocol.Sftp, Address = "vps.example", User = "foo", KeyFile = "/nowhere/id_ed25519" }.Validate().Select(p => p.Field));
+  }
+
+  [Fact]
+  public void Local_settings_name_their_fields()
+  {
+    var server = new ServerProfile { Name = "", World = "", Public = true, Password = "abc", Binary = ServerBinary.Custom };
+
+    Assert.Equal(["name", "world", "password", "customDirectory"], server.Validate().Select(p => p.Field));
+  }
+
+  [Fact]
   public void Host_access_describes_itself_without_the_password()
   {
     var access = new HostAccess { Protocol = FileProtocol.Sftp, Address = "vps.example", User = "foo", Password = "secret", Directory = "/srv/valheim" };

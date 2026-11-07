@@ -182,7 +182,9 @@ public sealed class ConsoleViewModel : ViewModel
   }
 
   /// <summary>Runs a command on the server shown and adds it and its answer to the lines.</summary>
-  public async void SendCommand(string? line)
+  public void SendCommand(string? line) => _app.Guard("The command couldn't be sent", () => SendCommandAsync(line));
+
+  private async Task SendCommandAsync(string? line)
   {
     var server = _server;
     line = line?.Trim();

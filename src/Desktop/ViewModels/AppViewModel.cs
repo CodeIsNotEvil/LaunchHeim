@@ -580,7 +580,10 @@ public sealed class AppViewModel : ViewModel
   }
 
   /// <summary>Starts an install from the browser, or explains why the site wants the user to click through.</summary>
-  internal async void InstallFromCatalog(InstanceViewModel? target, InstallRequest request, string label)
+  internal void InstallFromCatalog(InstanceViewModel? target, InstallRequest request, string label) =>
+    Guard($"Couldn't install {label}", () => InstallFromCatalogAsync(target, request, label));
+
+  private async Task InstallFromCatalogAsync(InstanceViewModel? target, InstallRequest request, string label)
   {
     if (target is null)
     {
@@ -663,6 +666,24 @@ public sealed class AppViewModel : ViewModel
     var extra = report.Installed.Count - 1;
     Toast("success", $"Installed {main.Name} {main.Version}",
       extra > 0 ? $"Into {instanceName}, with {extra} dependenc{(extra == 1 ? "y" : "ies")}." : $"Into {instanceName}.");
+  }
+
+  /// <summary>
+  /// Runs an action started from QML without letting it take LaunchHeim down. QML calls methods and
+  /// forgets them, so an exception in an <c>async void</c> (or a task nobody awaits) ends the process
+  /// (a missing SFTP user name did, 2026-11-07). Here every failure becomes an error toast and a log entry.
+  /// </summary>
+  internal async void Guard(string failure, Func<Task> work)
+  {
+    try
+    {
+      await work();
+    }
+    catch (Exception ex)
+    {
+      Log.Error(failure, ex);
+      Toast("error", failure, ex.Message);
+    }
   }
 
   internal ActivityItem BeginActivity(string title)

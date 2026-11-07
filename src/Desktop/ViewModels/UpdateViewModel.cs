@@ -161,7 +161,10 @@ public sealed class UpdateViewModel : ViewModel
   /// <c>/relaunch=yes</c> is the setup's own switch (launchheim.iss) that starts LaunchHeim again at the
   /// end; a silent setup run by hand doesn't.
   /// </remarks>
-  public async void InstallNow()
+  // Guarded: called from QML, so anything its own catches miss would end LaunchHeim (AppViewModel.Guard).
+  public void InstallNow() => _app.Guard("The update couldn't be installed", InstallNowAsync);
+
+  private async Task InstallNowAsync()
   {
     if (!CanInstall || Installing || _update?.WindowsSetup is not { } asset)
     {

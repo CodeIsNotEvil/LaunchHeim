@@ -162,8 +162,9 @@ public sealed class FtpServerFiles : IServerFiles
     {
       throw new IOException($"The host refused the login for {_access.User}: {ex.Message}", ex);
     }
-    catch (Exception ex) when (ex is FtpException or TimeoutException or System.Net.Sockets.SocketException)
+    catch (Exception ex) when (ex is not IOException and not OperationCanceledException)
     {
+      // Whatever FluentFTP or the network throws becomes one kind of failure the callers handle.
       throw new IOException($"FTP to {_access.Address} failed: {ex.Message}", ex);
     }
     finally

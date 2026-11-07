@@ -132,6 +132,13 @@ accounts) and CurseForge (API key).
   This was checked by watching the client's `logs/content_log.txt` and the vdf's mtime during a run.
   Steam's content log shows which process wrote what ("Triggered async write of Steam library folders
   configuration (N libraries)").
+- Every action QML starts goes through `AppViewModel.Guard`, which turns any exception into an error
+  toast and a log entry (2026-11-07). An `async void` (or an unawaited task) whose exception escapes
+  ends LaunchHeim. That happened with SSH.NET's `ArgumentException` for an empty user name, raised
+  while the connection was built, outside the code's filtered catches. Settings are also validated per
+  field (`ServerProfile.Validate`, `FieldProblem`): the page outlines missing fields (`LhTextField.errorText`)
+  and nothing connects until they're filled in. `ServerConnections.Open` refuses incomplete settings
+  with `ServerSetupException`, an `IOException`.
 - `activity.CreateProgress()` must be called on the Qt thread, before `Task.Run`, never inside its
   lambda. `Progress<T>` posts reports to the context it was created on, and from the thread pool the
   first report raised a Qml.Net signal off the UI thread, which killed LaunchHeim ("You must be on the
