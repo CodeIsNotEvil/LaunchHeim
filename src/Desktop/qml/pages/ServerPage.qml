@@ -19,8 +19,9 @@ Item {
     sourceComponent: content
   }
 
+  // Faster while the server starts, so the steps of the start show as they happen.
   Timer {
-    interval: 3000
+    interval: Vm.server && Vm.server.isStarting ? 1500 : 3000
     repeat: true
     running: page.visible && Vm.server !== null && Vm.server !== undefined
     onTriggered: Vm.servers.refreshStatus()
@@ -85,6 +86,23 @@ Item {
       Component.onCompleted: load()
       onServerChanged: if (server) load()
 
+      JoinServerDialog { id: joinDialog; server: root.server }
+
+      Connections {
+        target: Vm.servers
+        function onJoinDialogRequested() { joinDialog.open() }
+      }
+
+      // The remembered character joins at once; the first time, or with "Change", the dialog asks.
+      function join() {
+        if (server.hasJoinChoice)
+          server.join()
+        else
+          joinDialog.open()
+      }
+
+      readonly property bool canJoin: root.server.isOnline && !App.isGameRunning && App.steamStatus.length === 0 && Vm.settings.gameFound
+
       ConfirmDialog {
         id: deleteDialog
         title: "Delete server?"
@@ -146,10 +164,19 @@ Item {
                 onClicked: root.server.restart()
               }
               LhButton {
+                visible: root.server.isOnline
+                text: "Join"
+                iconName: "play"
+                kind: "primary"
+                large: true
+                enabled: root.canJoin
+                onClicked: root.join()
+              }
+              LhButton {
                 text: root.server.isRunning ? "Stop" : "Start"
                 iconName: root.server.isRunning ? "power" : "play"
                 kind: root.server.isRunning ? "secondary" : "primary"
-                large: true
+                large: !root.server.isRunning
                 enabled: !root.server.isBusy && (root.server.isRunning || (root.server.serverDirectory.length > 0 && root.server.problems.length === 0))
                 onClicked: root.server.isRunning ? root.server.stop() : root.server.start()
               }
@@ -179,14 +206,92 @@ Item {
             Layout.fillWidth: true
           }
 
+          // The start, step by step, from the server's log: nobody should need the console to know it's coming.
+          Card {
+            visible: root.server.isStarting || root.server.isBusy
+            Layout.fillWidth: true
+            implicitHeight: startColumn.implicitHeight + 36
+            color: Theme.alpha(Theme.accent, 0.10)
+
+            ColumnLayout {
+              id: startColumn
+              anchors.fill: parent
+              anchors.margins: 18
+              spacing: 10
+
+              RowLayout {
+                spacing: 12
+                Layout.fillWidth: true
+
+                BusyIndicator {
+                  running: parent.visible
+                  Layout.preferredWidth: 32
+                  Layout.preferredHeight: 32
+                }
+
+                ColumnLayout {
+                  spacing: 2
+                  Layout.fillWidth: true
+
+                  Label {
+                    text: root.server.isBusy ? root.server.busyText : root.server.startPhaseText
+                    font.bold: true
+                    font.pointSize: Theme.heading
+                    wrapMode: Text.Wrap
+                    Layout.fillWidth: true
+                  }
+
+                  Label {
+                    text: root.server.isBusy ? "" : "Step " + root.server.startStep + " of " + root.server.startSteps + (root.server.startElapsed.length > 0 ? " · " + root.server.startElapsed : "") + ". Players can join once it's online; LaunchHeim tells you."
+                    visible: text.length > 0
+                    color: Theme.textMuted
+                    wrapMode: Text.Wrap
+                    Layout.fillWidth: true
+                  }
+                }
+
+                LhButton { text: "Show log"; iconName: "log"; kind: "ghost"; onClicked: root.server.openConsole() }
+              }
+
+              ProgressBar {
+                Layout.fillWidth: true
+                from: 0
+                to: root.server.startSteps
+                value: root.server.isBusy ? 0 : root.server.startStep
+                indeterminate: root.server.isBusy
+              }
+            }
+          }
+
           // Status and how to get in.
           SettingsSection {
             iconName: "server"
-            title: root.server.statusText
+            // The card above already says how the start is going.
+            title: root.server.isStarting ? "Not joinable yet" : root.server.statusText
             description: root.server.isRunning
               ? "Players on this PC's network join with “Join IP” and this PC's address (port " + root.server.port + "); from the internet, forward UDP " + root.server.port + "–" + (root.server.port + 1) + " to this PC in your router."
               : "Stopping saves the world first. Closing LaunchHeim leaves a running server running."
             Layout.fillWidth: true
+
+            // Join, with the server's own instance and password; the character is remembered.
+            RowLayout {
+              visible: root.server.isOnline
+              spacing: 10
+
+              LhButton { text: "Join"; iconName: "play"; kind: "primary"; enabled: root.canJoin; onClicked: root.join() }
+              Label {
+                text: root.server.hasJoinChoice ? "as " + root.server.joinChoiceText + " with " + root.server.instanceName : "Pick your character the first time"
+                color: Theme.textMuted
+              }
+              LhButton { text: "Change"; kind: "ghost"; visible: root.server.hasJoinChoice; enabled: root.canJoin; onClicked: joinDialog.open() }
+            }
+
+            Label {
+              visible: root.server.isOnline && App.isGameRunning
+              text: "Valheim is already running. Close it to join from here."
+              color: Theme.textMuted
+              font.pointSize: Theme.small
+            }
 
             RowLayout {
               spacing: 8

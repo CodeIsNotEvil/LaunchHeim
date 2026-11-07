@@ -86,6 +86,9 @@ public sealed class PlayViewModel : ViewModel
   /// <summary>Reads the lists again. Cheap, but it runs off the UI thread because Steam may sit on a slow drive.</summary>
   public void Refresh() => _ = RefreshAsync();
 
+  /// <summary>Reads the lists once, for pages that need the characters before the Play page was opened (a server's Join).</summary>
+  internal Task EnsureLoadedAsync() => _loaded ? Task.CompletedTask : RefreshAsync();
+
   private async Task RefreshAsync()
   {
     if (IsLoading)
@@ -117,6 +120,7 @@ public sealed class PlayViewModel : ViewModel
       Raise(nameof(WorldCount));
       Raise(nameof(CharacterCount));
       Raise(nameof(CharacterNames));
+      _app.Servers.CharactersChanged();
     }
   }
 
@@ -160,6 +164,13 @@ public sealed class PlayViewModel : ViewModel
     if (destination is { HasChoice: true })
     {
       destination.Play();
+      return;
+    }
+
+    // One of LaunchHeim's own servers, joined from its page, that Valheim hasn't listed as recent.
+    if (destination is null && _app.Servers.FindByJoinKey(key) is { HasJoinChoice: true } server)
+    {
+      server.Join();
       return;
     }
 

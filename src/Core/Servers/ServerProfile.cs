@@ -123,6 +123,12 @@ public sealed class ServerProfile
   /// <summary>The RCON port in use: <see cref="RconPort"/>, or the default next to the game ports.</summary>
   public int EffectiveRconPort => RconPort > 0 ? RconPort : Port + 2;
 
+  /// <summary>
+  /// What LaunchHeim's own Join connects to, always with the port, so it matches the key Valheim's server
+  /// list and the Play page use (<c>server:127.0.0.1:2456</c>) and the remembered choice is shared.
+  /// </summary>
+  public string ConnectAddress => $"127.0.0.1:{Port}";
+
   /// <summary>The address players join, for the Play page and the copy button.</summary>
   public string JoinAddress(string host = "127.0.0.1") => Port == DefaultPort ? host : $"{host}:{Port}";
 

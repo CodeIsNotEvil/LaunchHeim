@@ -13,8 +13,9 @@ Item {
   NewServerDialog { id: newDialog }
 
   // Shown pages only, as on the Play page: a stopped server costs a file read, a running one a query.
+  // Faster while one starts, so its progress moves.
   Timer {
-    interval: 5000
+    interval: Vm.servers.startingCount > 0 ? 1500 : 5000
     repeat: true
     running: page.visible && Vm.servers.count > 0
     onTriggered: Vm.servers.refreshStatus()
@@ -191,16 +192,42 @@ Item {
                   }
                 }
 
+                // While it starts: how far, so nobody needs the console for that.
+                ProgressBar {
+                  visible: row.server.isStarting
+                  from: 0
+                  to: row.server.startSteps
+                  value: row.server.startStep
+                  Layout.preferredWidth: 120
+                }
+
                 IconButton {
                   iconName: "log"
                   tip: "Console"
                   onClicked: row.server.openConsole()
                 }
 
+                // Joins with the remembered character; the first time the server's page asks which one.
+                LhButton {
+                  visible: row.server.isOnline
+                  text: "Join"
+                  iconName: "play"
+                  kind: "primary"
+                  enabled: !App.isGameRunning && App.steamStatus.length === 0 && Vm.settings.gameFound
+                  onClicked: {
+                    if (row.server.hasJoinChoice) {
+                      row.server.join()
+                    } else {
+                      Vm.servers.open(row.server.id)
+                      Vm.servers.requestJoinDialog()
+                    }
+                  }
+                }
+
                 LhButton {
                   text: row.server.isRunning ? "Stop" : "Start"
                   iconName: row.server.isRunning ? "power" : "play"
-                  kind: row.server.isRunning ? "secondary" : "primary"
+                  kind: row.server.isRunning ? "ghost" : "primary"
                   enabled: !row.server.isBusy && (row.server.isRunning || row.server.serverDirectory.length > 0)
                   onClicked: row.server.isRunning ? row.server.stop() : row.server.start()
                 }

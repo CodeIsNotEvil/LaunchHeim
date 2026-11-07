@@ -252,9 +252,18 @@ FTP. The console window's Server tab follows `server.log` and has a command line
 `unban`, `banned`, `admins`, `permitted`, and Valheim's own non-cheat console commands. Stopping asks the
 plugin to save and quit (`Application.Quit`, which saves through `Game.OnApplicationQuit`); without it,
 SIGINT on Linux and a Ctrl+C on the server's console on Windows. A server that ignores all of that can
-be killed after a confirmation, which loses what happened since its last save. The status comes from
-Steam's server query when the server answers it (a private server didn't), else the plugin's `status`,
-else the server's log line "Game server connected".
+be killed after a confirmation, which loses what happened since its last save. Whether players can join
+comes from Steam's server query when the server answers it (a private server didn't), else from the
+server's log line "Game server connected"; the player count then comes from the plugin's `status`.
+While a server starts, its page and the list show how far it got, read from the same log
+(`ServerStartup`: loading mods, loading or creating the world), with a progress bar, the time so far
+and a toast once it's online.
+
+**Joining your own server.** Join on the server's page or in the list starts Valheim with the server's
+instance and password and `+connect 127.0.0.1:<port>`, so the game always has the server's mods. The
+character is picked the first time (Change picks another) and remembered in `PlayChoices` under the
+same key Valheim's server list uses (`server:127.0.0.1:2456`), so the Play page, the sidebar's Play
+button and `launchheim play` join it again the same way. "Start instantly" is on by default there.
 
 **Installing mods.** The file layout follows r2modman's BepInEx rules: BepInExPack goes into the
 instance root, and each plugin gets its own `BepInEx/plugins/<Mod>/` folder. Configs go into

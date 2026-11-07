@@ -10,8 +10,10 @@ namespace CINE.LaunchHeim.Core.Servers;
 
 /// <summary>How a server is doing right now.</summary>
 /// <param name="Running">Its process is alive.</param>
-/// <param name="Online">It answered Steam's server query, so players can join.</param>
-public sealed record ServerState(bool Running, bool Online, int Players, int MaxPlayers);
+/// <param name="Online">Players can join.</param>
+/// <param name="Players">How many are on, or -1 when nothing said.</param>
+/// <param name="Phase">How far a start has got (<see cref="ServerStartup"/>); Online once it's up.</param>
+public sealed record ServerState(bool Running, bool Online, int Players, int MaxPlayers, ServerStartPhase Phase = ServerStartPhase.Starting);
 
 /// <summary>How a stop went.</summary>
 public enum StopResult
@@ -67,9 +69,9 @@ public sealed class ServerManager(
   /// <remarks>
   /// Steam's server query (A2S) is the usual way, but a private local server didn't answer it at all
   /// (2026-11-06: its query port's receive queue sat full, nothing in the server read it). So when A2S
-  /// is silent the plugin's <c>status</c> is asked over RCON, and without the plugin the server's own
-  /// log says when it's up ("Game server connected"; the log is new for every start). Players are
-  /// unknown (-1) in that last case.
+  /// is silent the server's own log says how far it got (<see cref="ServerStartup"/>; the log is new for
+  /// every start), and the plugin's <c>status</c> over RCON gives the player count. Without the plugin
+  /// the count is unknown (-1).
   /// </remarks>
   public async Task<ServerState> StateAsync(ServerProfile server, CancellationToken cancellationToken)
   {
@@ -81,9 +83,17 @@ public sealed class ServerManager(
 
     if (await ServerQuery.QueryAsync(server.JoinAddress(), TimeSpan.FromSeconds(1), cancellationToken) is { } status)
     {
-      return new ServerState(true, true, status.Players, status.MaxPlayers);
+      return new ServerState(true, true, status.Players, status.MaxPlayers, ServerStartPhase.Online);
     }
 
+    // The plugin answers while the world is still loading, so only the log says when players can join.
+    var phase = ServerStartup.Detect(store.LogFileOf(server));
+    if (phase != ServerStartPhase.Online)
+    {
+      return new ServerState(true, false, 0, MaxPlayers, phase);
+    }
+
+    var players = -1;
     if (server.ConsoleEnabled)
     {
       try
@@ -91,19 +101,15 @@ public sealed class ServerManager(
         using var quick = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         quick.CancelAfter(TimeSpan.FromSeconds(2));
         var client = await RconAsync(server, quick.Token);
-        if (ParsePlayers(await client.SendAsync("status", quick.Token)) is { } players)
-        {
-          return new ServerState(true, true, players, MaxPlayers);
-        }
+        players = ParsePlayers(await client.SendAsync("status", quick.Token)) ?? -1;
       }
       catch (Exception ex) when (ex is RconException or OperationCanceledException && !cancellationToken.IsCancellationRequested)
       {
-        // Still loading, or the plugin isn't there; the log may know.
         await DropConsoleAsync(server);
       }
     }
 
-    return new ServerState(true, LogSaysUp(store.LogFileOf(server)), -1, MaxPlayers);
+    return new ServerState(true, true, players, MaxPlayers, ServerStartPhase.Online);
   }
 
   /// <summary>The count from the plugin's <c>status</c> ("Players: 2"), or null when it isn't up yet.</summary>
@@ -120,26 +126,6 @@ public sealed class ServerManager(
     return null;
   }
 
-  private static bool LogSaysUp(string logFile)
-  {
-    try
-    {
-      using var stream = new FileStream(logFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-      using var reader = new StreamReader(stream);
-      while (reader.ReadLine() is { } line)
-      {
-        if (line.Contains("Game server connected", StringComparison.Ordinal))
-        {
-          return true;
-        }
-      }
-    }
-    catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException or IOException or UnauthorizedAccessException)
-    {
-    }
-
-    return false;
-  }
 
   public async Task StartAsync(ServerProfile server, bool replaceConfigs, IProgress<InstallProgress>? progress, CancellationToken cancellationToken)
   {

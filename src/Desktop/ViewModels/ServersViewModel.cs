@@ -2,7 +2,9 @@ using System.Text.Json;
 using CINE.LaunchHeim.Core.Game;
 using CINE.LaunchHeim.Core.Logging;
 using CINE.LaunchHeim.Core.Mods;
+using CINE.LaunchHeim.Core.Saves;
 using CINE.LaunchHeim.Core.Servers;
+using CINE.LaunchHeim.Core.Storage;
 using CINE.LaunchHeim.Desktop.Hosting;
 using Qml.Net;
 
@@ -14,6 +16,7 @@ namespace CINE.LaunchHeim.Desktop.ViewModels;
 /// every start or stop, not watched: a server's process and its Steam query are cheap to look at, and a
 /// server started or stopped elsewhere shows up on the next look.
 /// </remarks>
+[Signal("joinDialogRequested")]
 public sealed class ServersViewModel(AppViewModel app, ServerManager manager, SteamCmd steamCmd) : ViewModel
 {
   /// <summary>Separates the names in the combo box models, as the Play page does.</summary>
@@ -36,6 +39,13 @@ public sealed class ServersViewModel(AppViewModel app, ServerManager manager, St
 
   [NotifySignal]
   public int RunningCount => _items.Count(s => s.IsRunning);
+
+  /// <summary>Servers running but not joinable yet; the pages poll faster while there are any.</summary>
+  [NotifySignal]
+  public int StartingCount => _items.Count(s => s.IsStarting);
+
+  /// <summary>Asks the open server's page for its Join dialog, for a Join in the list before a character was picked.</summary>
+  public void RequestJoinDialog() => this.ActivateSignal("joinDialogRequested");
 
   [NotifySignal]
   public ServerViewModel? Selected { get => _selected; private set => Set(ref _selected, value); }
@@ -117,6 +127,7 @@ public sealed class ServersViewModel(AppViewModel app, ServerManager manager, St
       }
 
       Raise(nameof(RunningCount));
+      Raise(nameof(StartingCount));
       Raise(nameof(SteamServerFound));
       Raise(nameof(DownloadedServerFound));
     }
@@ -139,6 +150,8 @@ public sealed class ServersViewModel(AppViewModel app, ServerManager manager, St
       Selected = server;
       server.RefreshMods();
       app.Navigate("server");
+      // The characters for Join.
+      _ = app.Play.EnsureLoadedAsync();
     }
   }
 
@@ -249,6 +262,26 @@ public sealed class ServersViewModel(AppViewModel app, ServerManager manager, St
     }
   }
 
+  /// <summary>The server a Play-page key (<c>server:127.0.0.1:2456</c>) belongs to, for the sidebar's Play again.</summary>
+  internal ServerViewModel? FindByJoinKey(string key)
+  {
+    if (!_loaded)
+    {
+      Reload();
+    }
+
+    return _items.FirstOrDefault(s => s.JoinKey == key);
+  }
+
+  /// <summary>Valheim's characters were read (again); the Join buttons depend on them.</summary>
+  internal void CharactersChanged()
+  {
+    foreach (var server in _items)
+    {
+      server.RaiseJoin();
+    }
+  }
+
   internal static string ChoiceKey(ServerBinary binary) => binary switch
   {
     ServerBinary.LaunchHeim => "launchheim",
@@ -270,6 +303,8 @@ public sealed class ServerViewModel : ViewModel
   private int _maxPlayers;
   private bool _isBusy;
   private string _busyText = "";
+  private ServerStartPhase _phase = ServerStartPhase.Starting;
+  private DateTimeOffset? _startingSince;
 
   public ServerViewModel(ServersViewModel servers, ServerProfile model)
   {
@@ -385,9 +420,37 @@ public sealed class ServerViewModel : ViewModel
   [NotifySignal]
   public string StatusText => _isBusy ? _busyText
     : !_isRunning ? "Stopped"
-    : !_isOnline ? "Starting… (the world loads before players can join)"
+    : !_isOnline ? StartPhaseText
     : _players < 0 ? "Online"
     : $"Online · {_players} of {_maxPlayers} players";
+
+  /// <summary>Running but not joinable yet: the page shows the start's progress instead of Join.</summary>
+  [NotifySignal]
+  public bool IsStarting => _isRunning && !_isOnline;
+
+  /// <summary>What the start is doing, read from the server's log (<see cref="ServerStartup"/>).</summary>
+  [NotifySignal]
+  public string StartPhaseText => _phase switch
+  {
+    ServerStartPhase.LoadingMods => "Starting: loading mods",
+    ServerStartPhase.LoadingWorld => $"Starting: loading the world {Model.World}",
+    ServerStartPhase.CreatingWorld => $"Starting: creating the world {Model.World} (the first start takes longest)",
+    ServerStartPhase.Online => "Starting: connecting to Steam",
+    _ => "Starting the server",
+  };
+
+  /// <summary>1 to <see cref="StartSteps"/>, for the progress bar.</summary>
+  [NotifySignal]
+  public int StartStep => ServerStartup.Step(_phase);
+
+  [NotifySignal]
+  public int StartSteps => ServerStartup.Steps;
+
+  /// <summary>How long the start has taken so far ("0:42"), counted from when LaunchHeim saw it start.</summary>
+  [NotifySignal]
+  public string StartElapsed => _startingSince is { } since
+    ? (DateTimeOffset.UtcNow - since).ToString(@"m\:ss", System.Globalization.CultureInfo.InvariantCulture)
+    : "";
 
   [NotifySignal]
   public List<ServerModViewModel> Mods { get => _mods; private set => Set(ref _mods, value); }
@@ -407,10 +470,17 @@ public sealed class ServerViewModel : ViewModel
     try
     {
       var state = await Manager.StateAsync(Model, CancellationToken.None);
+      var wasStarting = _startingSince is not null && !_isOnline;
       IsRunning = state.Running;
       IsOnline = state.Online;
       Players = state.Players;
       MaxPlayers = state.MaxPlayers;
+      _phase = state.Phase;
+      _startingSince = !state.Running ? null : _startingSince ?? DateTimeOffset.UtcNow;
+      if (wasStarting && state.Online)
+      {
+        App.Toast("success", $"{Model.Name} is online", $"Ready after {StartElapsed}. Join it from the server's page; friends join at this PC's address.");
+      }
     }
     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
     {
@@ -418,6 +488,10 @@ public sealed class ServerViewModel : ViewModel
     }
 
     Raise(nameof(StatusText));
+    Raise(nameof(IsStarting));
+    Raise(nameof(StartPhaseText));
+    Raise(nameof(StartStep));
+    Raise(nameof(StartElapsed));
   }
 
   internal void RefreshMods()
@@ -666,6 +740,101 @@ public sealed class ServerViewModel : ViewModel
     {
       return "Error: " + ex.Message;
     }
+  }
+
+  /// <summary>The key Valheim's server list and the Play page use for this server, where its Join choice is remembered.</summary>
+  internal string JoinKey => new ValheimServer(Model.Name, Model.ConnectAddress, IsFavorite: false, IsRecent: false).Key;
+
+  private PlayChoice? JoinChoice => App.SettingsModel.PlayChoices.GetValueOrDefault(JoinKey);
+
+  private int RememberedCharacterIndex => JoinChoice is { } choice ? IndexOfCharacter(choice.Character) : -1;
+
+  /// <summary>A character was picked before and still exists, so Join needs no dialog.</summary>
+  [NotifySignal]
+  public bool HasJoinChoice => RememberedCharacterIndex >= 0;
+
+  /// <summary>The character the Join dialog starts on: the remembered one, else the one Valheim has selected.</summary>
+  [NotifySignal]
+  public int JoinCharacterIndex => RememberedCharacterIndex >= 0 ? RememberedCharacterIndex : Math.Max(0, IndexOfCharacter(App.Play.GameCharacter));
+
+  /// <summary>"Lukaz", or "Lukaz · instant", for the line under Join.</summary>
+  [NotifySignal]
+  public string JoinChoiceText => HasJoinChoice
+    ? App.Play.CharacterList[RememberedCharacterIndex].DisplayName + (JoinInstant ? " · instant" : "")
+    : "";
+
+  /// <summary>Start instantly, as last time; on the first time, since Join is meant to be one click.</summary>
+  [NotifySignal]
+  public bool JoinInstant => JoinChoice?.InstantStart ?? true;
+
+  /// <summary>Joins with the remembered character. QML opens the Join dialog instead when there is none.</summary>
+  public void Join()
+  {
+    if (HasJoinChoice)
+    {
+      JoinWith(RememberedCharacterIndex, JoinInstant);
+    }
+  }
+
+  /// <summary>
+  /// Plays this server with the character chosen and always with the server's own instance and password,
+  /// so the player has exactly the mods the server runs. Remembered like a Play-page server (same key),
+  /// which also makes the sidebar's Play button and the Steam start join it again.
+  /// </summary>
+  public void JoinWith(int characterIndex, bool instant)
+  {
+    var characters = App.Play.CharacterList;
+    if (characterIndex < 0 || characterIndex >= characters.Count)
+    {
+      App.Toast("info", "No character", "Create a character in Valheim first, then join.");
+      return;
+    }
+
+    InstanceViewModel? instance = null;
+    if (Model.InstanceId is { } instanceId)
+    {
+      instance = App.InstanceList.FirstOrDefault(i => i.Id == instanceId);
+      if (instance is null)
+      {
+        App.Toast("error", "The server's instance is gone", "Choose the instance with the server's mods in its settings first.");
+        return;
+      }
+    }
+
+    var character = characters[characterIndex];
+    App.SettingsModel.PlayChoices[JoinKey] = new PlayChoice
+    {
+      Character = character.FileName,
+      InstanceId = instance?.Id,
+      Password = Model.Password.Length > 0 ? Model.Password : null,
+      InstantStart = instant,
+      LastPlayedAt = DateTimeOffset.UtcNow,
+    };
+    App.SaveSettings();
+    RaiseJoin();
+    App.Launch(instance, DirectPlay.Server(JoinKey, Model.Name, Model.ConnectAddress, character.FileName, Model.Password, instant));
+  }
+
+  internal void RaiseJoin()
+  {
+    Raise(nameof(HasJoinChoice));
+    Raise(nameof(JoinCharacterIndex));
+    Raise(nameof(JoinChoiceText));
+    Raise(nameof(JoinInstant));
+  }
+
+  private int IndexOfCharacter(string fileName)
+  {
+    var characters = App.Play.CharacterList;
+    for (var i = 0; i < characters.Count; i++)
+    {
+      if (characters[i].FileName == fileName)
+      {
+        return i;
+      }
+    }
+
+    return -1;
   }
 
   public void OpenConsole() => App.DebugConsole.ShowForServer(this);
