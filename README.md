@@ -259,6 +259,21 @@ While a server starts, its page and the list show how far it got, read from the 
 (`ServerStartup`: loading mods, loading or creating the world), with a progress bar, the time so far
 and a toast once it's online.
 
+**Backups.** Each server's page has a Backups section (`Core/Servers/Backups`, decision 0022).
+- **What:** a backup is one zip: the worlds (`saves/worlds_local`), the admin, ban and permitted
+  lists, and optionally the mods' configs (`BepInEx/config`). It's read through the server's files,
+  so servers at a host back up the same way. A running server saves first: the plugin saves
+  synchronously and says when the world is on disk.
+- **Where:** zips go to LaunchHeim's `~/.local/share/LaunchHeim/backups/<server>`, or a chosen folder
+  (another drive, a NAS share). From there they're copied to an rclone remote (set up with
+  `rclone config`) or to Proton Drive through Proton's own CLI (`proton-drive`, signed in once with
+  `proton-drive auth login`).
+- **Kept:** the newest N, plus one per day for D days, in both places. Safety copies are kept.
+- **When:** on demand, every few hours while the server runs and LaunchHeim is open, after every clean
+  stop, or with `launchheim backup <server>` / `--all` from a systemd timer or the Task Scheduler.
+- **Restore:** needs a stopped server, keeps the current state as a "before restore" backup, and
+  removes newer saves of the restored world, which Valheim would otherwise load instead.
+
 **Servers at a host.** "At a game host or on a VPS" in the new-server dialog makes a server LaunchHeim
 reaches only through its files (`Core/Servers`, decision 0021).
 - **Connection:** FTP, FTPS (explicit TLS) or SFTP with a password or an SSH key. The host key, or an

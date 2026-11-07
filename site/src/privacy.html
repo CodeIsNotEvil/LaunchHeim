@@ -85,6 +85,10 @@
           game host or VPS): LaunchHeim logs in with the user name, password or key you gave and uploads
           mods, its server plugin and, if you ask, Valheim's server; it reads the server's log and
           status there. Nothing goes anywhere else.</li>
+        <li><strong>Your backup storage</strong> (only if you set it up for a server's backups): LaunchHeim
+          runs <em>rclone</em> or Proton's <em>proton-drive</em> program on your computer, which copies
+          the backup zips to the remote or Proton Drive folder you configured in it. LaunchHeim never
+          sees those logins.</li>
         <li><strong>ipify</strong> (api.ipify.org): only when you click "Show my internet address" on a
           server's page, to learn the address your friends join from the internet. The service sees your
           IP address, which is what it tells LaunchHeim.</li>

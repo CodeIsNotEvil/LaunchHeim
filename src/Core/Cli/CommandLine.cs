@@ -11,10 +11,14 @@ public enum CliVerb
 
   /// <summary>Valheim's launch options in Steam: <c>launchheim steam %command%</c>.</summary>
   Steam,
+
+  /// <summary>Back a dedicated server up: <c>launchheim backup &lt;server&gt;</c>, for a systemd timer or a scheduled task.</summary>
+  Backup,
 }
 
 /// <param name="SteamCommand">What Steam put in place of <c>%command%</c>. Empty for the other verbs.</param>
-public sealed record CliCommand(CliVerb Verb, PlayRequest Request, IReadOnlyList<string> SteamCommand);
+/// <param name="Server">For backup: the server's name or id, or null for every server with scheduled backups.</param>
+public sealed record CliCommand(CliVerb Verb, PlayRequest Request, IReadOnlyList<string> SteamCommand, string? Server = null);
 
 public sealed class CliUsageException(string message) : Exception(message);
 
@@ -38,6 +42,9 @@ public static class CommandLine
       steam [options] %command%  For Valheim's launch options in Steam. Steam's Play button then
                                  starts the last play (or what the options pick) with its instance.
       list                       Show the instances, characters, servers and worlds to pick from.
+      backup <server>            Back up a dedicated server from the Servers page (its name or id),
+                                 to where its backup settings say. --all backs up every server
+                                 with scheduled backups switched on: one timer for all of them.
       help                       Show this text.
       --version                  Show LaunchHeim's version.
 
@@ -57,6 +64,7 @@ public static class CommandLine
       launchheim play --server "Our Server" --instance "Modded"
       launchheim play --world Midgard --character Ragnar --vanilla --instant
       Steam → Valheim → Properties → Launch options:  launchheim steam %command%
+      launchheim backup "Friday night Valheim"
     """;
 
   /// <summary>The command, or null when the arguments are for the window (none, or an nxm:// link).</summary>
@@ -85,6 +93,14 @@ public static class CommandLine
       case "play":
         var (request, extra) = ParseRequest(rest, stopAtCommand: false);
         return new CliCommand(CliVerb.Play, request, extra);
+      case "backup":
+        return rest switch
+        {
+          ["--all"] => new CliCommand(CliVerb.Backup, new PlayRequest(), [], null),
+          [var server] when !server.StartsWith('-') => new CliCommand(CliVerb.Backup, new PlayRequest(), [], server),
+          [] => throw new CliUsageException("backup needs a server: launchheim backup <name|id>, or --all."),
+          _ => throw new CliUsageException("backup takes one server (quote a name with spaces), or --all."),
+        };
       case "steam":
         var (steamRequest, command) = ParseRequest(rest, stopAtCommand: true);
         if (command.Count == 0)

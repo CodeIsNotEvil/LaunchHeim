@@ -29,7 +29,9 @@ works: README "Dedicated servers".
    - tested against podman `vsftpd` and `atmoz/sftp` containers.
 3. **G-Portal:** a preset over item 2, with its FTP layout, log path and panel link. It has no public
    API. Needs a real G-Portal server to find the paths.
-4. **Backups** (below).
+4. **Backups** (`server-backups`, 2026-11-07, [[0022-launchheim-server-backups]]). Built from the plan
+   below. Proton Drive goes through Proton's own CLI (released June 2026) instead of rclone's beta
+   backend. Item 3 (G-Portal) waits for a real G-Portal login.
 5. **Later:**
    - SSH: SteamCMD on the remote, a systemd user unit or a Windows scheduled task, `tail -F`.
    - The Pterodactyl/Pelican client API (websocket console, power, files) and Nitrado's API.
@@ -74,17 +76,64 @@ works: README "Dedicated servers".
 - A "VPS" run starts the uploaded server from the mounted folder on the PC (ServerLauncher with that
   folder as both the program and BepInEx root).
 
-## Open
-- **Hosted servers:**
-  - FTPS hasn't been tried against a real TLS server; the pinning code path is untested.
-  - No start script is written for a VPS; its owner starts `start_server_bepinex.sh` themselves.
-  - A VPS with only SFTP still can't be started from LaunchHeim (the SSH item).
-- **Not yet tried on a real Windows PC:**
-  - the server start (Doorstop proxy in Steam's server folder),
-  - Ctrl+C through `AttachConsole`,
-  - `CreateNoWindow` and the firewall prompt for UDP 2456–2457.
-- **A keyring for `server.json`'s passwords.**
-- **A firewall hint/rule for local servers**, as phone sync has (`Core/LocalSend/Firewall.cs`). The plan
-  had it; it isn't built yet.
-- **Picking an existing world:** the server's own `saves/` starts empty; "Worlds saved in" can point
-  at the game's own save folder, but copying one world over isn't offered yet.
+## Next session (handoff, 2026-11-07)
+Where things stand: PR #3 (local servers) and PR #4 (hosted servers) are merged. **PR #5 (backups,
+branch `server-backups`) is open**, waiting for the owner's review. Start there: follow-ups go onto that
+branch until it's merged, and new work goes on a fresh branch from `main`.
+
+**Roadmap still to do**
+1. **G-Portal (item 3).** A preset on top of hosted servers: G-Portal's FTP layout (server folder, where
+   `-savedir` points, the log), its panel link, and whether its BepInEx switch uses
+   `start_server_bepinex.sh`. **Blocked:** it needs a real G-Portal server or its FTP details from the
+   owner. Ask first.
+2. **SSH (item 5).** Start, stop and update servers on a VPS: SteamCMD on the remote, a systemd user
+   unit or a Windows scheduled task, `tail -F`. It also covers writing a start script for a VPS (today
+   its owner starts `start_server_bepinex.sh` by hand) and the "SFTP alone can't start anything" gap.
+3. **Hosting panel APIs.** Pterodactyl/Pelican (client API: websocket console, power, files) and Nitrado.
+4. **The server plugin on Thunderstore**, so hosts' own mod installers can add it. The owner's call.
+
+**Untested, needs the owner or real hardware**
+- **Proton Drive backups.** Not tried with a real account (no Proton login here). The CLI's
+  `--json` list format was read from its source, not seen. Ask the owner to sign in with
+  `proton-drive auth login` and run a backup.
+- **FTPS** against a real TLS server, and with it the certificate pinning.
+- **Windows:**
+  - starting a local server (Doorstop proxy in Steam's server folder),
+  - stopping with Ctrl+C through `AttachConsole`,
+  - `CreateNoWindow`, and the firewall prompt for UDP 2456–2457,
+  - backups and the `backup` CLI on Windows.
+- **Join** was never clicked in the real game: Valheim starting with the server's instance, the
+  remembered character and instant start.
+- **The crossplay join code** was never seen in a real log; it relies on the log line in Valheim's code.
+- **"Show my internet address"** wasn't clicked against the real api.ipify.org (only a fake in tests).
+- **The bottom of the hosted page** (Upload buttons, Server program) was never on screen: the screenshot
+  mode can't scroll. Editing the built QML copy in `bin/` to scroll to a section works for one-off
+  checks (done for Backups); a `LAUNCHHEIM_SCREENSHOT_PAGE` form like `server:<id>#backups` would make it
+  repeatable.
+
+**Missing features found along the way**
+- **Backups:**
+  - no cancel button (a big world on a slow FTP host takes a while);
+  - no timer set up from the UI (the page shows the `launchheim backup` command);
+  - no restore preview (which worlds, how old).
+- **A firewall hint/rule for local servers**, as phone sync has (`Core/LocalSend/Firewall.cs`). It was
+  planned for PR #3 and isn't built.
+- **A keyring for passwords:** `server.json` holds the server and RCON passwords and the FTP/SFTP login,
+  readable by the user only.
+- **Picking an existing world for a server:** copying one of the game's worlds into the server's
+  `saves/`. Today only "Worlds saved in" can point at another folder.
+
+**Release prep (when the owner asks for a release)**
+- **CHANGELOG.md has no entry yet** for local servers, hosted servers, backups, Join and the address
+  list. It can't have an "Unreleased" section (`Scripts/changelog.py` and the site build reject it), so
+  the entry gets written with the release's version and date.
+
+**On the owner's machine**
+- **Steam's library list** (`~/.local/share/Steam/steamapps/` and `config/libraryfolders.vdf`) was
+  repaired after SteamCMD overwrote it (fixed in PR #4). The broken copies sit next to it as
+  `*.launchheim-backup` and can go once Steam shows the `/mnt/games` games as installed.
+- **`~/.local/share/LaunchHeim/dedicated-server/linux`** (2.1 GB) is a SteamCMD download from the
+  owner's click. It's redundant if the servers use Steam's copy.
+- **Podman test containers** `lh-sftp` and `lh-ftp` exist, stopped (`podman rm lh-sftp lh-ftp`). The
+  commands to recreate them are under "Testing hosted servers locally". The scratch folders they
+  mounted were session-only.

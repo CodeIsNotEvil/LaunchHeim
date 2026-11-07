@@ -757,6 +757,7 @@ public sealed class AppViewModel : ViewModel
 
     await Settings.ValidateAllAsync();
     Updates.StartChecking();
+    Servers.StartBackupScheduler();
   }
 
   private void AddInstance(InstanceViewModel instance)

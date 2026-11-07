@@ -457,6 +457,25 @@ public sealed class ServerManager(
     await DropConsoleAsync(server);
   }
 
+  /// <summary>
+  /// A hosted server's files from a folder in <see cref="HostAccess.SaveDirectory"/>'s form: inside the
+  /// server folder (sharing its connection), absolute, or <c>~/…</c> from the login's home (a connection
+  /// of its own). Always dispose it; the shared kind ignores that.
+  /// </summary>
+  internal IServerFiles HostFilesAt(ServerProfile server, string folder)
+  {
+    var host = server.Host ?? throw new InvalidOperationException("Only a hosted server has a host.");
+    if (folder.StartsWith('/') || folder == "~" || folder.StartsWith("~/", StringComparison.Ordinal))
+    {
+      return ServerConnections.Open(host.WithDirectory(folder.StartsWith('~') ? folder.TrimStart('~').TrimStart('/') : folder));
+    }
+
+    return new SubFolderFiles(FilesOf(server), folder.Trim('/'));
+  }
+
+  /// <summary>The hosted server's own files (its folder, for configs).</summary>
+  internal IServerFiles HostFiles(ServerProfile server) => new SubFolderFiles(FilesOf(server), "");
+
   private IServerFiles FilesOf(ServerProfile server) =>
     _files.GetOrAdd(server.Id, _ => ServerConnections.Open(
       server.Host ?? throw new InvalidOperationException("Only a hosted server has a host."),

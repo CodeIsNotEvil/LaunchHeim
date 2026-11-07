@@ -143,6 +143,35 @@ public sealed class SftpServerFiles : IServerFiles
     return true;
   }, cancellationToken);
 
+  public Task<IReadOnlyList<ServerFileEntry>> ListEntriesAsync(string directory, CancellationToken cancellationToken) => RunAsync<IReadOnlyList<ServerFileEntry>>(async () =>
+  {
+    var full = Full(directory);
+    var target = full.Length == 0 ? "." : full;
+    if (!await _client.ExistsAsync(target, cancellationToken))
+    {
+      return [];
+    }
+
+    var entries = new List<ServerFileEntry>();
+    await foreach (var item in _client.ListDirectoryAsync(target, cancellationToken))
+    {
+      if (item.Name is "." or ".." || !(item.IsRegularFile || item.IsDirectory))
+      {
+        continue;
+      }
+
+      entries.Add(new ServerFileEntry(item.Name, item.IsDirectory, item.IsRegularFile ? item.Length : 0));
+    }
+
+    return entries.OrderBy(e => e.Name, StringComparer.Ordinal).ToList();
+  }, cancellationToken);
+
+  public Task DownloadAsync(string path, Stream destination, CancellationToken cancellationToken) => RunAsync(async () =>
+  {
+    await _client.DownloadFileAsync(Full(path), destination, cancellationToken);
+    return true;
+  }, cancellationToken);
+
   public ValueTask DisposeAsync()
   {
     try

@@ -27,6 +27,9 @@ internal sealed class ServerCommands(ManualLogSource logger, Action stopServer)
 {
   private const BindingFlags Any = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
 
+  /// <summary>The answer to <c>save</c> once the world is on disk. Core's BackupService looks for it.</summary>
+  public const string SavedAnswer = "The world is saved.";
+
   private readonly DateTime _startedAt = DateTime.UtcNow;
 
   public string Run(string line)
@@ -53,8 +56,17 @@ internal sealed class ServerCommands(ManualLogSource logger, Action stopServer)
         case "say":
           return Say(argument);
         case "save":
-          Call(ZNet(), "SaveWorldAndPlayerProfiles");
-          return "Saving the world.";
+          // Not SaveWorldAndPlayerProfiles, which Valheim's own console command calls: on a dedicated
+          // server it checks HardSaveBlock, which reads PlatformManager.DistributionPlatform, and that is
+          // null there. Every save within 60 s of the last one (or of the start) then threw a
+          // NullReferenceException and saved nothing (Valheim 1.0.21, found 2026-11-07). ZNet.Save is
+          // what it ends in anyway: the world and the players' profiles.
+          // Synchronous, as Valheim saves on shutdown: the answer then means the world is on disk, which
+          // backups wait for (BackupService). Valheim reports the finished save from its save thread, and
+          // BepInEx doesn't copy other threads' Unity messages into its log, so a host's console never
+          // showed it (found 2026-11-07). A save takes a fraction of a second on a typical world.
+          Call(ZNet(), "Save", true, true, false);
+          return SavedAnswer;
         case "stop":
           logger.LogInfo("Stopping the server on request from the console.");
           stopServer();

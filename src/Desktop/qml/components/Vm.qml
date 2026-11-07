@@ -40,4 +40,5 @@ QtObject {
   readonly property var serverItems: Net.toVariantList(servers.items)
   readonly property var serverMods: server ? Net.toVariantList(server.mods) : []
   readonly property var serverAddresses: server ? Net.toVariantList(server.addresses) : []
+  readonly property var serverBackups: server ? Net.toVariantList(server.backupList) : []
 }
