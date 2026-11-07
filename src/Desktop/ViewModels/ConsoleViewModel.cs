@@ -12,7 +12,10 @@ namespace CINE.LaunchHeim.Desktop.ViewModels;
 /// <para>
 /// Three logs: BepInEx's <c>LogOutput.log</c> in the instance (the mods, and Unity's messages as BepInEx
 /// relays them), Unity's <c>Player.log</c> (the game on its own, and what happens before BepInEx loads)
-/// and LaunchHeim's own log (the launch itself: paths, arguments, Steam, installs).
+/// and LaunchHeim's own log (the launch itself: paths, arguments, Steam, installs). A fourth once a
+/// dedicated server was opened: the server's own log (<c>-logFile</c>), with a command line under it that
+/// talks to LaunchHeim's server plugin. Commands and their answers are added to the lines shown, not to
+/// the file, so they go when the server starts a new log.
 /// </para>
 /// <para>
 /// Lines reach QML through <see cref="Poll"/>, which the window's timer calls, as one JSON string per
@@ -34,6 +37,7 @@ public sealed class ConsoleViewModel : ViewModel
   private Task? _reading;
   private bool _reset = true;
   private InstanceViewModel? _instance;
+  private ServerViewModel? _server;
   private string _source = "bepinex";
   private string _filter = "";
   private bool _problemsOnly;
@@ -60,7 +64,7 @@ public sealed class ConsoleViewModel : ViewModel
     }
   }
 
-  /// <summary>bepinex, unity or app.</summary>
+  /// <summary>bepinex, unity, app or server.</summary>
   [NotifySignal]
   public string Source { get => _source; private set => Set(ref _source, value); }
 
@@ -69,6 +73,17 @@ public sealed class ConsoleViewModel : ViewModel
 
   [NotifySignal]
   public bool HasInstance => _instance is not null;
+
+  /// <summary>A dedicated server was opened, so the Server tab has a log to follow.</summary>
+  [NotifySignal]
+  public bool HasServer => _server is not null;
+
+  [NotifySignal]
+  public string ServerName => _server?.Name ?? "";
+
+  /// <summary>The Server tab is shown and that server has LaunchHeim's plugin, so commands can be typed.</summary>
+  [NotifySignal]
+  public bool CanSendCommands => _source == "server" && _server is { ConsoleEnabled: true };
 
   [NotifySignal]
   public string FilePath => _follower?.Path ?? "";
@@ -83,6 +98,8 @@ public sealed class ConsoleViewModel : ViewModel
     "bepinex" when _instance is null => "Create an instance to see its BepInEx log.",
     "bepinex" => $"BepInEx writes this log when {_instance!.Name} starts. Play it and the log follows here as it's written.",
     "unity" => "Unity writes Valheim's Player.log when the game starts, with or without mods.",
+    "server" when _server is null => "Open a server on the Servers page to follow its log.",
+    "server" => $"{_server!.Name} writes this log when it starts. Start it and the log follows here as it's written.",
     _ => "LaunchHeim's own log is written to this file.",
   };
 
@@ -134,13 +151,69 @@ public sealed class ConsoleViewModel : ViewModel
 
   public void SetSource(string source)
   {
-    if (source is not ("bepinex" or "unity" or "app"))
+    if (source is not ("bepinex" or "unity" or "app" or "server") || source == "server" && _server is null)
     {
       return;
     }
 
     Source = source;
     Follow();
+  }
+
+  /// <summary>Follows a dedicated server's log.</summary>
+  /// <param name="onlyIfOpen">
+  /// After a start: switch an open console to the server, or open it if Settings say to open it on
+  /// every launch, but don't pop it up otherwise.
+  /// </param>
+  internal void ShowForServer(ServerViewModel server, bool onlyIfOpen = false)
+  {
+    _server = server;
+    Raise(nameof(HasServer));
+    Raise(nameof(ServerName));
+    if (!onlyIfOpen || _app.SettingsModel.OpenConsoleOnLaunch)
+    {
+      Show("server");
+    }
+    else if (_visible)
+    {
+      SetSource("server");
+    }
+  }
+
+  /// <summary>Runs a command on the server shown and adds it and its answer to the lines.</summary>
+  public async void SendCommand(string? line)
+  {
+    var server = _server;
+    line = line?.Trim();
+    if (server is null || string.IsNullOrEmpty(line) || _source != "server")
+    {
+      return;
+    }
+
+    AddLocal(new LogLine("> " + line, LogLevel.Debug));
+    var answer = await server.SendAsync(line);
+    var error = answer.StartsWith("Error: ", StringComparison.Ordinal);
+    var first = true;
+    foreach (var text in answer.Split('\n'))
+    {
+      AddLocal(new LogLine(text, error ? LogLevel.Error : LogLevel.Info, Continues: !first));
+      first = false;
+    }
+  }
+
+  private void AddLocal(LogLine line)
+  {
+    // Only if the server tab is still what's shown; the answer to a command on another log is dropped.
+    if (_source != "server")
+    {
+      return;
+    }
+
+    _lines.Add(line);
+    if (!_reset && Matches(line))
+    {
+      _pending.Add(line);
+    }
   }
 
   internal void ShowFor(InstanceViewModel instance)
@@ -256,6 +329,7 @@ public sealed class ConsoleViewModel : ViewModel
     {
       "bepinex" => _instance is null ? null : Path.Combine(_instance.Directory, "BepInEx", "LogOutput.log"),
       "unity" => UnityPlayerLog.Find(),
+      "server" => _server?.LogFile,
       _ => Log.FilePath ?? _app.Paths.LogFile,
     };
 
@@ -272,6 +346,8 @@ public sealed class ConsoleViewModel : ViewModel
     }
 
     Raise(nameof(FilePath));
+    Raise(nameof(CanSendCommands));
+    Raise(nameof(ServerName));
     Raise(nameof(InstanceName));
     Raise(nameof(HasInstance));
     Raise(nameof(MissingText));

@@ -95,8 +95,54 @@ accounts) and CurseForge (API key).
 
 - Own repository (2026-11-06): history, tags (`launchheim-v*`, unchanged) and the site moved out of
   MyMonoRepo ([[0018-launchheim-own-repository]]).
+- Dedicated servers (2026-11-06, unreleased): a Servers page for local servers. They run Steam's
+  or SteamCMD's copy and take their mods from an instance. A server plugin (`src/ServerPlugin`) gives
+  them a console over Source RCON and through files. Roadmap and backup plan: [[server-manager]]
+  ([[0019-launchheim-server-manager]], [[0020-launchheim-server-plugin-speaks-source-rcon]]).
 
 ## Gotchas
+- QML's JavaScript reserves `public` (and the other future reserved words), so a Qml.Net property named
+  `Public` breaks the whole page: "Unexpected token `public'" and "Type ServerPage unavailable". The
+  same goes for a key in a JS object literal. Hence `ServerViewModel.IsPublic` (2026-11-06).
+- A QML object literal like `validator: IntValidator { ... }` can't be followed by `;` on the same
+  line; put the item on lines of its own (2026-11-06).
+- Valheim's dedicated server checks a public server's password against the *world* name (and seed),
+  not the server name, and a missing `-public` means public (`FejdStartup.ParseServerArguments`,
+  decompiled 2026-11-06). `-backups` isn't followed by `i++` in the game's parser, which is harmless.
+- A private local dedicated server (`-public 0`, Valheim 1.0.21) never answered A2S: its query port
+  (game port + 1) was bound but the receive queue sat full, so nothing read it. Server status therefore
+  falls back to the plugin's `status` over RCON, then the log's "Game server connected"
+  (`ServerManager.StateAsync`). The 2026-10-04 A2S check was against a public server (2026-11-06).
+- An end-to-end run on 2026-11-06 used a throwaway harness in the scratchpad. It did a SteamCMD
+  download of 896660 (2.1 GB, it works on CachyOS with Steam's 32-bit libraries), started a server with
+  a copied instance's mods (Jotunn and two others), ran commands over RCON and the file channel, and
+  stopped it three ways: plugin `stop` from another process, plugin `stop` from the starting one, and
+  SIGINT without the plugin. Every stop saved the world (a new `_main.<n>` each time). Each start took
+  about 25 s on a fresh world, much less on an existing one.
+- `devcommands` and other game commands that print hit a null `Terminal` on a server; the plugin says
+  they only work in game. `Application.version` is Unity's "1.0"; the game's version is
+  `Version.GetVersionString()` (optional parameter, so reflection must pass its default).
+- Linux SteamCMD keeps its data in `~/.steam/steam`, which with Steam installed is the Steam client's
+  own folder. LaunchHeim's SteamCMD downloads (the owner's click and Claude's test run on 2026-11-06/07)
+  rewrote the client's `steamapps/libraryfolders.vdf` and `config/libraryfolders.vdf` with only
+  `~/.local/share/Steam` in them. `/mnt/games/SteamLibrary` dropped out of the list, so LaunchHeim found
+  neither Valheim nor Steam's dedicated server, and Steam would have lost the library on its next start.
+  The running client kept it in memory, which is why its own install of 896660 still went to
+  `/mnt/games`. SteamCMD now runs with `HOME` (and `XDG_DATA_HOME`) set to `~/.cache/LaunchHeim/steamcmd/home`.
+  This was checked by watching the client's `logs/content_log.txt` and the vdf's mtime during a run.
+  Steam's content log shows which process wrote what ("Triggered async write of Steam library folders
+  configuration (N libraries)").
+- `activity.CreateProgress()` must be called on the Qt thread, before `Task.Run`, never inside its
+  lambda. `Progress<T>` posts reports to the context it was created on, and from the thread pool the
+  first report raised a Qml.Net signal off the UI thread, which killed LaunchHeim ("You must be on the
+  UI thread", qmlnet#112). This crashed the first server start (owner, 2026-11-07).
+- `DesktopShell.Open` silently drops anything but web links and local paths (mod descriptions are
+  untrusted), so "Install with Steam" with `steam://install/896660` did nothing (owner, 2026-11-07).
+  LaunchHeim's own `steam://` links go through `DesktopShell.OpenSteamLink` (xdg-open on Linux, the
+  shell on Windows).
+- `CHANGELOG.md` can't have an "Unreleased" section: `Scripts/changelog.py` (and so the site build)
+  rejects any `## ` heading that isn't `<version> - <date>`. Write the entry when preparing the release
+  (2026-11-06).
 - Steam Linux Runtime (2026-10-14): with it, Steam's `%command%` for Valheim is a chain of launchers
   ending in the container's `_v2-entry-point`, which fails (exit 125) if Doorstop is preloaded into it.
   Anything for the game alone goes right in front of `valheim.x86_64` inside the command
@@ -233,6 +279,8 @@ accounts) and CurseForge (API key).
   and kills that command (2026-10-05).
 
 ## Open
+- Dedicated servers: see [[server-manager]] "Open" (Windows untested, keyring, firewall hint, picking an
+  existing world).
 - The move out of MyMonoRepo (2026-11-06): the first release from here must also be published in
   MyMonoRepo, or copies up to 0.7.1 never see it; the signing secrets have to be set here; the
   Microsoft Store listing needs the new site's URLs ([[0018-launchheim-own-repository]]).

@@ -9,6 +9,9 @@
   <Folder Name="/src/GamePlugin/">
     <Project Path="src/GamePlugin/LaunchHeim.GamePlugin.csproj" />
   </Folder>
+  <Folder Name="/src/ServerPlugin/">
+    <Project Path="src/ServerPlugin/LaunchHeim.ServerPlugin.csproj" />
+  </Folder>
   <Folder Name="/tests/" />
   <Folder Name="/tests/Core.Tests/">
     <Project Path="tests/Core.Tests/LaunchHeim.Core.Tests.csproj" />

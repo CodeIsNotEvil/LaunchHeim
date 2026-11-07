@@ -44,6 +44,11 @@
                       ReferenceOutputAssembly="false"
                       SkipGetTargetFrameworkProperties="true"
                       GlobalPropertiesToRemove="TargetFramework;RuntimeIdentifier;SelfContained" />
+    <!-- The server plugin, the same way: shipped in bepinex/ for the servers LaunchHeim runs (Core/Servers). -->
+    <ProjectReference Include="..\ServerPlugin\LaunchHeim.ServerPlugin.csproj"
+                      ReferenceOutputAssembly="false"
+                      SkipGetTargetFrameworkProperties="true"
+                      GlobalPropertiesToRemove="TargetFramework;RuntimeIdentifier;SelfContained" />
   </ItemGroup>
 
   <!--
@@ -51,7 +56,7 @@
     (the Windows build) sets Platform=x64, which moves it to bin/x64/, so a written-out path broke there.
   -->
   <Target Name="AddGamePlugin" BeforeTargets="AssignTargetPaths" DependsOnTargets="ResolveProjectReferences">
-    <MSBuild Projects="..\GamePlugin\LaunchHeim.GamePlugin.csproj" Targets="GetTargetPath" RemoveProperties="TargetFramework;RuntimeIdentifier;SelfContained">
+    <MSBuild Projects="..\GamePlugin\LaunchHeim.GamePlugin.csproj;..\ServerPlugin\LaunchHeim.ServerPlugin.csproj" Targets="GetTargetPath" RemoveProperties="TargetFramework;RuntimeIdentifier;SelfContained">
       <Output TaskParameter="TargetOutputs" ItemName="GamePluginFile" />
     </MSBuild>
     <ItemGroup>

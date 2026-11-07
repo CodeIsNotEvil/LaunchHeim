@@ -38,7 +38,7 @@ cd android && ./gradlew :app:testDebugUnitTest :app:assembleDebug   # the Androi
 
 # render one page to a PNG and quit, handy for checking QML changes without clicking around
 set -x LAUNCHHEIM_SCREENSHOT /tmp/shot.png
-set -x LAUNCHHEIM_SCREENSHOT_PAGE browse         # library | play | instance | browse | settings | console
+set -x LAUNCHHEIM_SCREENSHOT_PAGE browse         # library | play | instance | browse | settings | servers | server:<id> | console
 dotnet run --project src/Desktop
 ```
 
@@ -51,6 +51,8 @@ not a C# change.
 |---|---|
 | `src/Core` | Everything testable, with no UI: Steam/Valheim discovery (`Game/`), Valheim's own characters, worlds, servers and prefs (`Saves/`), instances, the mod installer and dependency resolution (`Mods/`), modpack export and import (`Packs/`), the three catalogs (`Catalogs/`), the command line's parser (`Cli/`), logging and log following (`Logging/`), downloads and XDG storage. |
 | `src/GamePlugin` | LaunchHeim's BepInEx plugin (.NET Framework, runs inside Valheim): "Start instantly" and keeping achievements with mods. See "Instant start". |
+| `src/ServerPlugin` | LaunchHeim's BepInEx plugin for dedicated servers: a console over Source RCON and through files. See "Dedicated servers". |
+| `src/Shared` | Source files compiled into more than one project, such as the RCON protocol both Core and the server plugin speak. |
 | `src/Desktop` | The Qml.Net host, view models, QML pages and components, the Plasma (or Windows) colour scheme, desktop integration (single instance, `nxm://`) and the command line's runner (`Cli/`), which never loads Qt. |
 | `packaging/` | The pacman, deb, rpm and Windows builds. See [`packaging/README.md`](packaging/README.md). |
 | `android/` | LaunchHeim Companion, the Android app (Kotlin, Compose). See [`android/README.md`](android/README.md). |
@@ -217,6 +219,59 @@ player clicks Start, unless "Start instantly" is on (see "Instant start"). The p
 `-joinserverwithcharacter` would skip the character selection too, but it runs before Steam is up and
 only sees characters kept off the cloud, so it isn't used.
 
+**Dedicated servers.** The Servers page runs Valheim's dedicated server on this PC (`Core/Servers`).
+The server program is Steam's "Valheim Dedicated Server" (app 896660, Library → Tools; "Install with
+Steam" opens `steam://install/896660`) or LaunchHeim's own copy, downloaded anonymously with Valve's
+SteamCMD into `~/.local/share/LaunchHeim/dedicated-server/<platform>` (SteamCMD itself is cached in
+`~/.cache/LaunchHeim/steamcmd`; on Linux it's 32-bit and needs 32-bit glibc, which Steam brings). A
+server is a folder in `~/.local/share/LaunchHeim/servers/<id>`: `server.json` (readable by the user
+only, it holds the passwords), its BepInEx, its log `server.log` and its worlds in `saves/` unless
+another folder was chosen (`-savedir`).
+
+A server takes its mods from an instance. Before each start the instance's BepInEx and enabled mods
+are copied into the server's folder (`ServerMods`), leaving out mods Thunderstore lists as Client-side
+only (each can be switched on or off on the server's page); `synced.json` remembers what was copied, so
+mods taken out of the instance leave the server too, and nothing else is ever removed. Configs are only
+copied while the server has none of that name, because with ServerSync-style mods the server's config
+is the one that counts; "Start with the instance's configs" replaces them. The start does what
+`start_headless_server.sh` and BepInExPack's `start_server_bepinex.sh` do: Valheim's arguments
+(`-public` is always passed, since a missing one means public), `SteamAppId=892970`, the server's
+`linux64` libraries, and Doorstop pointed at the server folder's BepInEx, as for the game. The process
+runs on its own (`setsid` on Linux, output dropped, the log comes from `-logFile`), so closing LaunchHeim
+never stops it; `run.json` finds it again. Valheim checks a public server's password itself: at least
+five characters, and not part of the world's name (not the server's name, as often said); LaunchHeim
+checks the same before saving.
+
+The console comes from LaunchHeim's server plugin (`src/ServerPlugin`), copied into the server's
+BepInEx with its config on every start, also for a vanilla server (which then gets BepInEx from the
+same setup instant start uses; players don't need anything). It listens for Source RCON on
+`127.0.0.1`, TCP game port + 2 (2458 by default), with a password LaunchHeim made up, and also runs
+commands written as files into `BepInEx/config/LaunchHeim.Server/commands/`, for hosts that only offer
+FTP. The console window's Server tab follows `server.log` and has a command line: `help`, `status`,
+`players` (with their platform IDs, which A2S doesn't give), `say`, `save`, `stop`, `kick`, `ban`,
+`unban`, `banned`, `admins`, `permitted`, and Valheim's own non-cheat console commands. Stopping asks the
+plugin to save and quit (`Application.Quit`, which saves through `Game.OnApplicationQuit`); without it,
+SIGINT on Linux and a Ctrl+C on the server's console on Windows. A server that ignores all of that can
+be killed after a confirmation, which loses what happened since its last save. Whether players can join
+comes from Steam's server query when the server answers it (a private server didn't), else from the
+server's log line "Game server connected"; the player count then comes from the plugin's `status`.
+While a server starts, its page and the list show how far it got, read from the same log
+(`ServerStartup`: loading mods, loading or creating the world), with a progress bar, the time so far
+and a toast once it's online.
+
+**How friends join.** The server's page lists the addresses for Valheim's "Join IP": this PC's IPv4
+addresses on each network adapter with the port (`ServerAddresses`; Docker, libvirt and other virtual
+adapters left out, 100.64/10 shown as a VPN such as Tailscale). The internet address is only known
+outside the router, so "Show my internet address" asks api.ipify.org on click, never on its own; the
+page also says which UDP ports to forward to which local address. A crossplay server's join code is
+read from its log ("registered with join code …").
+
+**Joining your own server.** Join on the server's page or in the list starts Valheim with the server's
+instance and password and `+connect 127.0.0.1:<port>`, so the game always has the server's mods. The
+character is picked the first time (Change picks another) and remembered in `PlayChoices` under the
+same key Valheim's server list uses (`server:127.0.0.1:2456`), so the Play page, the sidebar's Play
+button and `launchheim play` join it again the same way. "Start instantly" is on by default there.
+
 **Installing mods.** The file layout follows r2modman's BepInEx rules: BepInExPack goes into the
 instance root, and each plugin gets its own `BepInEx/plugins/<Mod>/` folder. Configs go into
 `BepInEx/config/` and an existing config is never overwritten. Every placed file is recorded, so
@@ -322,7 +377,8 @@ next; *Don't remind me again* stops reminders and checks (`updateRemindersDisabl
 **Console and logs.** The console window (the terminal button on an instance, or in the sidebar while
 the game runs) follows one of three logs live: the instance's BepInEx `LogOutput.log`, Unity's
 `Player.log` (`~/.config/unity3d/IronGate/Valheim`, or `%USERPROFILE%\AppData\LocalLow\IronGate\Valheim`)
-and LaunchHeim's own log. Errors and warnings are coloured and counted, lines can be filtered, and
+and LaunchHeim's own log; a fourth, a dedicated server's log, once a server was opened (see
+"Dedicated servers"). Errors and warnings are coloured and counted, lines can be filtered, and
 the shown lines copied for a bug report. It follows the files rather than piping the game's stdout,
 because a pipe ties the game to the launcher: closing LaunchHeim would leave Valheim writing into a
 pipe nobody reads. A file that got shorter or has a new first line is a new session. LaunchHeim's log

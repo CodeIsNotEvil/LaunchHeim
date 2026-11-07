@@ -169,6 +169,12 @@ public sealed class ThunderstoreCatalog(HttpClient http, ThunderstoreIndex index
   /// <summary>The newest version, used to offer updates for installed Thunderstore mods.</summary>
   public string? LatestVersion(string fullName) => index.Find(fullName)?.Latest.Version;
 
+  /// <summary>
+  /// The package's categories, such as Client-side and Server-side, which decide what a dedicated server
+  /// runs (<see cref="Servers.ServerMods"/>). Null while the index isn't loaded or doesn't know the package.
+  /// </summary>
+  public IReadOnlyList<string>? Categories(string fullName) => index.Find(fullName)?.Categories;
+
   private static string DisplayDependency(string dependency) =>
     DependencyString.Parse(dependency) is { } d ? d.FullName[(d.FullName.IndexOf('-') + 1)..].Replace('_', ' ') : dependency;
 

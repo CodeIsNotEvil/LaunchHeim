@@ -10,6 +10,7 @@ using CINE.LaunchHeim.Core.Instances;
 using CINE.LaunchHeim.Core.Logging;
 using CINE.LaunchHeim.Core.Mods;
 using CINE.LaunchHeim.Core.Packs;
+using CINE.LaunchHeim.Core.Servers;
 using CINE.LaunchHeim.Core.Storage;
 using CINE.LaunchHeim.Core.Updates;
 using CINE.LaunchHeim.Desktop.Cli;
@@ -106,6 +107,13 @@ public static class Program
       new CurseForgeCatalog(http, () => viewModel?.SettingsModel.CurseForgeApiKey));
     var mods = new ModService(instances, new ModInstaller(), new ModDownloader(http, paths), catalogs, paths);
     var gamePlugin = new GamePlugin(paths, store => new ModService(store, new ModInstaller(), new ModDownloader(http, paths), catalogs, paths));
+    var servers = new ServerManager(
+      new ServerStore(paths),
+      new DedicatedServer(SteamLibraryLocator.ForCurrentUser(), paths),
+      instances,
+      gamePlugin,
+      // Only Thunderstore says what runs where; the index is loaded at start (WarmUp).
+      mod => mod.Source == ModSource.Thunderstore ? catalogs.Thunderstore.Categories(mod.SourceId) : null);
     CleanTemp(paths);
 
     viewModel = new AppViewModel(
@@ -118,7 +126,10 @@ public static class Program
       new GameFolderImporter(instances),
       new ImageCache(http, paths),
       new UpdateChecker(http),
-      gamePlugin);
+      gamePlugin,
+      servers,
+      new SteamCmd(http, paths),
+      http);
 
     // A singleton instead of a context property: Qml.Net gives context-property objects JavaScript
     // ownership, so the JS garbage collector deletes the wrapper after a while and `app` turns null.
@@ -145,6 +156,12 @@ public static class Program
       if (screenshotPage == "console")
       {
         viewModel.OpenConsole();
+      }
+      else if (screenshotPage.StartsWith("server:", StringComparison.Ordinal))
+      {
+        // One server's page: server:<id>.
+        viewModel.Navigate("servers");
+        viewModel.Servers.Open(screenshotPage["server:".Length..]);
       }
       else
       {

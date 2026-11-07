@@ -295,7 +295,7 @@ public static class GameLauncher
   }
 
   // Doorstop 4 reads these before the game does, and Valheim ignores them.
-  private static List<string> WindowsDoorstopArguments(string gameDirectory, string? instanceDirectory)
+  internal static List<string> WindowsDoorstopArguments(string gameDirectory, string? instanceDirectory)
   {
     if (instanceDirectory is null)
     {
@@ -370,7 +370,7 @@ public static class GameLauncher
     }
   }
 
-  private static void AddDoorstop(
+  internal static void AddDoorstop(
     Dictionary<string, string?> environment,
     string instanceDirectory,
     IReadOnlyDictionary<string, string?> currentEnvironment)
@@ -472,7 +472,7 @@ public static class GameLauncher
     environment["SteamOverlayGameId"] = SteamLibraryLocator.ValheimAppId;
   }
 
-  private static string Prepend(string value, string? existing) =>
+  internal static string Prepend(string value, string? existing) =>
     string.IsNullOrEmpty(existing) ? value : $"{value}:{existing}";
 
   /// <summary>Splits launch arguments like a shell would for the simple cases: spaces and quotes.</summary>
