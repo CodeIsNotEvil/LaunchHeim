@@ -60,9 +60,12 @@ public static class CliRunner
     Log.Open(paths.CommandLineLogFile);
     try
     {
-      return command.Verb == CliVerb.Steam
-        ? SteamAsync(command.Request, command.SteamCommand, paths).GetAwaiter().GetResult()
-        : PlayAsync(command.Request, paths).GetAwaiter().GetResult();
+      return command.Verb switch
+      {
+        CliVerb.Steam => SteamAsync(command.Request, command.SteamCommand, paths).GetAwaiter().GetResult(),
+        CliVerb.Backup => BackupAsync(command.Server, paths).GetAwaiter().GetResult(),
+        _ => PlayAsync(command.Request, paths).GetAwaiter().GetResult(),
+      };
     }
     finally
     {
@@ -215,6 +218,59 @@ public static class CliRunner
   /// BepInEx) and the arguments for LaunchHeim's game plugin in it (see <see cref="GamePlugin"/>). A
   /// launch the plugin can't join still starts.
   /// </summary>
+  /// <summary>
+  /// Backs up one server, or every server with scheduled backups, the way the window would
+  /// (<see cref="Core.Servers.Backups.BackupService"/>). Meant for a systemd timer or a Windows scheduled
+  /// task, so backups happen while the window is closed.
+  /// </summary>
+  private static async Task<int> BackupAsync(string? name, AppPaths paths)
+  {
+    var store = new Core.Servers.ServerStore(paths);
+    var manager = new Core.Servers.ServerManager(
+      store,
+      new Core.Servers.DedicatedServer(SteamLibraryLocator.ForCurrentUser(), paths),
+      new InstanceStore(paths),
+      // Backups never set BepInEx up, so the vanilla setup's installer is never asked for.
+      new GamePlugin(paths, _ => throw new InvalidOperationException("Backups don't install anything.")),
+      _ => null);
+    var backups = new Core.Servers.Backups.BackupService(manager, paths);
+
+    var all = store.LoadAll();
+    var servers = name is null
+      ? all.Where(s => s.Backup.Scheduled).ToList()
+      : all.Where(s => s.Id.Equals(name, StringComparison.OrdinalIgnoreCase) || s.Name.Equals(name, StringComparison.CurrentCultureIgnoreCase)).Take(1).ToList();
+    if (servers.Count == 0)
+    {
+      Console.Error.WriteLine(name is null
+        ? "LaunchHeim: no server has scheduled backups switched on."
+        : $"LaunchHeim: there is no server called \"{name}\". These are: {string.Join(", ", all.Select(s => $"\"{s.Name}\""))}");
+      return 2;
+    }
+
+    var failed = 0;
+    foreach (var server in servers)
+    {
+      try
+      {
+        Say($"Backing up {server.Name}…");
+        var entry = await backups.BackupAsync(server, "command line", null, CancellationToken.None);
+        Say($"{server.Name}: {entry.Name} ({entry.Size / 1024} KB) in {backups.FolderOf(server)}{(entry.InCloud ? " and the cloud" : "")}.");
+      }
+      catch (Exception ex)
+      {
+        // Anything: a timer that runs this every few hours must get an exit code, not a crash dump.
+        Log.Error($"Backing up {server.Name} failed", ex is IOException ? null : ex);
+        failed++;
+      }
+      finally
+      {
+        await manager.ForgetConnectionAsync(server);
+      }
+    }
+
+    return failed == 0 ? 0 : 1;
+  }
+
   private static async Task<(string? Directory, IReadOnlyList<string> Arguments)> PrepareGamePluginAsync(
     PlayTarget target,
     InstanceStore instances,

@@ -58,6 +58,60 @@ Item {
       }
 
       // After each change, once errors are showing: the form as it stands, checked without saving.
+      // The backup form's own outlines, kept apart from the server form's.
+      property var backupErrors: ({})
+      property bool showBackupErrors: false
+      property string backupFolder: ""
+      property string toolPath: ""
+      readonly property var clouds: ["none", "rclone", "proton"]
+
+      function bErr(field) {
+        return showBackupErrors && backupErrors[field] !== undefined ? backupErrors[field] : ""
+      }
+
+      function loadBackup() {
+        scheduleSwitch.checked = server.backupScheduled
+        intervalHoursField.text = server.backupInterval
+        afterStopSwitch.checked = server.backupAfterStop
+        backupFolder = server.backupFolderIsCustom ? server.backupFolder : ""
+        cloudBox.currentIndex = Math.max(0, clouds.indexOf(server.backupCloud))
+        cloudPathField.text = server.backupCloudPath
+        toolPath = server.backupToolPath
+        keepLastField.text = server.backupKeepLast
+        keepDaysField.text = server.backupKeepDays
+        configsSwitch.checked = server.backupIncludeConfigs
+        saveDirectoryField.text = server.hostSaveDirectory
+        backupErrors = ({})
+        showBackupErrors = false
+      }
+
+      function backupForm() {
+        return JSON.stringify({
+          scheduled: scheduleSwitch.checked,
+          intervalHours: parseInt(intervalHoursField.text) || 0,
+          afterStop: afterStopSwitch.checked,
+          folder: backupFolder,
+          cloud: clouds[cloudBox.currentIndex],
+          cloudPath: cloudPathField.text,
+          toolPath: toolPath,
+          keepLast: parseInt(keepLastField.text) || 0,
+          keepDays: parseInt(keepDaysField.text) || 0,
+          includeConfigs: configsSwitch.checked,
+          saveDirectory: saveDirectoryField.text
+        })
+      }
+
+      function saveBackup() {
+        var json = server.applyBackup(backupForm())
+        backupErrors = json.length > 0 ? JSON.parse(json) : ({})
+        showBackupErrors = true
+      }
+
+      function recheckBackup() {
+        if (showBackupErrors)
+          backupErrors = JSON.parse(server.checkBackup(backupForm()))
+      }
+
       function recheck() {
         if (!showErrors)
           return
@@ -87,6 +141,7 @@ Item {
         saveDirectory = server.saveDirectoryIsCustom ? server.saveDirectory : ""
         errors = ({})
         showErrors = false
+        loadBackup()
         if (server.isHosted)
           loadHosted()
       }
@@ -177,6 +232,8 @@ Item {
           if (root.server.isHosted)
             root.loadHosted()
           root.takeErrors(root.server.fieldErrors)
+          root.backupErrors = JSON.parse(root.server.checkBackup(root.backupForm()))
+          root.showBackupErrors = true
           flick.contentY = Math.max(0, (root.server.isHosted ? connectionSection.y : settingsSection.y) - 16)
         }
       }
@@ -223,6 +280,27 @@ Item {
         id: keyDialog
         title: "Choose your SSH private key"
         onAccepted: root.keyFile = file.toString()
+      }
+
+      ConfirmDialog {
+        id: restoreDialog
+        property var backup: null
+        title: "Restore this backup?"
+        confirmText: "Restore"
+        text: backup ? "The world" + (root.server.isHosted ? " at the host" : "") + " goes back to " + backup.when + ". What happened since is replaced; LaunchHeim first keeps it as a backup marked “before restore”, so you can go back." : ""
+        onConfirmed: backup.restore()
+      }
+
+      Platform.FolderDialog {
+        id: backupFolderDialog
+        title: "Choose where backups go (another drive or a NAS share)"
+        onAccepted: { root.backupFolder = folder.toString(); root.recheckBackup() }
+      }
+
+      Platform.FileDialog {
+        id: toolDialog
+        title: root.clouds[cloudBox.currentIndex] === "proton" ? "Choose the proton-drive program" : "Choose the rclone program"
+        onAccepted: { root.toolPath = file.toString(); root.recheckBackup() }
       }
 
       Platform.FolderDialog {
@@ -935,6 +1013,225 @@ Item {
                 enabled: !root.server.isRunning && !root.server.isBusy && root.server.serverDirectory.length > 0
                 onClicked: root.server.startWithInstanceConfigs()
               }
+            }
+          }
+
+          // Backups: the world, the admin lists and the mods' configs, to a folder and optionally the cloud.
+          SettingsSection {
+            id: backupSection
+            iconName: "export"
+            title: "Backups · " + root.server.lastBackupText
+            description: "A backup holds the world" + (root.server.isHosted ? "s at the host" : "") + ", the admin, ban and permitted lists and, if you like, the mods' configs, as one zip. A running server saves first."
+            Layout.fillWidth: true
+
+            RowLayout {
+              spacing: 8
+              LhButton { text: root.server.isBackingUp ? "Backing up…" : "Back up now"; iconName: "export"; kind: "primary"; enabled: !root.server.isBackingUp; onClicked: root.server.backupNow() }
+              LhButton { text: "Open folder"; iconName: "folder"; kind: "ghost"; onClicked: root.server.openBackupFolder() }
+              LhButton { text: "Refresh"; iconName: "refresh"; kind: "ghost"; onClicked: root.server.refreshBackups() }
+            }
+
+            ProgressBar {
+              visible: root.server.isBackingUp
+              from: 0
+              to: 1
+              value: Math.max(0, root.server.backupProgress)
+              indeterminate: root.server.backupProgress < 0
+              Layout.fillWidth: true
+            }
+
+            Label {
+              text: root.server.backupStatus
+              visible: text.length > 0
+              color: Theme.textMuted
+              wrapMode: Text.Wrap
+              Layout.fillWidth: true
+            }
+
+            // The backups, newest first; each can be restored.
+            Repeater {
+              model: Vm.serverBackups
+
+              delegate: RowLayout {
+                spacing: 10
+                Layout.fillWidth: true
+
+                Label { text: modelData.when; Layout.fillWidth: true; elide: Text.ElideRight; Layout.minimumWidth: 0 }
+                Badge { visible: modelData.isSafetyCopy; text: "before restore"; tint: Theme.neutral }
+                Label { text: modelData.where; color: Theme.textMuted; font.pointSize: Theme.small }
+                Label { text: modelData.size; color: Theme.textMuted; font.pointSize: Theme.small; Layout.preferredWidth: 70; horizontalAlignment: Text.AlignRight }
+                LhButton {
+                  text: "Restore…"
+                  kind: "ghost"
+                  enabled: !root.server.isBackingUp && !root.server.isRunning
+                  onClicked: { restoreDialog.backup = modelData; restoreDialog.open() }
+                  ToolTip.visible: hovered && root.server.isRunning
+                  ToolTip.text: "Stop the server first"
+                }
+              }
+            }
+
+            Label {
+              visible: Vm.serverBackups.length === 0
+              text: "No backups yet."
+              color: Theme.textMuted
+            }
+
+            Rectangle { height: 1; color: Theme.divider; Layout.fillWidth: true; Layout.topMargin: 6; Layout.bottomMargin: 6 }
+
+            GridLayout {
+              columns: 2
+              columnSpacing: 14
+              rowSpacing: 10
+              Layout.fillWidth: true
+
+              Label { text: "Schedule"; Layout.alignment: Qt.AlignTop; Layout.topMargin: 6 }
+              RowLayout {
+                spacing: 8
+                LhSwitch { id: scheduleSwitch; text: "Every"; onToggled: root.recheckBackup() }
+                LhTextField {
+                  id: intervalHoursField; errorText: root.bErr("backupInterval"); onTextChanged: root.recheckBackup()
+                  validator: IntValidator { bottom: 1; top: 168 }
+                  Layout.preferredWidth: 70
+                  Layout.alignment: Qt.AlignTop
+                }
+                Label { text: "hours while the server runs (and LaunchHeim is open)"; color: Theme.textMuted; Layout.alignment: Qt.AlignTop; Layout.topMargin: 10 }
+              }
+
+              Label { text: ""; visible: !root.server.isHosted }
+              LhSwitch { id: afterStopSwitch; visible: !root.server.isHosted; text: "Also after every stop, when the world was just saved" }
+
+              Label { text: "Keep"; Layout.alignment: Qt.AlignTop; Layout.topMargin: 10 }
+              RowLayout {
+                spacing: 8
+                LhTextField {
+                  id: keepLastField; errorText: root.bErr("backupKeepLast"); onTextChanged: root.recheckBackup()
+                  validator: IntValidator { bottom: 1; top: 1000 }
+                  Layout.preferredWidth: 70
+                  Layout.alignment: Qt.AlignTop
+                }
+                Label { text: "newest, plus one per day for"; color: Theme.textMuted; Layout.alignment: Qt.AlignTop; Layout.topMargin: 10 }
+                LhTextField {
+                  id: keepDaysField; errorText: root.bErr("backupKeepDays"); onTextChanged: root.recheckBackup()
+                  validator: IntValidator { bottom: 0; top: 3650 }
+                  Layout.preferredWidth: 70
+                  Layout.alignment: Qt.AlignTop
+                }
+                Label { text: "days"; color: Theme.textMuted; Layout.alignment: Qt.AlignTop; Layout.topMargin: 10 }
+              }
+
+              Label { text: "Folder" }
+              RowLayout {
+                spacing: 8
+                Layout.fillWidth: true
+                Label {
+                  text: root.bErr("backupFolder").length > 0 ? root.bErr("backupFolder")
+                    : root.backupFolder.length > 0 ? decodeURIComponent(root.backupFolder.replace(/^file:\/\//, "")) : "LaunchHeim's own (" + root.server.backupFolder + ")"
+                  color: root.bErr("backupFolder").length > 0 ? Theme.negative : Theme.textMuted
+                  font.family: Theme.fontFamily
+                  elide: Text.ElideMiddle
+                  Layout.fillWidth: true
+                }
+                LhButton { text: "Choose…"; iconName: "folder"; kind: "ghost"; onClicked: backupFolderDialog.open() }
+                LhButton { text: "Default"; kind: "ghost"; visible: root.backupFolder.length > 0; onClicked: { root.backupFolder = ""; root.recheckBackup() } }
+              }
+
+              Label { text: "Also copy to" }
+              ComboBox {
+                id: cloudBox
+                model: ["Nothing else", "An rclone remote (Google Drive, OneDrive, Nextcloud, S3, a NAS …)", "Proton Drive (Proton's own CLI)"]
+                onCurrentIndexChanged: root.recheckBackup()
+                Layout.fillWidth: true
+                Material.foreground: Theme.text
+              }
+
+              Label { text: cloudBox.currentIndex === 1 ? "Remote" : "Drive folder"; visible: cloudBox.currentIndex > 0; Layout.alignment: Qt.AlignTop; Layout.topMargin: 10 }
+              LhTextField {
+                id: cloudPathField
+                visible: cloudBox.currentIndex > 0
+                errorText: root.bErr("backupCloudPath")
+                onTextChanged: root.recheckBackup()
+                placeholderText: cloudBox.currentIndex === 1 ? "e.g. gdrive:Valheim/backups" : "e.g. /my-files/Valheim backups"
+                font.family: Theme.fontFamily
+                Layout.fillWidth: true
+              }
+
+              Label { text: "Program"; visible: cloudBox.currentIndex > 0 }
+              RowLayout {
+                visible: cloudBox.currentIndex > 0
+                spacing: 8
+                Layout.fillWidth: true
+                Label {
+                  text: root.bErr("backupToolPath").length > 0 ? root.bErr("backupToolPath")
+                    : root.toolPath.length > 0 ? decodeURIComponent(root.toolPath.replace(/^file:\/\//, ""))
+                    : (cloudBox.currentIndex === 1 ? "rclone" : "proton-drive") + ", found on PATH or in ~/.local/bin"
+                  color: root.bErr("backupToolPath").length > 0 ? Theme.negative : Theme.textMuted
+                  font.family: Theme.fontFamily
+                  elide: Text.ElideMiddle
+                  Layout.fillWidth: true
+                }
+                LhButton { text: "Choose…"; kind: "ghost"; onClicked: toolDialog.open() }
+                LhButton { text: "Look for it"; kind: "ghost"; visible: root.toolPath.length > 0; onClicked: { root.toolPath = ""; root.recheckBackup() } }
+              }
+
+              Label { text: "Worlds at the host"; visible: root.server.isHosted; Layout.alignment: Qt.AlignTop; Layout.topMargin: 10 }
+              RowLayout {
+                visible: root.server.isHosted
+                spacing: 8
+                Layout.fillWidth: true
+                LhTextField {
+                  id: saveDirectoryField
+                  placeholderText: "The folder with worlds_local in it, e.g. saves or ~/.config/unity3d/IronGate/Valheim"
+                  font.family: Theme.fontFamily
+                  Layout.fillWidth: true
+                }
+                LhButton { text: "Find"; iconName: "search"; kind: "ghost"; onClicked: root.server.findSaveDirectory() }
+              }
+            }
+
+            LhSwitch { id: configsSwitch; text: "Include the mods' configs (BepInEx/config)" }
+
+            Label {
+              visible: cloudBox.currentIndex === 1
+              text: "Set the remote up once in a terminal with <b>rclone config</b> (rclone.org has a guide per cloud). LaunchHeim then copies each backup there and removes old ones the same way as in the folder."
+              textFormat: Text.StyledText
+              color: Theme.textMuted
+              font.pointSize: Theme.small
+              wrapMode: Text.Wrap
+              Layout.fillWidth: true
+            }
+
+            Label {
+              visible: cloudBox.currentIndex === 2
+              text: "Download Proton's CLI from <a href=\"https://proton.me/download/drive/cli/index.html\">proton.me</a> and sign in once in a terminal with <b>proton-drive auth login</b>; LaunchHeim never sees your Proton password. Old backups go to Proton Drive's trash."
+              textFormat: Text.StyledText
+              linkColor: Theme.link
+              onLinkActivated: App.openUrl(link)
+              color: Theme.textMuted
+              font.pointSize: Theme.small
+              wrapMode: Text.Wrap
+              Layout.fillWidth: true
+            }
+
+            Label {
+              text: "While LaunchHeim is closed, a timer can run <b>launchheim backup \"" + root.server.name + "\"</b> (or <b>launchheim backup --all</b>): a systemd timer on Linux, the Task Scheduler on Windows."
+              textFormat: Text.StyledText
+              color: Theme.textMuted
+              font.pointSize: Theme.small
+              wrapMode: Text.Wrap
+              Layout.fillWidth: true
+            }
+
+            Label {
+              text: "Fill in the outlined fields, then save."
+              visible: root.showBackupErrors && Object.keys(root.backupErrors).length > 0
+              color: Theme.negative
+            }
+
+            RowLayout {
+              spacing: 8
+              LhButton { text: "Save"; kind: "primary"; iconName: "check"; onClicked: root.saveBackup() }
+              LhButton { text: "Undo changes"; kind: "ghost"; onClicked: root.loadBackup() }
             }
           }
 

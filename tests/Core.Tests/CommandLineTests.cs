@@ -80,4 +80,14 @@ public class CommandLineTests
   [InlineData("list", CliVerb.List)]
   public void Simple_verbs(string argument, CliVerb verb) =>
     Assert.Equal(verb, CommandLine.Parse([argument])!.Verb);
+
+  [Fact]
+  public void Backup_takes_one_server_or_all()
+  {
+    Assert.Equal((CliVerb.Backup, "Friday night"), (CommandLine.Parse(["backup", "Friday night"])!.Verb, CommandLine.Parse(["backup", "Friday night"])!.Server));
+    Assert.Null(CommandLine.Parse(["backup", "--all"])!.Server);
+    Assert.Throws<CliUsageException>(() => CommandLine.Parse(["backup"]));
+    Assert.Throws<CliUsageException>(() => CommandLine.Parse(["backup", "a", "b"]));
+    Assert.Throws<CliUsageException>(() => CommandLine.Parse(["backup", "--everything"]));
+  }
 }

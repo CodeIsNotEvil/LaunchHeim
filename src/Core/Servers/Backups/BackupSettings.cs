@@ -50,4 +50,51 @@ public sealed class BackupSettings
   public string? ToolPath { get; set; }
 
   public DateTimeOffset? LastBackupAt { get; set; }
+
+  /// <summary>What's missing or wrong, by the backup form's fields (see <see cref="ServerProfile.Validate"/>).</summary>
+  public IReadOnlyList<FieldProblem> Validate()
+  {
+    var problems = new List<FieldProblem>();
+    if (IntervalHours is < 1 or > 24 * 7)
+    {
+      problems.Add(new("backupInterval", "Between 1 hour and a week."));
+    }
+
+    if (KeepLast < 1)
+    {
+      problems.Add(new("backupKeepLast", "Keep at least one."));
+    }
+
+    if (KeepDays < 0)
+    {
+      problems.Add(new("backupKeepDays", "Zero or more days."));
+    }
+
+    if (Cloud != BackupCloud.None && string.IsNullOrWhiteSpace(CloudPath))
+    {
+      problems.Add(new("backupCloudPath", Cloud == BackupCloud.Rclone
+        ? "Enter the rclone remote, such as gdrive:Valheim (set it up with rclone config)."
+        : "Enter the Proton Drive folder, such as /my-files/Valheim backups."));
+    }
+    else if (Cloud == BackupCloud.ProtonDrive && !CloudPath.Trim().StartsWith('/'))
+    {
+      problems.Add(new("backupCloudPath", "A Proton Drive folder starts with /my-files/."));
+    }
+    else if (Cloud == BackupCloud.Rclone && !CloudPath.Contains(':') && !Path.IsPathRooted(CloudPath))
+    {
+      problems.Add(new("backupCloudPath", "An rclone remote looks like name:folder."));
+    }
+
+    if (!string.IsNullOrWhiteSpace(ToolPath) && !File.Exists(ToolPath))
+    {
+      problems.Add(new("backupToolPath", "That program isn't there anymore."));
+    }
+
+    if (!string.IsNullOrWhiteSpace(Folder) && !Path.IsPathRooted(Folder))
+    {
+      problems.Add(new("backupFolder", "Choose a whole folder path."));
+    }
+
+    return problems;
+  }
 }

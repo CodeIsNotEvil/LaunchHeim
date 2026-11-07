@@ -21,6 +21,9 @@ public sealed class BackupService(ServerManager manager, AppPaths paths)
 {
   public const string BeforeRestore = "before-restore";
 
+  /// <summary>LaunchHeim's plugin answers <c>save</c> with this once the world is on disk. The plugin has the same constant.</summary>
+  public const string SavedAnswer = "The world is saved.";
+
   /// <summary>How long a save may take before the backup copies without waiting for it.</summary>
   private static readonly TimeSpan SaveTimeout = TimeSpan.FromSeconds(60);
 
@@ -215,7 +218,12 @@ public sealed class BackupService(ServerManager manager, AppPaths paths)
     {
       var log = manager.LogSourceOf(server);
       var start = await Task.Run(log.Length, cancellationToken) ?? 0;
-      await manager.SendAsync(server, "save", cancellationToken);
+      // LaunchHeim's plugin saves synchronously and says so; another RCON mod's save is watched in the log.
+      if ((await manager.SendAsync(server, "save", cancellationToken)).Contains(SavedAnswer, StringComparison.Ordinal))
+      {
+        return true;
+      }
+
       var deadline = DateTime.UtcNow + SaveTimeout;
       while (DateTime.UtcNow < deadline)
       {
@@ -285,7 +293,7 @@ public sealed class BackupService(ServerManager manager, AppPaths paths)
           Log.Info($"Removed old backup {old.Name} from {target.Describe}");
         }
       }
-      catch (IOException ex)
+      catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
       {
         // Thinning out can wait for the next backup; the backup itself is done.
         Log.Warning($"Couldn't remove old backups from {target.Describe}: {ex.Message}");

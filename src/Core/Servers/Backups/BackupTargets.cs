@@ -105,7 +105,7 @@ public sealed class RcloneBackupTarget(string remote, string tool) : IBackupTarg
   public async Task<IReadOnlyList<(string Name, long Size)>> ListAsync(CancellationToken cancellationToken)
   {
     // A folder that doesn't exist yet lists as an error on some backends and empty on others.
-    var (code, output) = await BackupTool.TryRunAsync(tool, ["lsjson", "--files-only", remote], cancellationToken);
+    var (code, output, _) = await BackupTool.TryRunAsync(tool, ["lsjson", "--files-only", remote], cancellationToken);
     return code == 0 ? ParseList(output) : [];
   }
 
@@ -118,11 +118,18 @@ public sealed class RcloneBackupTarget(string remote, string tool) : IBackupTarg
   /// <summary>rclone's <c>lsjson</c>: an array of objects with <c>Name</c>, <c>Size</c> and <c>IsDir</c>.</summary>
   internal static IReadOnlyList<(string Name, long Size)> ParseList(string json)
   {
-    using var document = JsonDocument.Parse(json);
-    return document.RootElement.EnumerateArray()
-      .Where(item => !(item.TryGetProperty("IsDir", out var dir) && dir.GetBoolean()))
-      .Select(item => (item.GetProperty("Name").GetString() ?? "", item.TryGetProperty("Size", out var size) ? size.GetInt64() : 0L))
-      .ToList();
+    try
+    {
+      using var document = JsonDocument.Parse(json);
+      return document.RootElement.EnumerateArray()
+        .Where(item => !(item.TryGetProperty("IsDir", out var dir) && dir.GetBoolean()))
+        .Select(item => (item.GetProperty("Name").GetString() ?? "", item.TryGetProperty("Size", out var size) ? size.GetInt64() : 0L))
+        .ToList();
+    }
+    catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
+    {
+      throw new BackupToolException($"rclone's list couldn't be read: {ex.Message}");
+    }
   }
 
   private string Join(string name) => remote.EndsWith(':') || remote.EndsWith('/') ? remote + name : $"{remote}/{name}";
@@ -176,7 +183,7 @@ public sealed class ProtonDriveBackupTarget(string folder, string tool) : IBacku
 
   public async Task<IReadOnlyList<(string Name, long Size)>> ListAsync(CancellationToken cancellationToken)
   {
-    var (code, output) = await BackupTool.TryRunAsync(tool, ["filesystem", "list", folder, "--json"], cancellationToken);
+    var (code, output, _) = await BackupTool.TryRunAsync(tool, ["filesystem", "list", folder, "--json"], cancellationToken);
     return code == 0 ? ParseList(output) : [];
   }
 
@@ -207,7 +214,19 @@ public sealed class ProtonDriveBackupTarget(string folder, string tool) : IBacku
       return [];
     }
 
-    using var document = JsonDocument.Parse(json[start..]);
+    try
+    {
+      return ParseNodes(json[start..]);
+    }
+    catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
+    {
+      throw new BackupToolException($"Proton Drive's list couldn't be read: {ex.Message}");
+    }
+  }
+
+  private static IReadOnlyList<(string Name, long Size)> ParseNodes(string json)
+  {
+    using var document = JsonDocument.Parse(json);
     var result = new List<(string, long)>();
     foreach (var node in document.RootElement.EnumerateArray())
     {
@@ -283,12 +302,15 @@ public static class BackupTool
 
   public static async Task<string> RunAsync(string tool, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
   {
-    var (code, output) = await TryRunAsync(tool, arguments, cancellationToken);
-    return code == 0 ? output : throw new BackupToolException($"{Path.GetFileName(tool)} {arguments.FirstOrDefault()} failed: {LastLines(output)}");
+    var (code, output, errors) = await TryRunAsync(tool, arguments, cancellationToken);
+    return code == 0 ? output : throw new BackupToolException($"{Path.GetFileName(tool)} {arguments.FirstOrDefault()} failed: {LastLines(errors + "\n" + output)}");
   }
 
-  /// <returns>The exit code and what it printed (both streams; errors last).</returns>
-  public static async Task<(int Code, string Output)> TryRunAsync(string tool, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+  /// <returns>
+  /// The exit code, standard output and standard error apart: rclone writes notices to standard error
+  /// ("Config file not found") even when it succeeds, and those must not end up in the JSON it prints.
+  /// </returns>
+  public static async Task<(int Code, string Output, string Errors)> TryRunAsync(string tool, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
   {
     var info = new ProcessStartInfo(tool)
     {
@@ -336,9 +358,8 @@ public static class BackupTool
         throw new BackupToolException($"{Path.GetFileName(tool)} took longer than {Timeout.TotalMinutes} minutes and was stopped.");
       }
 
-      var text = new StringBuilder(await output).Append(await error).ToString();
       Log.Info($"{Path.GetFileName(tool)} {string.Join(' ', arguments.Take(2))} exited with {process.ExitCode}");
-      return (process.ExitCode, text);
+      return (process.ExitCode, await output, await error);
     }
   }
 
