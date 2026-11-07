@@ -331,7 +331,7 @@ Item {
           Label { text: "Built with"; color: Theme.textMuted; Layout.alignment: Qt.AlignTop }
           Label {
             text: "Qt 5.15, Copyright (c) The Qt Company Ltd. and other contributors, used under the GNU LGPL v3. "
-              + "Also Qml.Net, NetNativeLibLoader (LGPL v3), SharpCompress, Markdig, Newtonsoft.Json, .NET and the Kode Mono font."
+              + "Also Qml.Net, NetNativeLibLoader (LGPL v3), SharpCompress, FluentFTP, SSH.NET, Bouncy Castle, Markdig, Newtonsoft.Json, .NET and the Kode Mono font."
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
           }

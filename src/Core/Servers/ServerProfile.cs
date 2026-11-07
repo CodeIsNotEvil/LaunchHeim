@@ -4,12 +4,86 @@ namespace CINE.LaunchHeim.Core.Servers;
 
 /// <summary>Where a server runs and how LaunchHeim reaches it.</summary>
 /// <remarks>
-/// Only <see cref="Local"/> exists so far. The plan (decision 0019): hosts reached over FTP/SFTP for files
-/// and the plugin's file channel, then G-Portal, then SSH and the hosting panels' APIs.
+/// The plan (decision 0019): local servers, then hosts reached over FTP/SFTP for files and the plugin's
+/// file channel, then G-Portal, then SSH and the hosting panels' APIs.
 /// </remarks>
 public enum ServerKind
 {
+  /// <summary>Runs on this PC; LaunchHeim starts and stops it.</summary>
   Local,
+
+  /// <summary>
+  /// Runs somewhere LaunchHeim reaches only through its files (<see cref="HostAccess"/>): a game host or a
+  /// VPS. LaunchHeim deploys mods and the plugin, follows the log and sends commands through the plugin,
+  /// but starting is up to the host's panel (or a shell LaunchHeim doesn't have).
+  /// </summary>
+  Hosted,
+}
+
+public enum FileProtocol
+{
+  Ftp,
+
+  /// <summary>FTP over TLS (explicit, <c>AUTH TLS</c>), which most hosts that encrypt FTP offer.</summary>
+  Ftps,
+
+  Sftp,
+}
+
+/// <summary>How LaunchHeim reaches a hosted server's files, and where players and the console reach it.</summary>
+public sealed class HostAccess
+{
+  public FileProtocol Protocol { get; set; } = FileProtocol.Sftp;
+
+  /// <summary>The host name or address for FTP/SFTP, without a port.</summary>
+  public string Address { get; set; } = "";
+
+  /// <summary>The FTP/SFTP port, or 0 for the protocol's own (21, 22).</summary>
+  public int Port { get; set; }
+
+  public string User { get; set; } = "";
+
+  public string Password { get; set; } = "";
+
+  /// <summary>An SSH private key for SFTP instead of (or with) the password; null for none.</summary>
+  public string? KeyFile { get; set; }
+
+  /// <summary>
+  /// The server's folder on the host, the one with <c>valheim_server</c> and <c>BepInEx/</c> in it.
+  /// Empty for the folder the login starts in, which is where game hosts usually put it.
+  /// </summary>
+  public string Directory { get; set; } = "";
+
+  /// <summary>The log the console follows, inside <see cref="Directory"/>. BepInEx's own log holds the game's lines too.</summary>
+  public string LogFile { get; set; } = "BepInEx/LogOutput.log";
+
+  /// <summary><c>host:port</c> players join, for the status (Steam's server query) and Join. Empty when not known.</summary>
+  public string GameAddress { get; set; } = "";
+
+  /// <summary>The host's web panel, where the server is started; empty for none.</summary>
+  public string PanelUrl { get; set; } = "";
+
+  /// <summary>
+  /// A TCP port the host forwards to the server for RCON, or 0 to use the file channel only. Most game
+  /// hosts don't give one; a VPS can.
+  /// </summary>
+  public int RconPort { get; set; }
+
+  /// <summary>The host's operating system, for uploading the matching build of the server program.</summary>
+  public Game.GamePlatform Platform { get; set; } = Game.GamePlatform.Linux;
+
+  /// <summary>
+  /// What the host proved itself with the first time: an SSH host key or a TLS certificate fingerprint.
+  /// A different one later means another machine answers (or the host changed its key), and LaunchHeim
+  /// refuses until the player clears it. Trust on first use, as SSH clients do.
+  /// </summary>
+  public string? Fingerprint { get; set; }
+
+  public int EffectivePort => Port > 0 ? Port : Protocol == FileProtocol.Sftp ? 22 : 21;
+
+  /// <summary><c>sftp://user@host:22/folder</c>, for messages and the log; never with the password.</summary>
+  public string Describe() =>
+    $"{Protocol.ToString().ToLowerInvariant()}://{(User.Length > 0 ? User + "@" : "")}{Address}:{EffectivePort}/{Directory.TrimStart('/')}";
 }
 
 /// <summary>Which copy of Valheim's dedicated server a local server runs.</summary>
@@ -46,6 +120,11 @@ public sealed class ServerProfile
   public string Name { get; set; } = "";
 
   public ServerKind Kind { get; set; } = ServerKind.Local;
+
+  /// <summary>How a <see cref="ServerKind.Hosted"/> server is reached; null for a local one.</summary>
+  public HostAccess? Host { get; set; }
+
+  public bool IsHosted => Kind == ServerKind.Hosted;
 
   public ServerBinary Binary { get; set; } = ServerBinary.Steam;
 
@@ -144,6 +223,21 @@ public sealed class ServerProfile
     if (string.IsNullOrWhiteSpace(Name))
     {
       problems.Add("The server needs a name.");
+    }
+
+    // A hosted server's world, port and password are set at the host; only the way in matters here.
+    if (IsHosted)
+    {
+      if (Host is null || string.IsNullOrWhiteSpace(Host.Address))
+      {
+        problems.Add("Enter the host's address for FTP or SFTP.");
+      }
+      else if (Host.Port is < 0 or > 65535 || Host.RconPort is < 0 or > 65535)
+      {
+        problems.Add("Ports have to be between 1 and 65535.");
+      }
+
+      return problems;
     }
 
     if (string.IsNullOrWhiteSpace(World))
