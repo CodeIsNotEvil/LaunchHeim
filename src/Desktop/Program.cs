@@ -128,7 +128,8 @@ public static class Program
       new UpdateChecker(http),
       gamePlugin,
       servers,
-      new SteamCmd(http, paths));
+      new SteamCmd(http, paths),
+      http);
 
     // A singleton instead of a context property: Qml.Net gives context-property objects JavaScript
     // ownership, so the JS garbage collector deletes the wrapper after a while and `app` turns null.

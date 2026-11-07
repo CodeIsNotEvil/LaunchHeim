@@ -269,7 +269,7 @@ Item {
             // The card above already says how the start is going.
             title: root.server.isStarting ? "Not joinable yet" : root.server.statusText
             description: root.server.isRunning
-              ? "Players on this PC's network join with “Join IP” and this PC's address (port " + root.server.port + "); from the internet, forward UDP " + root.server.port + "–" + (root.server.port + 1) + " to this PC in your router."
+              ? "Your friends join with Valheim's “Join IP” and one of the addresses below."
               : "Stopping saves the world first. Closing LaunchHeim leaves a running server running."
             Layout.fillWidth: true
 
@@ -300,6 +300,97 @@ Item {
               IconButton { iconName: "copy"; tip: "Copy the address"; onClicked: Clipboard.copy(root.server.joinAddress) }
               Item { Layout.fillWidth: true }
               LhButton { text: "Kill…"; kind: "danger"; visible: root.server.isRunning; onClicked: killDialog.open() }
+            }
+          }
+
+          // The addresses friends type into "Join IP", for each way they can reach this PC.
+          SettingsSection {
+            iconName: "link"
+            title: "How friends join"
+            description: "In Valheim: Start game → pick a character → Join game → Join IP, then one of these. Same network means the same home Wi-Fi or LAN."
+            Layout.fillWidth: true
+
+            Repeater {
+              model: Vm.serverAddresses
+
+              delegate: RowLayout {
+                spacing: 10
+                Layout.fillWidth: true
+
+                Label { text: modelData.address; font.family: Theme.fontFamily; font.bold: true; Layout.preferredWidth: 230 }
+                IconButton { iconName: "copy"; tip: "Copy " + modelData.address; onClicked: Clipboard.copy(modelData.address) }
+                Label {
+                  text: modelData.label + " · " + modelData.interface
+                  color: Theme.textMuted
+                  elide: Text.ElideRight
+                  Layout.fillWidth: true
+                }
+              }
+            }
+
+            Label {
+              visible: Vm.serverAddresses.length === 0
+              text: "This PC has no network connection right now."
+              color: Theme.textMuted
+            }
+
+            Rectangle { height: 1; color: Theme.divider; Layout.fillWidth: true; Layout.topMargin: 4; Layout.bottomMargin: 4 }
+
+            // The internet address is only known to the outside, so it's looked up on request (ServerAddresses).
+            RowLayout {
+              spacing: 10
+              Layout.fillWidth: true
+
+              Label {
+                visible: root.server.internetAddress.length > 0
+                text: root.server.internetAddress
+                font.family: Theme.fontFamily
+                font.bold: true
+                Layout.preferredWidth: 230
+              }
+              IconButton {
+                visible: root.server.internetAddress.length > 0
+                iconName: "copy"
+                tip: "Copy " + root.server.internetAddress
+                onClicked: Clipboard.copy(root.server.internetAddress)
+              }
+              Label {
+                visible: root.server.internetAddress.length > 0
+                text: "Internet (friends anywhere)"
+                color: Theme.textMuted
+                Layout.fillWidth: true
+              }
+              LhButton {
+                visible: root.server.internetAddress.length === 0
+                text: Vm.servers.isFindingPublic ? "Looking it up…" : "Show my internet address"
+                iconName: "search"
+                enabled: !Vm.servers.isFindingPublic
+                onClicked: Vm.servers.findPublicAddress()
+              }
+              Label {
+                visible: root.server.internetAddress.length === 0
+                text: "Asks api.ipify.org, which sees your address anyway."
+                color: Theme.textMuted
+                font.pointSize: Theme.small
+                Layout.fillWidth: true
+              }
+            }
+
+            Label {
+              text: "Friends from the internet need your router to forward UDP ports " + root.server.port + "–" + (root.server.port + 1) + " to " + root.server.forwardTo + " (look for “port forwarding” in its settings). Without that, only the same network works. Your internet address can change; most home connections get a new one now and then."
+              wrapMode: Text.Wrap
+              color: Theme.textMuted
+              font.pointSize: Theme.small
+              Layout.fillWidth: true
+            }
+
+            RowLayout {
+              visible: root.server.joinCode.length > 0
+              spacing: 10
+
+              Label { text: "Join code: " + root.server.joinCode; font.bold: true }
+              IconButton { iconName: "copy"; tip: "Copy the join code"; onClicked: Clipboard.copy(root.server.joinCode) }
+              Label { text: "crossplay: anyone can join with it, Xbox and Game Pass players too, usually without port forwarding"; color: Theme.textMuted }
             }
           }
 

@@ -46,7 +46,8 @@ public sealed class AppViewModel : ViewModel
     UpdateChecker updates,
     GamePlugin gamePlugin,
     ServerManager servers,
-    SteamCmd steamCmd)
+    SteamCmd steamCmd,
+    HttpClient http)
   {
     GamePlugin = gamePlugin;
     Paths = paths;
@@ -66,7 +67,7 @@ public sealed class AppViewModel : ViewModel
     DebugConsole = new ConsoleViewModel(this);
     Play = new PlayViewModel(this);
     Screenshots = new ScreenshotsViewModel(this);
-    Servers = new ServersViewModel(this, servers, steamCmd);
+    Servers = new ServersViewModel(this, servers, steamCmd, http);
     PhoneSync = new PhoneSyncViewModel(this);
     Updates = new UpdateViewModel(this, updates);
 

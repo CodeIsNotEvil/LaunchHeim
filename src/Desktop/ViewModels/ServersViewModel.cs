@@ -17,7 +17,7 @@ namespace CINE.LaunchHeim.Desktop.ViewModels;
 /// server started or stopped elsewhere shows up on the next look.
 /// </remarks>
 [Signal("joinDialogRequested")]
-public sealed class ServersViewModel(AppViewModel app, ServerManager manager, SteamCmd steamCmd) : ViewModel
+public sealed class ServersViewModel(AppViewModel app, ServerManager manager, SteamCmd steamCmd, HttpClient http) : ViewModel
 {
   /// <summary>Separates the names in the combo box models, as the Play page does.</summary>
   internal const string Separator = "\u001f";
@@ -27,6 +27,9 @@ public sealed class ServersViewModel(AppViewModel app, ServerManager manager, St
   private bool _loaded;
   private bool _isDownloading;
   private bool _refreshing;
+  private IReadOnlyList<LocalAddress> _localAddresses = [];
+  private string _publicAddress = "";
+  private bool _isFindingPublic;
 
   internal AppViewModel App => app;
   internal ServerManager Manager => manager;
@@ -76,7 +79,54 @@ public sealed class ServersViewModel(AppViewModel app, ServerManager manager, St
       Reload();
     }
 
+    RefreshAddresses();
     RefreshStatus();
+  }
+
+  /// <summary>This PC's addresses on its networks, read when the pages open (a laptop may have moved).</summary>
+  internal IReadOnlyList<LocalAddress> LocalAddresses => _localAddresses;
+
+  /// <summary>This network's internet address once looked up, else empty.</summary>
+  [NotifySignal]
+  public string PublicAddress { get => _publicAddress; private set => Set(ref _publicAddress, value); }
+
+  [NotifySignal]
+  public bool IsFindingPublic { get => _isFindingPublic; private set => Set(ref _isFindingPublic, value); }
+
+  private void RefreshAddresses()
+  {
+    _localAddresses = ServerAddresses.Local();
+    foreach (var server in _items)
+    {
+      server.RefreshAddresses();
+    }
+  }
+
+  /// <summary>Asks an outside service for the internet address; only on the player's click (<see cref="ServerAddresses"/>).</summary>
+  public async void FindPublicAddress()
+  {
+    if (IsFindingPublic)
+    {
+      return;
+    }
+
+    IsFindingPublic = true;
+    try
+    {
+      PublicAddress = (await ServerAddresses.FindPublicAsync(http, CancellationToken.None)).ToString();
+      foreach (var server in _items)
+      {
+        server.RefreshAddresses();
+      }
+    }
+    catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+    {
+      app.Toast("error", "Couldn't find your internet address", ex.Message);
+    }
+    finally
+    {
+      IsFindingPublic = false;
+    }
   }
 
   private void Reload()
@@ -304,6 +354,8 @@ public sealed class ServerViewModel : ViewModel
   private bool _isBusy;
   private string _busyText = "";
   private ServerStartPhase _phase = ServerStartPhase.Starting;
+  private List<ServerAddressViewModel> _addresses = [];
+  private string _joinCode = "";
   private DateTimeOffset? _startingSince;
 
   public ServerViewModel(ServersViewModel servers, ServerProfile model)
@@ -462,6 +514,32 @@ public sealed class ServerViewModel : ViewModel
   public string ModSummary => Model.InstanceId is null ? "Vanilla"
     : $"{InstanceName} · {IncludedModCount} of {_mods.Count} mods";
 
+  /// <summary>Where other players join from: this PC's address on each of its networks, with the port.</summary>
+  [NotifySignal]
+  public List<ServerAddressViewModel> Addresses { get => _addresses; private set => Set(ref _addresses, value); }
+
+  /// <summary>
+  /// The address for players from the internet, once looked up: the router's, with the port that has to
+  /// be forwarded to this PC. Empty before.
+  /// </summary>
+  [NotifySignal]
+  public string InternetAddress => _servers.PublicAddress.Length > 0 ? $"{_servers.PublicAddress}:{Model.Port}" : "";
+
+  /// <summary>The PC's address on its home network, for the port-forwarding hint.</summary>
+  [NotifySignal]
+  public string ForwardTo => _servers.LocalAddresses.FirstOrDefault(a => a.Scope == AddressScope.LocalNetwork)?.Address.ToString() ?? "this PC";
+
+  /// <summary>A crossplay server's code for Xbox and Game Pass players, from its log; empty otherwise.</summary>
+  [NotifySignal]
+  public string JoinCode { get => _joinCode; private set => Set(ref _joinCode, value); }
+
+  internal void RefreshAddresses()
+  {
+    Addresses = _servers.LocalAddresses.Select(a => new ServerAddressViewModel(a, Model.Port)).ToList();
+    Raise(nameof(ForwardTo));
+    Raise(nameof(InternetAddress));
+  }
+
   /// <summary>The server's log, which the console's Server tab follows.</summary>
   internal string LogFile => Manager.Store.LogFileOf(Model);
 
@@ -477,6 +555,7 @@ public sealed class ServerViewModel : ViewModel
       MaxPlayers = state.MaxPlayers;
       _phase = state.Phase;
       _startingSince = !state.Running ? null : _startingSince ?? DateTimeOffset.UtcNow;
+      JoinCode = state.Online && Model.Crossplay ? ServerAddresses.JoinCode(LogFile) ?? "" : "";
       if (wasStarting && state.Online)
       {
         App.Toast("success", $"{Model.Name} is online", $"Ready after {StartElapsed}. Join it from the server's page; friends join at this PC's address.");
@@ -492,6 +571,7 @@ public sealed class ServerViewModel : ViewModel
     Raise(nameof(StartPhaseText));
     Raise(nameof(StartStep));
     Raise(nameof(StartElapsed));
+    Raise(nameof(InternetAddress));
   }
 
   internal void RefreshMods()
@@ -881,6 +961,26 @@ public sealed class ServerViewModel : ViewModel
     string? CustomDirectory,
     string? SaveDirectory,
     string? InstanceId);
+}
+
+/// <summary>One address other players can join at, with what it's for.</summary>
+public sealed class ServerAddressViewModel(LocalAddress address, int port) : ViewModel
+{
+  /// <summary>What goes into Valheim's "Join IP": the address and the port.</summary>
+  [NotifySignal]
+  public string Address => $"{address.Address}:{port}";
+
+  /// <summary>Who it's for, in words.</summary>
+  [NotifySignal]
+  public string Label => address.Scope switch
+  {
+    AddressScope.LocalNetwork => "Same network (home Wi-Fi or LAN)",
+    AddressScope.Vpn => "Same VPN (Tailscale, ZeroTier)",
+    _ => "Internet (this PC is directly reachable)",
+  };
+
+  [NotifySignal]
+  public string Interface => address.Interface;
 }
 
 /// <summary>A mod of the server's instance and whether the server runs it.</summary>

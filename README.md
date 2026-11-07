@@ -259,6 +259,13 @@ While a server starts, its page and the list show how far it got, read from the 
 (`ServerStartup`: loading mods, loading or creating the world), with a progress bar, the time so far
 and a toast once it's online.
 
+**How friends join.** The server's page lists the addresses for Valheim's "Join IP": this PC's IPv4
+addresses on each network adapter with the port (`ServerAddresses`; Docker, libvirt and other virtual
+adapters left out, 100.64/10 shown as a VPN such as Tailscale). The internet address is only known
+outside the router, so "Show my internet address" asks api.ipify.org on click, never on its own; the
+page also says which UDP ports to forward to which local address. A crossplay server's join code is
+read from its log ("registered with join code …").
+
 **Joining your own server.** Join on the server's page or in the list starts Valheim with the server's
 instance and password and `+connect 127.0.0.1:<port>`, so the game always has the server's mods. The
 character is picked the first time (Change picks another) and remembered in `PlayChoices` under the
