@@ -35,6 +35,7 @@ public sealed class ConsoleViewModel : ViewModel
   private readonly List<LogLine> _pending = [];
   private LogFollower? _follower;
   private Task? _reading;
+  private DateTime _lastRead;
   private bool _reset = true;
   private InstanceViewModel? _instance;
   private ServerViewModel? _server;
@@ -181,7 +182,9 @@ public sealed class ConsoleViewModel : ViewModel
   }
 
   /// <summary>Runs a command on the server shown and adds it and its answer to the lines.</summary>
-  public async void SendCommand(string? line)
+  public void SendCommand(string? line) => _app.Guard("The command couldn't be sent", () => SendCommandAsync(line));
+
+  private async Task SendCommandAsync(string? line)
   {
     var server = _server;
     line = line?.Trim();
@@ -260,8 +263,10 @@ public sealed class ConsoleViewModel : ViewModel
   /// </summary>
   public string Poll()
   {
-    if (_follower is not null && (_reading is null || _reading.IsCompleted))
+    // A log at a host is read every few seconds (its PollInterval), a local one on every tick.
+    if (_follower is not null && (_reading is null || _reading.IsCompleted) && DateTime.UtcNow - _lastRead >= _follower.PollInterval)
     {
+      _lastRead = DateTime.UtcNow;
       _reading = ReadAsync(_follower);
     }
 
@@ -325,24 +330,27 @@ public sealed class ConsoleViewModel : ViewModel
   {
     // Opened from Settings or the sidebar before any instance was picked: the selected one is the best guess.
     _instance ??= _app.SelectedInstance;
+    // A server's log may be at a host, so it comes as a source rather than a path.
+    var serverSource = _source == "server" ? _server?.LogSource : null;
     var path = _source switch
     {
       "bepinex" => _instance is null ? null : Path.Combine(_instance.Directory, "BepInEx", "LogOutput.log"),
       "unity" => UnityPlayerLog.Find(),
-      "server" => _server?.LogFile,
+      "server" => serverSource?.Path,
       _ => Log.FilePath ?? _app.Paths.LogFile,
     };
 
     if (_follower?.Path != path || path is null)
     {
-      _follower = path is null ? null : new LogFollower(path);
+      _follower = path is null ? null : serverSource is not null ? new LogFollower(serverSource) : new LogFollower(path);
+      _lastRead = DateTime.MinValue;
       _reading = null;
       _lines.Clear();
       _pending.Clear();
       _reset = true;
       ErrorCount = 0;
       WarningCount = 0;
-      FileExists = path is not null && File.Exists(path);
+      FileExists = path is not null && (serverSource is not null || File.Exists(path));
     }
 
     Raise(nameof(FilePath));
@@ -371,7 +379,7 @@ public sealed class ConsoleViewModel : ViewModel
       return;
     }
 
-    FileExists = File.Exists(follower.Path);
+    FileExists = follower.Exists;
     if (chunk.Restarted)
     {
       _lines.Clear();

@@ -116,6 +116,39 @@ internal sealed class ServerCommands(ManualLogSource logger, Action stopServer)
     return $"Server: {serverName}\nWorld: {worldName}\nPlayers: {peers}\nUp: {(int)uptime.TotalHours}h {uptime.Minutes}m\nValheim: {version}";
   }
 
+  /// <summary>
+  /// The heartbeat's JSON (FileChannel.Heartbeat), or null while the world isn't loaded. Core's
+  /// ServerManager reads it: <c>time</c> (UTC), <c>players</c>, <c>world</c>, <c>version</c>, <c>stopped</c>.
+  /// </summary>
+  public string? StatusJson(bool stopped)
+  {
+    var znet = Type("ZNet")?.GetProperty("instance", Any)?.GetValue(null);
+    var zones = Type("ZoneSystem")?.GetProperty("instance", Any)?.GetValue(null);
+    if (!stopped && (znet is null || zones is null))
+    {
+      return null;
+    }
+
+    var world = "";
+    var players = 0;
+    if (znet is not null)
+    {
+      var worldObject = Call(znet, "GetWorld");
+      world = worldObject?.GetType().GetField("m_name", Any)?.GetValue(worldObject) as string ?? "";
+      players = Peers().Count;
+    }
+
+    var versionMethod = Type("Version")?.GetMethods(Any).FirstOrDefault(m => m.Name == "GetVersionString" && m.GetParameters().All(p => p.IsOptional));
+    var version = versionMethod?.Invoke(null, versionMethod.GetParameters().Select(p => p.DefaultValue).ToArray()) as string ?? Application.version;
+    return "{\"time\":\"" + DateTime.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture)
+      + "\",\"players\":" + players
+      + ",\"world\":\"" + Escape(world)
+      + "\",\"version\":\"" + Escape(version)
+      + "\",\"stopped\":" + (stopped ? "true" : "false") + "}";
+  }
+
+  private static string Escape(string text) => text.Replace("\\", "\\\\").Replace("\"", "\\\"");
+
   private string Players()
   {
     var peers = Peers();

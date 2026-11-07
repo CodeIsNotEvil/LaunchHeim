@@ -132,6 +132,13 @@ accounts) and CurseForge (API key).
   This was checked by watching the client's `logs/content_log.txt` and the vdf's mtime during a run.
   Steam's content log shows which process wrote what ("Triggered async write of Steam library folders
   configuration (N libraries)").
+- Every action QML starts goes through `AppViewModel.Guard`, which turns any exception into an error
+  toast and a log entry (2026-11-07). An `async void` (or an unawaited task) whose exception escapes
+  ends LaunchHeim. That happened with SSH.NET's `ArgumentException` for an empty user name, raised
+  while the connection was built, outside the code's filtered catches. Settings are also validated per
+  field (`ServerProfile.Validate`, `FieldProblem`): the page outlines missing fields (`LhTextField.errorText`)
+  and nothing connects until they're filled in. `ServerConnections.Open` refuses incomplete settings
+  with `ServerSetupException`, an `IOException`.
 - `activity.CreateProgress()` must be called on the Qt thread, before `Task.Run`, never inside its
   lambda. `Progress<T>` posts reports to the context it was created on, and from the thread pool the
   first report raised a Qml.Net signal off the UI thread, which killed LaunchHeim ("You must be on the
@@ -140,6 +147,11 @@ accounts) and CurseForge (API key).
   untrusted), so "Install with Steam" with `steam://install/896660` did nothing (owner, 2026-11-07).
   LaunchHeim's own `steam://` links go through `DesktopShell.OpenSteamLink` (xdg-open on Linux, the
   shell on Windows).
+- BepInEx's `LogOutput.log` carries Unity's own lines too ("Game server connected" and so on), so a
+  hosted server's console follows that by default. Valheim's `-logFile` may be anywhere at a host
+  (2026-11-07).
+- zsh doesn't word-split `$VAR`, so `V="dotnet x.dll"; $V args` fails with "no such file or
+  directory". Use a function (2026-11-07).
 - `CHANGELOG.md` can't have an "Unreleased" section: `Scripts/changelog.py` (and so the site build)
   rejects any `## ` heading that isn't `<version> - <date>`. Write the entry when preparing the release
   (2026-11-06).

@@ -13,6 +13,7 @@ LhDialog {
   title: "New server"
   onOpened: {
     nameField.text = ""
+    localButton.checked = true
     // The selected instance is the likely one: the modpack being played with friends.
     var ids = Vm.servers.instanceChoiceIds.split("\u001f")
     instanceBox.currentIndex = Vm.selected ? Math.max(0, ids.indexOf(Vm.selected.id)) : 0
@@ -22,7 +23,7 @@ LhDialog {
   function create() {
     if (nameField.text.trim().length === 0)
       return
-    Vm.servers.create(nameField.text, Vm.servers.instanceChoiceIds.split("\u001f")[instanceBox.currentIndex])
+    Vm.servers.create(nameField.text, Vm.servers.instanceChoiceIds.split("\u001f")[instanceBox.currentIndex], hostedButton.checked)
     dialog.close()
   }
 
@@ -31,9 +32,27 @@ LhDialog {
     spacing: 14
 
     Label {
-      text: "A dedicated server runs on this PC while you play or not. It takes its mods from an instance, so everyone joining with that instance has what the server has."
+      text: "A dedicated server takes its mods from an instance, so everyone joining with that instance has what the server has."
       wrapMode: Text.Wrap
       color: Theme.textMuted
+      Layout.fillWidth: true
+    }
+
+    Label { text: "Where does it run?"; font.bold: true }
+
+    ColumnLayout {
+      spacing: 2
+
+      RadioButton { id: localButton; text: "On this PC"; checked: true }
+      RadioButton { id: hostedButton; text: "At a game host or on a VPS (FTP, FTPS or SFTP)" }
+    }
+
+    Label {
+      visible: hostedButton.checked
+      text: "LaunchHeim uploads the mods and its server plugin there, follows the log and runs console commands. Starting the server stays with your host's panel."
+      wrapMode: Text.Wrap
+      color: Theme.textMuted
+      font.pointSize: Theme.small
       Layout.fillWidth: true
     }
 

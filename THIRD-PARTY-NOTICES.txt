@@ -92,6 +92,38 @@ https://github.com/adamhathcock/sharpcompress
 
 
 ------------------------------------------------------------------------------
+FluentFTP 55.1.0
+------------------------------------------------------------------------------
+
+Reaches dedicated servers at hosts over FTP and FTPS. Copyright (c) 2015 Robin Rodricks and
+FluentFTP Contributors. MIT License (licenses/FluentFTP.txt). https://github.com/robinrodricks/FluentFTP
+
+
+------------------------------------------------------------------------------
+SSH.NET 2026.0.0
+------------------------------------------------------------------------------
+
+Reaches dedicated servers over SFTP. Copyright (c) Renci, Oleg Kapeljushnik, Gert Driesen and
+contributors. MIT License (licenses/SSH.NET.txt). https://github.com/sshnet/SSH.NET
+
+
+------------------------------------------------------------------------------
+Bouncy Castle 2.7.0 (BouncyCastle.Cryptography)
+------------------------------------------------------------------------------
+
+Cryptography for SSH.NET. Copyright (c) 2000-2026 The Legion of the Bouncy Castle Inc. MIT License
+(licenses/BouncyCastle.txt). https://www.bouncycastle.org
+
+
+------------------------------------------------------------------------------
+Microsoft.Extensions.Logging.Abstractions 8.0.3 and DependencyInjection.Abstractions 8.0.2
+------------------------------------------------------------------------------
+
+Used by FluentFTP and SSH.NET. Copyright (c) .NET Foundation and Contributors. MIT License, the same
+text as the .NET runtime's (licenses/dotnet-runtime.txt). https://github.com/dotnet/runtime
+
+
+------------------------------------------------------------------------------
 Markdig 1.4.0
 ------------------------------------------------------------------------------
 

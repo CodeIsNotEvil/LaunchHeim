@@ -1,7 +1,7 @@
 ---
 tags: [project, launchheim, servers]
 created: 2026-11-06
-updated: 2026-11-06
+updated: 2026-11-07
 status: active
 ---
 # Server manager
@@ -18,7 +18,9 @@ works: README "Dedicated servers".
    - mods from a linked instance,
    - the server plugin with RCON and the file channel,
    - the console's Server tab.
-2. **A generic FTP/FTPS/SFTP host:**
+2. **A generic FTP/FTPS/SFTP host** (`server-manager-ftp-hosts`, 2026-11-07,
+   [[0021-launchheim-hosted-servers-through-their-files]]). Built as planned, plus uploading the server
+   program to a VPS and the plugin's heartbeat for status. The plan was:
    - `IServerFiles` over FluentFTP and SSH.NET (both MIT; update THIRD-PARTY-NOTICES and `licenses/`),
    - deploy mods, configs and the plugin with a hash diff,
    - follow the log by reading from an offset (`LogFollower` needs a source other than a local path),
@@ -62,7 +64,21 @@ works: README "Dedicated servers".
 - **Valheim's own `-backups`** (kept at 4 by default in the profile) is the first line of defence, but
   it lives on the same disk as the world.
 
+## Testing hosted servers locally
+- SFTP: `podman run -d --name lh-sftp --user root --userns=keep-id:uid=1000,gid=1000 -p 127.0.0.1:2222:22 -v <dir>:/home/foo/valheim:Z docker.io/atmoz/sftp foo:pass:1000:1000`.
+- FTP: `podman run -d --name lh-ftp --user root --userns=keep-id:uid=1000,gid=1000 -p 127.0.0.1:2121:21 -p 127.0.0.1:21000-21010:21000-21010 -e USERS="foo|pass|/home/foo|1000" -e ADDRESS=127.0.0.1 -v <dir>:/home/foo/valheim:Z docker.io/delfer/alpine-ftp-server`.
+- `keep-id` maps the container's uid 1000 to the owner's, so uploaded files are theirs. Without
+  `--user root` the images' entrypoints fail: sshd and vsftpd need root inside the namespace.
+- The contract tests run against them with
+  `LAUNCHHEIM_TEST_SFTP=127.0.0.1:2222:foo:pass:valheim LAUNCHHEIM_TEST_FTP=127.0.0.1:2121:foo:pass dotnet test tests/Core.Tests --filter ServerFilesTests`.
+- A "VPS" run starts the uploaded server from the mounted folder on the PC (ServerLauncher with that
+  folder as both the program and BepInEx root).
+
 ## Open
+- **Hosted servers:**
+  - FTPS hasn't been tried against a real TLS server; the pinning code path is untested.
+  - No start script is written for a VPS; its owner starts `start_server_bepinex.sh` themselves.
+  - A VPS with only SFTP still can't be started from LaunchHeim (the SSH item).
 - **Not yet tried on a real Windows PC:**
   - the server start (Doorstop proxy in Steam's server folder),
   - Ctrl+C through `AttachConsole`,

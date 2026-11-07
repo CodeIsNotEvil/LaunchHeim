@@ -259,6 +259,23 @@ While a server starts, its page and the list show how far it got, read from the 
 (`ServerStartup`: loading mods, loading or creating the world), with a progress bar, the time so far
 and a toast once it's online.
 
+**Servers at a host.** "At a game host or on a VPS" in the new-server dialog makes a server LaunchHeim
+reaches only through its files (`Core/Servers`, decision 0021).
+- **Connection:** FTP, FTPS (explicit TLS) or SFTP with a password or an SSH key. The host key, or an
+  untrusted FTPS certificate, is pinned on first use and must match afterwards ("Forget" clears it).
+- **Upload mods:** puts BepInEx, the instance's server mods and LaunchHeim's plugin into the server
+  folder. A record at the host (`.launchheim/mods.json`) makes later uploads send only changed files
+  and remove mods that left the instance. Configs only go up while missing.
+- **Upload Valheim's server:** for a VPS without it. It sends LaunchHeim's SteamCMD download for the
+  host's OS (Linux or Windows) with its execute bits, about 2 GB the first time.
+- **Starting:** stays with the host's panel (the "Host panel" button) or a shell, since FTP and SFTP
+  can't run programs.
+- **Status:** Steam's server query at the address players join, else the plugin's heartbeat
+  `BepInEx/config/LaunchHeim.Server/status.json` (written every 15 s, counted for 75 s).
+- **Console:** follows `BepInEx/LogOutput.log` through the files every 3 s. Commands use RCON when the
+  host forwards a port for it, otherwise the plugin's file channel (a few seconds each).
+- **Stop:** asks the plugin to save and quit; whether the host restarts the server is up to it.
+
 **How friends join.** The server's page lists the addresses for Valheim's "Join IP": this PC's IPv4
 addresses on each network adapter with the port (`ServerAddresses`; Docker, libvirt and other virtual
 adapters left out, 100.64/10 shown as a VPN such as Tailscale). The internet address is only known

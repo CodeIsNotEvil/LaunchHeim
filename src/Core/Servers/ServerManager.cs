@@ -49,6 +49,10 @@ public sealed class ServerManager(
   string? bundledPlugin = null)
 {
   private readonly ConcurrentDictionary<string, RconClient> _rcon = new();
+  private readonly ConcurrentDictionary<string, IServerFiles> _files = new();
+
+  /// <summary>Commands through files at a host take a poll of the plugin (2 s) plus two round trips each way.</summary>
+  private static readonly TimeSpan HostedFileChannelTimeout = TimeSpan.FromSeconds(60);
 
   public ServerStore Store => store;
 
@@ -75,6 +79,34 @@ public sealed class ServerManager(
   /// </remarks>
   public async Task<ServerState> StateAsync(ServerProfile server, CancellationToken cancellationToken)
   {
+    if (server.IsHosted)
+    {
+      // Its process isn't ours to see. Up is what answers Steam's query, or the plugin's heartbeat in its files.
+      if (server.Host is { GameAddress.Length: > 0 } host
+        && await ServerQuery.QueryAsync(host.GameAddress, TimeSpan.FromSeconds(3), cancellationToken) is { } answer)
+      {
+        return new ServerState(true, true, answer.Players, answer.MaxPlayers, ServerStartPhase.Online);
+      }
+
+      if (server.ConsoleEnabled && server.Host is { Address.Length: > 0 })
+      {
+        try
+        {
+          var beat = ServerHeartbeat.Parse(await WithFilesAsync(server, files => files.ReadTextAsync(ServerHeartbeat.FileName, cancellationToken)));
+          if (beat is not null && beat.IsAlive(DateTimeOffset.UtcNow))
+          {
+            return new ServerState(true, true, beat.Players, MaxPlayers, ServerStartPhase.Online);
+          }
+        }
+        catch (IOException ex)
+        {
+          Log.Warning($"Couldn't read {server.Name}'s heartbeat: {ex.Message}");
+        }
+      }
+
+      return new ServerState(false, false, 0, 0);
+    }
+
     using var process = FindProcess(server);
     if (process is null)
     {
@@ -164,6 +196,13 @@ public sealed class ServerManager(
   /// <summary>Saves the world and stops the server, through the plugin if it answers and the system otherwise.</summary>
   public async Task<StopResult> StopAsync(ServerProfile server, CancellationToken cancellationToken)
   {
+    if (server.IsHosted)
+    {
+      // The plugin saves and quits; what happens then (a restart by the host, or nothing) is the host's.
+      await SendAsync(server, "stop", cancellationToken);
+      return StopResult.Stopped;
+    }
+
     using var process = FindProcess(server);
     if (process is null)
     {
@@ -224,15 +263,31 @@ public sealed class ServerManager(
       throw new RconException("The console is switched off for this server.");
     }
 
-    try
+    if (!server.IsHosted || server.Host is { RconPort: > 0 })
     {
-      var client = await RconAsync(server, cancellationToken);
-      return await client.SendAsync(command, cancellationToken);
+      try
+      {
+        var client = await RconAsync(server, cancellationToken);
+        return await client.SendAsync(command, cancellationToken);
+      }
+      catch (RconException ex)
+      {
+        await DropConsoleAsync(server);
+        Log.Info($"RCON to {server.Name} failed ({ex.Message}), trying the file channel.");
+      }
     }
-    catch (RconException ex)
+
+    if (server.IsHosted)
     {
-      await DropConsoleAsync(server);
-      Log.Info($"RCON to {server.Name} failed ({ex.Message}), trying the file channel.");
+      try
+      {
+        return await new ServerCommandChannel(FilesOf(server), TimeSpan.FromSeconds(2)).SendAsync(command, fileChannelTimeout ?? HostedFileChannelTimeout, cancellationToken);
+      }
+      catch (IOException ex)
+      {
+        await ForgetConnectionAsync(server);
+        throw new RconException(ex.Message, ex);
+      }
     }
 
     return await new ServerCommandChannel(new LocalServerFiles(store.DirectoryOf(server))).SendAsync(command, fileChannelTimeout, cancellationToken);
@@ -240,6 +295,34 @@ public sealed class ServerManager(
 
   /// <summary>Copies the server's mods in, or returns null for a plain vanilla start.</summary>
   private async Task<string?> PrepareModsAsync(ServerProfile server, string folder, bool replaceConfigs, IProgress<InstallProgress>? progress, CancellationToken cancellationToken)
+  {
+    if (await ResolveModsAsync(server, progress, cancellationToken) is not var (sourceDirectory, mods))
+    {
+      return null;
+    }
+
+    progress?.Report(new InstallProgress(server.Name, "Copying mods to the server", null));
+    var sync = await Task.Run(() => ServerMods.Sync(sourceDirectory, mods, folder, replaceConfigs), cancellationToken);
+    Log.Info($"Server {server.Name}: {mods.Count} mods from {sourceDirectory}, {sync.Copied} files copied, {sync.Removed} removed, {sync.ConfigsCopied} configs copied");
+
+    if (server.ConsoleEnabled)
+    {
+      ServerPluginInstaller.Install(folder, server, bundledPlugin: bundledPlugin);
+    }
+    else
+    {
+      ServerPluginInstaller.Remove(folder);
+    }
+
+    return folder;
+  }
+
+  /// <summary>
+  /// Where the server's BepInEx and mods come from, and which: the instance's loader and the mods the
+  /// server runs, or the vanilla setup's loader for a vanilla server with the console. Null when the
+  /// server runs plain vanilla.
+  /// </summary>
+  private async Task<(string SourceDirectory, List<InstalledMod> Mods)?> ResolveModsAsync(ServerProfile server, IProgress<InstallProgress>? progress, CancellationToken cancellationToken)
   {
     var instance = InstanceOf(server);
     if (server.InstanceId is not null && instance is null)
@@ -277,20 +360,121 @@ public sealed class ServerManager(
       mods.AddRange(ServerMods.Entries(instance, server, categories).Where(e => e.Included).Select(e => e.Mod));
     }
 
-    progress?.Report(new InstallProgress(server.Name, "Copying mods to the server", null));
-    var sync = await Task.Run(() => ServerMods.Sync(sourceDirectory, mods, folder, replaceConfigs), cancellationToken);
-    Log.Info($"Server {server.Name}: {mods.Count} mods from {sourceDirectory}, {sync.Copied} files copied, {sync.Removed} removed, {sync.ConfigsCopied} configs copied");
+    return (sourceDirectory, mods);
+  }
+
+  /// <summary>
+  /// The files of a hosted server's BepInEx, mods and plugin, as <see cref="ServerDeploy"/> takes them.
+  /// The plugin's config is written into the server's local folder first and uploaded from there.
+  /// </summary>
+  public async Task<IReadOnlyList<DeployFile>> HostedModFilesAsync(ServerProfile server, IProgress<InstallProgress>? progress, CancellationToken cancellationToken)
+  {
+    var files = new List<DeployFile>();
+    if (await ResolveModsAsync(server, progress, cancellationToken) is var (sourceDirectory, mods))
+    {
+      foreach (var path in mods.SelectMany(m => m.Files).Select(ModInstaller.NormalizePath).Distinct(StringComparer.Ordinal))
+      {
+        var isConfig = path.StartsWith("BepInEx/config/", StringComparison.OrdinalIgnoreCase);
+        files.Add(new DeployFile(path, Path.Combine([sourceDirectory, .. path.Split('/')]), Executable: path.EndsWith(".sh", StringComparison.Ordinal), IsConfig: isConfig));
+      }
+
+      // Configs the player made in the instance without a mod installing them, as for local servers.
+      var configDirectory = Path.Combine(sourceDirectory, "BepInEx", "config");
+      if (Directory.Exists(configDirectory))
+      {
+        foreach (var config in Directory.EnumerateFiles(configDirectory, "*", SearchOption.AllDirectories))
+        {
+          var path = "BepInEx/config/" + ModInstaller.NormalizePath(Path.GetRelativePath(configDirectory, config));
+          if (files.All(f => f.Path != path))
+          {
+            files.Add(new DeployFile(path, config, IsConfig: true));
+          }
+        }
+      }
+    }
 
     if (server.ConsoleEnabled)
     {
-      ServerPluginInstaller.Install(folder, server, bundledPlugin: bundledPlugin);
-    }
-    else
-    {
-      ServerPluginInstaller.Remove(folder);
+      var plugin = bundledPlugin ?? ServerPluginInstaller.BundledPlugin;
+      if (!File.Exists(plugin))
+      {
+        throw new LaunchException($"LaunchHeim's server plugin is missing ({plugin}). Reinstall LaunchHeim.");
+      }
+
+      var folder = store.DirectoryOf(server);
+      Directory.CreateDirectory(folder);
+      var config = Path.Combine(folder, "hosted-plugin.cfg");
+      await File.WriteAllTextAsync(config, ServerPluginInstaller.HostedConfig(server), cancellationToken);
+      if (!OperatingSystem.IsWindows())
+      {
+        File.SetUnixFileMode(config, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+      }
+
+      files.Add(new DeployFile(ModInstaller.NormalizePath(Path.Combine(ServerPluginInstaller.PluginDirectory, ServerPluginInstaller.PluginFileName)), plugin));
+      // Always LaunchHeim's own, so never treated as a config the server may keep.
+      files.Add(new DeployFile(ModInstaller.NormalizePath(ServerPluginInstaller.ConfigPath), config));
     }
 
-    return folder;
+    return files;
+  }
+
+  /// <summary>Uploads a hosted server's BepInEx, mods and plugin (<see cref="ServerDeploy"/>).</summary>
+  public async Task<DeployReport> DeployModsAsync(ServerProfile server, bool replaceConfigs, bool force, IProgress<DeployProgress>? progress, CancellationToken cancellationToken)
+  {
+    var wanted = await HostedModFilesAsync(server, null, cancellationToken);
+    return await WithFilesAsync(server, files => ServerDeploy.RunAsync(files, "mods", wanted, replaceConfigs, force, progress, cancellationToken));
+  }
+
+  /// <summary>Uploads the whole dedicated server from a local folder, for a VPS that doesn't have it yet.</summary>
+  public Task<DeployReport> DeployServerProgramAsync(ServerProfile server, string programDirectory, bool force, IProgress<DeployProgress>? progress, CancellationToken cancellationToken) =>
+    WithFilesAsync(server, files => ServerDeploy.RunAsync(files, "server-program", ServerDeploy.Folder(programDirectory), replaceConfigs: false, force, progress, cancellationToken));
+
+  /// <summary>What's in the server's folder at the host, in words, for "Test connection".</summary>
+  public Task<string> DescribeHostAsync(ServerProfile server, CancellationToken cancellationToken) => WithFilesAsync(server, async files =>
+  {
+    var linux = await files.SizeAsync("valheim_server.x86_64", cancellationToken) is not null;
+    var windows = await files.SizeAsync("valheim_server.exe", cancellationToken) is not null;
+    var bepinex = await files.SizeAsync("BepInEx/core/BepInEx.Preloader.dll", cancellationToken) is not null;
+    var plugin = await files.SizeAsync(ModInstaller.NormalizePath(Path.Combine(ServerPluginInstaller.PluginDirectory, ServerPluginInstaller.PluginFileName)), cancellationToken) is not null;
+    var program = linux ? "Valheim's server (Linux)" : windows ? "Valheim's server (Windows)" : "no Valheim server in this folder yet";
+    return $"Connected to {files.Describe}: {program}, {(bepinex ? "BepInEx" : "no BepInEx")}, {(plugin ? "LaunchHeim's plugin" : "no LaunchHeim plugin")}.";
+  });
+
+  /// <summary>The log the console follows: the local server's own, or the host's through its files.</summary>
+  public ILogSource LogSourceOf(ServerProfile server) =>
+    server.IsHosted && server.Host is { } host
+      ? new ServerFilesLogSource(FilesOf(server), host.LogFile)
+      : new FileLogSource(store.LogFileOf(server));
+
+  /// <summary>Drops the connection to a host, after its settings changed or it broke.</summary>
+  public async Task ForgetConnectionAsync(ServerProfile server)
+  {
+    if (_files.TryRemove(server.Id, out var files))
+    {
+      await files.DisposeAsync();
+    }
+
+    await DropConsoleAsync(server);
+  }
+
+  private IServerFiles FilesOf(ServerProfile server) =>
+    _files.GetOrAdd(server.Id, _ => ServerConnections.Open(
+      server.Host ?? throw new InvalidOperationException("Only a hosted server has a host."),
+      // A host key or certificate pinned on first use is saved right away (HostAccess.Fingerprint).
+      () => store.Save(server)));
+
+  /// <summary>Runs work on the host's files; a broken connection is dropped so the next call reconnects.</summary>
+  private async Task<T> WithFilesAsync<T>(ServerProfile server, Func<IServerFiles, Task<T>> work)
+  {
+    try
+    {
+      return await work(FilesOf(server));
+    }
+    catch (IOException)
+    {
+      await ForgetConnectionAsync(server);
+      throw;
+    }
   }
 
   private async Task<RconClient> RconAsync(ServerProfile server, CancellationToken cancellationToken)
@@ -300,7 +484,9 @@ public sealed class ServerManager(
       return existing;
     }
 
-    var client = await RconClient.ConnectAsync("127.0.0.1", server.EffectiveRconPort, server.RconPassword, cancellationToken);
+    var client = server.Host is { RconPort: > 0 } host && server.IsHosted
+      ? await RconClient.ConnectAsync(host.Address, host.RconPort, server.RconPassword, cancellationToken)
+      : await RconClient.ConnectAsync("127.0.0.1", server.EffectiveRconPort, server.RconPassword, cancellationToken);
     if (_rcon.TryRemove(server.Id, out var old))
     {
       await old.DisposeAsync();

@@ -4,12 +4,94 @@ namespace CINE.LaunchHeim.Core.Servers;
 
 /// <summary>Where a server runs and how LaunchHeim reaches it.</summary>
 /// <remarks>
-/// Only <see cref="Local"/> exists so far. The plan (decision 0019): hosts reached over FTP/SFTP for files
-/// and the plugin's file channel, then G-Portal, then SSH and the hosting panels' APIs.
+/// The plan (decision 0019): local servers, then hosts reached over FTP/SFTP for files and the plugin's
+/// file channel, then G-Portal, then SSH and the hosting panels' APIs.
 /// </remarks>
 public enum ServerKind
 {
+  /// <summary>Runs on this PC; LaunchHeim starts and stops it.</summary>
   Local,
+
+  /// <summary>
+  /// Runs somewhere LaunchHeim reaches only through its files (<see cref="HostAccess"/>): a game host or a
+  /// VPS. LaunchHeim deploys mods and the plugin, follows the log and sends commands through the plugin,
+  /// but starting is up to the host's panel (or a shell LaunchHeim doesn't have).
+  /// </summary>
+  Hosted,
+}
+
+public enum FileProtocol
+{
+  Ftp,
+
+  /// <summary>FTP over TLS (explicit, <c>AUTH TLS</c>), which most hosts that encrypt FTP offer.</summary>
+  Ftps,
+
+  Sftp,
+}
+
+/// <summary>How LaunchHeim reaches a hosted server's files, and where players and the console reach it.</summary>
+public sealed class HostAccess
+{
+  public FileProtocol Protocol { get; set; } = FileProtocol.Sftp;
+
+  /// <summary>The host name or address for FTP/SFTP, without a port.</summary>
+  public string Address { get; set; } = "";
+
+  /// <summary>The FTP/SFTP port, or 0 for the protocol's own (21, 22).</summary>
+  public int Port { get; set; }
+
+  public string User { get; set; } = "";
+
+  public string Password { get; set; } = "";
+
+  /// <summary>An SSH private key for SFTP instead of (or with) the password; null for none.</summary>
+  public string? KeyFile { get; set; }
+
+  /// <summary>
+  /// The server's folder on the host, the one with <c>valheim_server</c> and <c>BepInEx/</c> in it.
+  /// Empty for the folder the login starts in, which is where game hosts usually put it.
+  /// </summary>
+  public string Directory { get; set; } = "";
+
+  /// <summary>The log the console follows, inside <see cref="Directory"/>. BepInEx's own log holds the game's lines too.</summary>
+  public string LogFile { get; set; } = "BepInEx/LogOutput.log";
+
+  /// <summary><c>host:port</c> players join, for the status (Steam's server query) and Join. Empty when not known.</summary>
+  public string GameAddress { get; set; } = "";
+
+  /// <summary>The host's web panel, where the server is started; empty for none.</summary>
+  public string PanelUrl { get; set; } = "";
+
+  /// <summary>
+  /// A TCP port the host forwards to the server for RCON, or 0 to use the file channel only. Most game
+  /// hosts don't give one; a VPS can.
+  /// </summary>
+  public int RconPort { get; set; }
+
+  /// <summary>The host's operating system, for uploading the matching build of the server program.</summary>
+  public Game.GamePlatform Platform { get; set; } = Game.GamePlatform.Linux;
+
+  /// <summary>
+  /// What the host proved itself with the first time: an SSH host key or a TLS certificate fingerprint.
+  /// A different one later means another machine answers (or the host changed its key), and LaunchHeim
+  /// refuses until the player clears it. Trust on first use, as SSH clients do.
+  /// </summary>
+  public string? Fingerprint { get; set; }
+
+  public int EffectivePort => Port > 0 ? Port : Protocol == FileProtocol.Sftp ? 22 : 21;
+
+  /// <summary>What's missing or wrong for connecting, by form field (see <see cref="ServerProfile.Validate"/>).</summary>
+  public IReadOnlyList<FieldProblem> Validate()
+  {
+    var problems = new List<FieldProblem>();
+    ServerProfile.ValidateHost(this, problems);
+    return problems;
+  }
+
+  /// <summary><c>sftp://user@host:22/folder</c>, for messages and the log; never with the password.</summary>
+  public string Describe() =>
+    $"{Protocol.ToString().ToLowerInvariant()}://{(User.Length > 0 ? User + "@" : "")}{Address}:{EffectivePort}/{Directory.TrimStart('/')}";
 }
 
 /// <summary>Which copy of Valheim's dedicated server a local server runs.</summary>
@@ -24,6 +106,10 @@ public enum ServerBinary
   /// <summary>A folder the user picked, such as one copied from another machine.</summary>
   Custom,
 }
+
+/// <summary>Something wrong in a server's settings, and the form field it's about.</summary>
+/// <param name="Field">The form's key for the field, such as <c>address</c> or <c>user</c>.</param>
+public sealed record FieldProblem(string Field, string Message);
 
 /// <summary>One dedicated server LaunchHeim manages: <c>server.json</c> in the server's folder.</summary>
 public sealed class ServerProfile
@@ -46,6 +132,11 @@ public sealed class ServerProfile
   public string Name { get; set; } = "";
 
   public ServerKind Kind { get; set; } = ServerKind.Local;
+
+  /// <summary>How a <see cref="ServerKind.Hosted"/> server is reached; null for a local one.</summary>
+  public HostAccess? Host { get; set; }
+
+  public bool IsHosted => Kind == ServerKind.Hosted;
 
   public ServerBinary Binary { get; set; } = ServerBinary.Steam;
 
@@ -120,6 +211,9 @@ public sealed class ServerProfile
 
   public DateTimeOffset? LastStartedAt { get; set; }
 
+  /// <summary>When a hosted server last got its mods and plugin uploaded.</summary>
+  public DateTimeOffset? LastDeployedAt { get; set; }
+
   /// <summary>The RCON port in use: <see cref="RconPort"/>, or the default next to the game ports.</summary>
   public int EffectiveRconPort => RconPort > 0 ? RconPort : Port + 2;
 
@@ -127,10 +221,11 @@ public sealed class ServerProfile
   /// What LaunchHeim's own Join connects to, always with the port, so it matches the key Valheim's server
   /// list and the Play page use (<c>server:127.0.0.1:2456</c>) and the remembered choice is shared.
   /// </summary>
-  public string ConnectAddress => $"127.0.0.1:{Port}";
+  public string ConnectAddress => IsHosted ? Host?.GameAddress ?? "" : $"127.0.0.1:{Port}";
 
   /// <summary>The address players join, for the Play page and the copy button.</summary>
-  public string JoinAddress(string host = "127.0.0.1") => Port == DefaultPort ? host : $"{host}:{Port}";
+  public string JoinAddress(string host = "127.0.0.1") =>
+    IsHosted ? Host?.GameAddress ?? "" : Port == DefaultPort ? host : $"{host}:{Port}";
 
   /// <summary>What stops Valheim from starting with these settings, or what it would refuse, in plain words.</summary>
   /// <remarks>
@@ -138,56 +233,126 @@ public sealed class ServerProfile
   /// servers, at least five characters, and not part of the <em>world's</em> name. A server that breaks
   /// them logs "Error bad password" and quits right away.
   /// </remarks>
-  public IReadOnlyList<string> Problems()
+  public IReadOnlyList<string> Problems() => Validate().Select(p => p.Message).ToList();
+
+  /// <summary>
+  /// The same checks as <see cref="Problems"/>, each tied to the form field it's about, so the window
+  /// can outline the fields that are missing or wrong instead of listing them somewhere else. The
+  /// field names are the keys the server page's forms send.
+  /// </summary>
+  public IReadOnlyList<FieldProblem> Validate()
   {
-    var problems = new List<string>();
+    var problems = new List<FieldProblem>();
     if (string.IsNullOrWhiteSpace(Name))
     {
-      problems.Add("The server needs a name.");
+      problems.Add(new("name", "The server needs a name."));
+    }
+
+    // A hosted server's world, port and password are set at the host; only the way in matters here.
+    if (IsHosted)
+    {
+      ValidateHost(Host ?? new HostAccess(), problems);
+      return problems;
     }
 
     if (string.IsNullOrWhiteSpace(World))
     {
-      problems.Add("The server needs a world name.");
+      problems.Add(new("world", "The server needs a world name."));
     }
     else if (World.IndexOfAny([.. Path.GetInvalidFileNameChars(), '/', '\\']) >= 0)
     {
-      problems.Add("The world name can't contain slashes or other characters files can't have.");
+      problems.Add(new("world", "The world name can't contain slashes or other characters files can't have."));
     }
 
     if (Port is < 1 or > 65534)
     {
-      problems.Add("The port has to be between 1 and 65534 (the server also uses the port after it).");
+      problems.Add(new("port", "The port has to be between 1 and 65534 (the server also uses the port after it)."));
     }
 
     if (Public)
     {
       if (Password.Length < MinimumPasswordLength)
       {
-        problems.Add($"A public server needs a password of at least {MinimumPasswordLength} characters.");
+        problems.Add(new("password", $"A public server needs a password of at least {MinimumPasswordLength} characters."));
       }
       else if (World.Contains(Password, StringComparison.Ordinal))
       {
-        problems.Add("Valheim refuses a password that is part of the world's name.");
+        problems.Add(new("password", "Valheim refuses a password that is part of the world's name."));
       }
     }
 
     if (Preset.Length > 0 && !Presets.Contains(Preset, StringComparer.OrdinalIgnoreCase))
     {
-      problems.Add($"Unknown world preset \"{Preset}\".");
+      problems.Add(new("preset", $"Unknown world preset \"{Preset}\"."));
     }
 
     if (ConsoleEnabled && EffectiveRconPort is < 1 or > 65535)
     {
-      problems.Add("The console port has to be between 1 and 65535.");
+      problems.Add(new("port", "The console uses the port after the game's two; pick a lower game port."));
     }
 
     if (Binary == ServerBinary.Custom && string.IsNullOrWhiteSpace(CustomDirectory))
     {
-      problems.Add("Choose the folder of the dedicated server.");
+      problems.Add(new("customDirectory", "Choose the folder of the dedicated server."));
     }
 
     return problems;
+  }
+
+  internal static void ValidateHost(HostAccess host, List<FieldProblem> problems)
+  {
+    var address = host.Address.Trim();
+    if (address.Length == 0)
+    {
+      problems.Add(new("address", "Enter the host's FTP or SFTP address."));
+    }
+    else if (address.Contains("://", StringComparison.Ordinal) || address.Contains('/') || address.Any(char.IsWhiteSpace))
+    {
+      problems.Add(new("address", "Only the host's name or IP, without sftp:// or a folder."));
+    }
+    else if (address.Count(c => c == ':') == 1)
+    {
+      problems.Add(new("address", "Put the port into the Port field, not after the host."));
+    }
+
+    if (host.Port is < 0 or > 65535)
+    {
+      problems.Add(new("port", "The port has to be between 1 and 65535, or empty for the usual one."));
+    }
+
+    // SSH has no anonymous logins; FTP has, though game hosts don't use them.
+    if (host.Protocol == FileProtocol.Sftp && string.IsNullOrWhiteSpace(host.User))
+    {
+      problems.Add(new("user", "SFTP needs a user name."));
+    }
+
+    if (host.Protocol == FileProtocol.Sftp && host.Password.Length == 0 && string.IsNullOrWhiteSpace(host.KeyFile))
+    {
+      problems.Add(new("password", "Enter the password, or choose an SSH key."));
+    }
+
+    if (host.Protocol == FileProtocol.Sftp && !string.IsNullOrWhiteSpace(host.KeyFile) && !File.Exists(host.KeyFile))
+    {
+      problems.Add(new("keyFile", "The SSH key file isn't there anymore."));
+    }
+
+    if (host.GameAddress.Trim().Length > 0 && !IsHostAndPort(host.GameAddress.Trim()))
+    {
+      problems.Add(new("gameAddress", "Write it as host:port, e.g. 203.0.113.7:2456."));
+    }
+
+    if (host.RconPort is < 0 or > 65535)
+    {
+      problems.Add(new("rconPort", "The RCON port has to be between 1 and 65535, or empty for none."));
+    }
+  }
+
+  private static bool IsHostAndPort(string address)
+  {
+    var colon = address.LastIndexOf(':');
+    var hostPart = colon < 0 ? address : address[..colon];
+    var portOk = colon < 0 || int.TryParse(address[(colon + 1)..], out var port) && port is > 0 and <= 65535;
+    return hostPart.Length > 0 && !hostPart.Any(char.IsWhiteSpace) && !hostPart.Contains('/') && portOk;
   }
 
   /// <summary>A random password for RCON: 24 characters nobody has to type.</summary>

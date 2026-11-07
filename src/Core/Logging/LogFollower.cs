@@ -24,7 +24,7 @@ public sealed record LogLine(string Text, LogLevel Level, bool Continues = false
 /// still being written is picked up whole on the next read.
 /// </para>
 /// </remarks>
-public sealed class LogFollower(string path, long maxInitialBytes = LogFollower.DefaultInitialBytes)
+public sealed class LogFollower(ILogSource source, long maxInitialBytes = LogFollower.DefaultInitialBytes)
 {
   /// <summary>A log several MB long starts at its tail; the start of a long session is rarely what's wanted.</summary>
   public const long DefaultInitialBytes = 2 * 1024 * 1024;
@@ -38,16 +38,34 @@ public sealed class LogFollower(string path, long maxInitialBytes = LogFollower.
   private long _position = -1;
   private byte[] _head = [];
 
-  public string Path => path;
+  public LogFollower(string path, long maxInitialBytes = DefaultInitialBytes)
+    : this(new FileLogSource(path), maxInitialBytes)
+  {
+  }
+
+  /// <summary>Where the log is, for the window: a local path or a host's.</summary>
+  public string Path => source.Path;
+
+  /// <summary>How often reading is worth it: often for a local file, every few seconds for one at a host.</summary>
+  public TimeSpan PollInterval => source.PollInterval;
+
+  /// <summary>Whether the last <see cref="Read"/> found the file.</summary>
+  public bool Exists { get; private set; }
 
   public LogChunk Read()
   {
-    FileStream stream;
+    long? size;
     try
     {
-      stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+      size = source.Length();
     }
-    catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException or UnauthorizedAccessException or IOException)
+    catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+    {
+      size = null;
+    }
+
+    Exists = size is not null;
+    if (size is not { } length)
     {
       // Deleted, or not written yet: whatever appears next is a new file, read from its start.
       var wasOpen = _position > 0;
@@ -56,77 +74,120 @@ public sealed class LogFollower(string path, long maxInitialBytes = LogFollower.
       return new LogChunk([], wasOpen);
     }
 
-    using (stream)
+    var head = length == 0 ? [] : source.Read(0, (int)Math.Min(length, HeadBytes));
+    var restarted = false;
+    if (_position < 0)
     {
-      var length = stream.Length;
-      var head = ReadHead(stream, length);
-      var restarted = false;
-      if (_position < 0)
-      {
-        _position = length > maxInitialBytes ? length - maxInitialBytes : 0;
-      }
-      else if (length < _position || !StartsWith(head, _head))
-      {
-        restarted = _position > 0;
-        _position = 0;
-        _classifier.Reset();
-      }
+      _position = length > maxInitialBytes ? length - maxInitialBytes : 0;
+    }
+    else if (length < _position || !StartsWith(head, _head))
+    {
+      restarted = _position > 0;
+      _position = 0;
+      _classifier.Reset();
+    }
 
-      _head = head;
-      if (length <= _position)
+    _head = head;
+    if (length <= _position)
+    {
+      return new LogChunk([], restarted);
+    }
+
+    var start = _position;
+    var buffer = source.Read(start, (int)Math.Min(length - start, MaxReadBytes));
+    if (buffer.Length == 0)
+    {
+      return new LogChunk([], restarted);
+    }
+
+    var end = Array.LastIndexOf(buffer, (byte)'\n');
+    if (end < 0)
+    {
+      // No complete line yet. A single line longer than a whole read is passed on as it is.
+      if (buffer.Length < MaxReadBytes)
       {
         return new LogChunk([], restarted);
       }
 
-      var start = _position;
-      var buffer = new byte[(int)Math.Min(length - start, MaxReadBytes)];
-      stream.Position = start;
-      stream.ReadExactly(buffer);
-
-      var end = Array.LastIndexOf(buffer, (byte)'\n');
-      if (end < 0)
-      {
-        // No complete line yet. A single line longer than a whole read is passed on as it is.
-        if (buffer.Length < MaxReadBytes)
-        {
-          return new LogChunk([], restarted);
-        }
-
-        end = buffer.Length - 1;
-      }
-
-      var offset = 0;
-      if (start > 0 && !restarted && _classifier.IsFresh)
-      {
-        // Started in the middle of a big file: drop the partial first line.
-        offset = Math.Min(Array.IndexOf(buffer, (byte)'\n') + 1, end + 1);
-      }
-
-      _position = start + end + 1;
-      var text = Encoding.UTF8.GetString(buffer, offset, end + 1 - offset);
-      var lines = text.Split('\n')
-        .SkipLast(1)
-        .Select(line => line.TrimEnd('\r'))
-        .Select(line =>
-        {
-          var level = _classifier.Classify(line);
-          return new LogLine(line, level, _classifier.Continued);
-        })
-        .ToList();
-      return new LogChunk(lines, restarted);
+      end = buffer.Length - 1;
     }
-  }
 
-  private static byte[] ReadHead(FileStream stream, long length)
-  {
-    var head = new byte[(int)Math.Min(length, HeadBytes)];
-    stream.ReadExactly(head);
-    return head;
+    var offset = 0;
+    if (start > 0 && !restarted && _classifier.IsFresh)
+    {
+      // Started in the middle of a big file: drop the partial first line.
+      offset = Math.Min(Array.IndexOf(buffer, (byte)'\n') + 1, end + 1);
+    }
+
+    _position = start + end + 1;
+    var text = Encoding.UTF8.GetString(buffer, offset, end + 1 - offset);
+    var lines = text.Split('\n')
+      .SkipLast(1)
+      .Select(line => line.TrimEnd('\r'))
+      .Select(line =>
+      {
+        var level = _classifier.Classify(line);
+        return new LogLine(line, level, _classifier.Continued);
+      })
+      .ToList();
+    return new LogChunk(lines, restarted);
   }
 
   // The head is compared by prefix: while the first line is still being written it only grows.
   private static bool StartsWith(byte[] current, byte[] previous) =>
     current.AsSpan().StartsWith(previous.AsSpan()) || previous.AsSpan().StartsWith(current.AsSpan());
+}
+
+/// <summary>Where a <see cref="LogFollower"/> reads: a local file, or one at a host (Core/Servers).</summary>
+/// <remarks>Calls block; the follower is read on the thread pool.</remarks>
+public interface ILogSource
+{
+  string Path { get; }
+
+  TimeSpan PollInterval { get; }
+
+  /// <summary>The file's length now, or null while it doesn't exist.</summary>
+  /// <exception cref="IOException">It can't be read right now; treated like a missing file.</exception>
+  long? Length();
+
+  /// <summary>Up to <paramref name="count"/> bytes from <paramref name="offset"/>, fewer at the end.</summary>
+  byte[] Read(long offset, int count);
+}
+
+/// <summary>A log file on this machine, opened for each read so it can be rotated or deleted under us.</summary>
+public sealed class FileLogSource(string path) : ILogSource
+{
+  public string Path => path;
+
+  public TimeSpan PollInterval => TimeSpan.Zero;
+
+  public long? Length()
+  {
+    var info = new FileInfo(path);
+    return info.Exists ? info.Length : null;
+  }
+
+  public byte[] Read(long offset, int count)
+  {
+    try
+    {
+      using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+      if (offset >= stream.Length)
+      {
+        return [];
+      }
+
+      stream.Position = offset;
+      var buffer = new byte[(int)Math.Min(count, stream.Length - offset)];
+      stream.ReadExactly(buffer);
+      return buffer;
+    }
+    catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException or EndOfStreamException)
+    {
+      // Deleted or truncated between the length and the read; the next read sees the new state.
+      return [];
+    }
+  }
 }
 
 /// <summary>Finds the level of each line in a BepInEx, Unity or LaunchHeim log, for colouring and filtering.</summary>

@@ -103,7 +103,9 @@ public sealed class ServersViewModel(AppViewModel app, ServerManager manager, St
   }
 
   /// <summary>Asks an outside service for the internet address; only on the player's click (<see cref="ServerAddresses"/>).</summary>
-  public async void FindPublicAddress()
+  public void FindPublicAddress() => app.Guard("Couldn't find your internet address", FindPublicAddressAsync);
+
+  private async Task FindPublicAddressAsync()
   {
     if (IsFindingPublic)
     {
@@ -161,7 +163,9 @@ public sealed class ServersViewModel(AppViewModel app, ServerManager manager, St
     }
   }
 
-  public async void RefreshStatus()
+  public void RefreshStatus() => app.Guard("Couldn't check the servers", RefreshStatusAsync);
+
+  private async Task RefreshStatusAsync()
   {
     if (_refreshing)
     {
@@ -206,7 +210,8 @@ public sealed class ServersViewModel(AppViewModel app, ServerManager manager, St
   }
 
   /// <param name="instanceId">The instance whose mods it runs, or empty for vanilla.</param>
-  public void Create(string? name, string? instanceId)
+  /// <param name="hosted">At a game host or VPS reached over FTP/SFTP, rather than on this PC.</param>
+  public void Create(string? name, string? instanceId, bool hosted)
   {
     if (string.IsNullOrWhiteSpace(name))
     {
@@ -218,6 +223,12 @@ public sealed class ServersViewModel(AppViewModel app, ServerManager manager, St
       var profile = manager.Store.Create(name);
       profile.World = ServerProfile.DefaultWorld;
       profile.InstanceId = string.IsNullOrEmpty(instanceId) ? null : instanceId;
+      if (hosted)
+      {
+        profile.Kind = ServerKind.Hosted;
+        profile.Host = new HostAccess();
+      }
+
       // A server that LaunchHeim downloaded wins once there is one, since it's there for this purpose.
       profile.Binary = manager.Dedicated.FindInSteam() is null && manager.Dedicated.FindDownloaded() is not null ? ServerBinary.LaunchHeim : ServerBinary.Steam;
       manager.Store.Save(profile);
@@ -232,7 +243,8 @@ public sealed class ServersViewModel(AppViewModel app, ServerManager manager, St
 
   internal void Delete(ServerViewModel server)
   {
-    if (server.IsRunning)
+    // A hosted server only leaves LaunchHeim; nothing at the host is touched.
+    if (server.IsRunning && !server.IsHosted)
     {
       app.Toast("error", "Still running", "Stop the server before deleting it.");
       return;
@@ -274,11 +286,28 @@ public sealed class ServersViewModel(AppViewModel app, ServerManager manager, St
   }
 
   /// <summary>Downloads or updates LaunchHeim's own copy with SteamCMD.</summary>
-  public async void DownloadServer()
+  public void DownloadServer() => app.Guard("Could not download the server", () => DownloadAsync(GamePlatforms.Current));
+
+  /// <summary>
+  /// LaunchHeim's download of the server for a platform, downloaded first when it isn't there: what gets
+  /// uploaded to a VPS. Null when the download failed (a toast said why).
+  /// </summary>
+  internal async Task<string?> EnsureProgramAsync(GamePlatform platform)
+  {
+    var directory = manager.Dedicated.DownloadDirectory(platform);
+    if (DedicatedServer.IsServerDirectory(directory, platform) || await DownloadAsync(platform))
+    {
+      return directory;
+    }
+
+    return null;
+  }
+
+  private async Task<bool> DownloadAsync(GamePlatform platform)
   {
     if (IsDownloading)
     {
-      return;
+      return false;
     }
 
     IsDownloading = true;
@@ -291,14 +320,17 @@ public sealed class ServersViewModel(AppViewModel app, ServerManager manager, St
 
     try
     {
-      var platform = GamePlatforms.Current;
       await Task.Run(() => steamCmd.InstallServerAsync(manager.Dedicated.DownloadDirectory(platform), platform, progress, CancellationToken.None));
-      app.Toast("success", "Dedicated server ready", "Servers set to LaunchHeim's download can start now.");
+      app.Toast("success", "Dedicated server ready", platform == GamePlatforms.Current
+        ? "Servers set to LaunchHeim's download can start now."
+        : $"The {platform} build is downloaded for uploading.");
+      return true;
     }
     catch (Exception ex) when (ex is SteamCmdException or HttpRequestException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or InvalidDataException)
     {
       Log.Error("Downloading the dedicated server failed", ex);
       app.Toast("error", "Could not download the server", ex.Message);
+      return false;
     }
     finally
     {
@@ -332,6 +364,10 @@ public sealed class ServersViewModel(AppViewModel app, ServerManager manager, St
     }
   }
 
+  /// <summary>Problems as QML reads them: <c>{"field": "message"}</c>, the first problem per field.</summary>
+  internal static string ErrorsJson(IEnumerable<FieldProblem> problems) =>
+    JsonSerializer.Serialize(problems.GroupBy(p => p.Field).ToDictionary(g => g.Key, g => g.First().Message));
+
   internal static string ChoiceKey(ServerBinary binary) => binary switch
   {
     ServerBinary.LaunchHeim => "launchheim",
@@ -343,6 +379,8 @@ public sealed class ServersViewModel(AppViewModel app, ServerManager manager, St
 }
 
 /// <summary>One server: its card on the Servers page and its own page.</summary>
+/// <remarks><c>settingsIncomplete</c>: an action needed settings that are missing; the page outlines them.</remarks>
+[Signal("settingsIncomplete")]
 public sealed class ServerViewModel : ViewModel
 {
   private readonly ServersViewModel _servers;
@@ -471,7 +509,8 @@ public sealed class ServerViewModel : ViewModel
   /// <summary>One line for the card and the header.</summary>
   [NotifySignal]
   public string StatusText => _isBusy ? _busyText
-    : !_isRunning ? "Stopped"
+    // A hosted server that doesn't answer may be down, starting, or unreachable from here.
+    : !_isRunning ? (Model.IsHosted ? "Offline or not answering" : "Stopped")
     : !_isOnline ? StartPhaseText
     : _players < 0 ? "Online"
     : $"Online · {_players} of {_maxPlayers} players";
@@ -540,8 +579,343 @@ public sealed class ServerViewModel : ViewModel
     Raise(nameof(InternetAddress));
   }
 
-  /// <summary>The server's log, which the console's Server tab follows.</summary>
+  /// <summary>The local server's log file (the crossplay join code is read from it).</summary>
   internal string LogFile => Manager.Store.LogFileOf(Model);
+
+  /// <summary>The log the console's Server tab follows: the local file, or the host's through its files.</summary>
+  internal Core.Logging.ILogSource LogSource => Manager.LogSourceOf(Model);
+
+  // A hosted server: how it's reached, and what's there.
+  private HostAccess Host => Model.Host ??= new HostAccess();
+  private string _hostStatus = "";
+  private string _deployText = "";
+  private bool _isDeploying;
+  private double _deployProgress = -1;
+
+  [NotifySignal]
+  public bool IsHosted => Model.IsHosted;
+
+  /// <summary>ftp, ftps or sftp.</summary>
+  [NotifySignal]
+  public string HostProtocol => Host.Protocol.ToString().ToLowerInvariant();
+
+  [NotifySignal]
+  public string HostAddress => Host.Address;
+
+  [NotifySignal]
+  public int HostPort => Host.Port;
+
+  [NotifySignal]
+  public string HostUser => Host.User;
+
+  [NotifySignal]
+  public string HostPassword => Host.Password;
+
+  [NotifySignal]
+  public string HostKeyFile => Host.KeyFile ?? "";
+
+  [NotifySignal]
+  public string HostDirectory => Host.Directory;
+
+  [NotifySignal]
+  public string HostLogFile => Host.LogFile;
+
+  [NotifySignal]
+  public string GameAddress => Host.GameAddress;
+
+  [NotifySignal]
+  public string PanelUrl => Host.PanelUrl;
+
+  [NotifySignal]
+  public int HostRconPort => Host.RconPort;
+
+  /// <summary>linux or windows: which build of the server program to upload.</summary>
+  [NotifySignal]
+  public string HostPlatform => Host.Platform == GamePlatform.Windows ? "windows" : "linux";
+
+  /// <summary>The host key or certificate pinned on first contact; empty before.</summary>
+  [NotifySignal]
+  public string HostFingerprint => Host.Fingerprint ?? "";
+
+  /// <summary>The last connection test's result, in words.</summary>
+  [NotifySignal]
+  public string HostStatus { get => _hostStatus; private set => Set(ref _hostStatus, value); }
+
+  [NotifySignal]
+  public bool IsDeploying { get => _isDeploying; private set => Set(ref _isDeploying, value); }
+
+  /// <summary>0 to 1 while uploading, -1 while preparing.</summary>
+  [NotifySignal]
+  public double DeployProgress { get => _deployProgress; private set => Set(ref _deployProgress, value); }
+
+  /// <summary>What the upload is doing, or when the mods were last uploaded.</summary>
+  [NotifySignal]
+  public string DeployText => _deployText.Length > 0 ? _deployText
+    : Model.LastDeployedAt is { } at ? $"Mods last uploaded {Format.Ago(at)}." : "The mods haven't been uploaded yet.";
+
+  /// <summary>What's missing or wrong in the connection form as it stands, without saving: <c>{"field": "message"}</c>.</summary>
+  /// <remarks>The page asks after every change once the player tried to save, so the outlines follow the typing.</remarks>
+  public string CheckHosted(string? json) =>
+    ReadHosted(json) is { } read ? ServersViewModel.ErrorsJson(read.Candidate.Validate()) : "{}";
+
+  /// <summary>Takes the connection form as JSON, like <see cref="Apply"/> does the local settings.</summary>
+  /// <returns>Empty when saved; otherwise <c>{"field": "message"}</c> for the fields to outline, and nothing was changed.</returns>
+  public string ApplyHosted(string? json)
+  {
+    if (ReadHosted(json) is not var (form, candidate))
+    {
+      return "";
+    }
+
+    if (candidate.Validate() is { Count: > 0 } problems)
+    {
+      return ServersViewModel.ErrorsJson(problems);
+    }
+
+    var host = candidate.Host!;
+    Model.Name = candidate.Name;
+    Model.Host = host;
+    Model.Password = form.ServerPassword ?? "";
+    Model.ConsoleEnabled = form.ConsoleEnabled;
+    var instanceChanged = (Model.InstanceId ?? "") != (form.InstanceId ?? "");
+    Model.InstanceId = string.IsNullOrEmpty(form.InstanceId) ? null : form.InstanceId;
+    Save();
+    _ = Manager.ForgetConnectionAsync(Model);
+    RaiseSettings();
+    RaiseHosted();
+    if (instanceChanged)
+    {
+      RefreshMods();
+    }
+
+    return "";
+  }
+
+  /// <summary>The form and the profile it would make, or null for no or unreadable JSON.</summary>
+  private (HostedForm Form, ServerProfile Candidate)? ReadHosted(string? json)
+  {
+    if (string.IsNullOrEmpty(json))
+    {
+      return null;
+    }
+
+    HostedForm? form;
+    try
+    {
+      form = JsonSerializer.Deserialize<HostedForm>(json, ServersViewModel.Json);
+    }
+    catch (JsonException)
+    {
+      return null;
+    }
+
+    if (form is null)
+    {
+      return null;
+    }
+
+    var host = new HostAccess
+    {
+      Protocol = form.Protocol switch { "ftp" => FileProtocol.Ftp, "ftps" => FileProtocol.Ftps, _ => FileProtocol.Sftp },
+      Address = (form.Address ?? "").Trim(),
+      Port = form.Port,
+      User = (form.User ?? "").Trim(),
+      Password = form.Password ?? "",
+      KeyFile = string.IsNullOrWhiteSpace(form.KeyFile) ? null : AppViewModel.LocalPath(form.KeyFile),
+      Directory = (form.Directory ?? "").Trim(),
+      LogFile = string.IsNullOrWhiteSpace(form.LogFile) ? new HostAccess().LogFile : form.LogFile.Trim(),
+      GameAddress = (form.GameAddress ?? "").Trim(),
+      PanelUrl = (form.PanelUrl ?? "").Trim(),
+      RconPort = form.RconPort,
+      Platform = form.Platform == "windows" ? GamePlatform.Windows : GamePlatform.Linux,
+    };
+
+    // The pinned key belongs to the address it came from; another address starts over.
+    host.Fingerprint = host.Address == Host.Address && host.EffectivePort == Host.EffectivePort && host.Protocol == Host.Protocol ? Host.Fingerprint : null;
+    return (form, new ServerProfile { Name = form.Name?.Trim() ?? "", Kind = ServerKind.Hosted, Host = host });
+  }
+
+  /// <summary>Saves the connection form and, when it's complete, says so.</summary>
+  /// <returns>See <see cref="ApplyHosted"/>.</returns>
+  public string SaveHosted(string? json)
+  {
+    var errors = ApplyHosted(json);
+    if (errors.Length == 0)
+    {
+      App.Toast("success", "Saved", $"Upload the mods to bring {Model.Name} up to date.");
+    }
+
+    return errors;
+  }
+
+  /// <summary>The saved settings' problems by field, for outlining them when an action needs them.</summary>
+  [NotifySignal]
+  public string FieldErrors => ServersViewModel.ErrorsJson(Model.Validate());
+
+  /// <summary>Forgets the pinned host key, for a host that really changed it.</summary>
+  public void ClearFingerprint()
+  {
+    Host.Fingerprint = null;
+    Save();
+    _ = Manager.ForgetConnectionAsync(Model);
+    Raise(nameof(HostFingerprint));
+  }
+
+  /// <summary>Saves the form as it stands and tries it: what the player just typed is what gets tested.</summary>
+  /// <returns>The fields to outline, as <see cref="ApplyHosted"/>; when there are any, nothing is tried.</returns>
+  public string TestConnection(string? json)
+  {
+    var errors = ApplyHosted(json);
+    if (errors.Length > 0)
+    {
+      HostStatus = "";
+      return errors;
+    }
+
+    HostStatus = "Connecting…";
+    App.Guard("Couldn't test the connection", async () =>
+    {
+      try
+      {
+        HostStatus = await Task.Run(() => Manager.DescribeHostAsync(Model, CancellationToken.None));
+      }
+      catch (Exception ex)
+      {
+        HostStatus = "Couldn't connect: " + ex.Message;
+      }
+
+      Raise(nameof(HostFingerprint));
+    });
+    return "";
+  }
+
+  /// <summary>Uploads BepInEx, the server's mods and LaunchHeim's plugin to the host.</summary>
+  public void DeployMods() => GuardedDeploy("mods", replaceConfigs: false, force: false);
+
+  /// <summary>Uploads with the instance's configs over the server's.</summary>
+  public void DeployModsWithConfigs() => GuardedDeploy("mods", replaceConfigs: true, force: false);
+
+  /// <summary>Uploads every file again, for files changed at the host behind LaunchHeim's back.</summary>
+  public void DeployModsAgain() => GuardedDeploy("mods", replaceConfigs: false, force: true);
+
+  /// <summary>Uploads Valheim's dedicated server itself, for a VPS that doesn't have it: about 2 GB the first time.</summary>
+  public void UploadServerProgram() => GuardedDeploy("program", replaceConfigs: false, force: false);
+
+  /// <summary>Uploads only with complete settings; otherwise the page outlines what's missing (<see cref="FieldErrors"/>).</summary>
+  private void GuardedDeploy(string what, bool replaceConfigs, bool force)
+  {
+    if (Model.Validate().Count > 0)
+    {
+      Raise(nameof(FieldErrors));
+      this.ActivateSignal("settingsIncomplete");
+      return;
+    }
+
+    App.Guard($"Couldn't upload to {Model.Name}", () => DeployAsync(what, replaceConfigs, force));
+  }
+
+  private async Task DeployAsync(string what, bool replaceConfigs, bool force)
+  {
+    if (IsDeploying)
+    {
+      return;
+    }
+
+    IsDeploying = true;
+    DeployProgress = -1;
+    var activity = App.BeginActivity((what == "program" ? "Uploading the server to " : "Uploading mods to ") + Model.Name);
+    // Made here, on the Qt thread: Progress<T> reports where it was created (see the 2026-11-07 crash).
+    var progress = new Progress<DeployProgress>(p =>
+    {
+      DeployProgress = p.Total == 0 ? 1 : (double)p.Done / p.Total;
+      activity.Progress = DeployProgress;
+      activity.Detail = p.File;
+      SetDeployText($"Uploading {p.Done} of {p.Total} files…");
+    });
+
+    try
+    {
+      DeployReport report;
+      if (what == "program")
+      {
+        var directory = await App.Servers.EnsureProgramAsync(Host.Platform);
+        if (directory is null)
+        {
+          return;
+        }
+
+        SetDeployText("Comparing with what's at the host…");
+        report = await Task.Run(() => Manager.DeployServerProgramAsync(Model, directory, force, progress, CancellationToken.None));
+      }
+      else
+      {
+        SetDeployText("Getting the mods ready…");
+        report = await Task.Run(() => Manager.DeployModsAsync(Model, replaceConfigs, force, progress, CancellationToken.None));
+        Model.LastDeployedAt = DateTimeOffset.UtcNow;
+        Save();
+      }
+
+      App.Toast("success", $"{Model.Name} is up to date",
+        $"{report.Uploaded} file(s) uploaded, {report.Unchanged} already there, {report.Removed} removed."
+        + (what == "program" ? "" : IsOnline ? " Restart the server at the host for the mods to load." : ""));
+    }
+    catch (Exception ex)
+    {
+      Core.Logging.Log.Error($"Uploading to {Model.Name} failed", ex);
+      App.Toast("error", $"Couldn't upload to {Model.Name}", ex.Message);
+    }
+    finally
+    {
+      App.EndActivity(activity);
+      SetDeployText("");
+      DeployProgress = -1;
+      IsDeploying = false;
+    }
+  }
+
+  private void SetDeployText(string text)
+  {
+    _deployText = text;
+    Raise(nameof(DeployText));
+  }
+
+  /// <summary>Opens the host's web panel, where a hosted server is started.</summary>
+  public void OpenPanel()
+  {
+    if (Host.PanelUrl.Length > 0)
+    {
+      DesktopShell.Open(Host.PanelUrl.Contains("://", StringComparison.Ordinal) ? Host.PanelUrl : "https://" + Host.PanelUrl);
+    }
+  }
+
+  private void RaiseHosted()
+  {
+    foreach (var property in (string[])[nameof(IsHosted), nameof(HostProtocol), nameof(HostAddress), nameof(HostPort), nameof(HostUser), nameof(HostPassword),
+      nameof(HostKeyFile), nameof(HostDirectory), nameof(HostLogFile), nameof(GameAddress), nameof(PanelUrl), nameof(HostRconPort), nameof(HostPlatform),
+      nameof(HostFingerprint), nameof(DeployText)])
+    {
+      Raise(property);
+    }
+  }
+
+  /// <summary>The connection form as QML sends it.</summary>
+  private sealed record HostedForm(
+    string? Name,
+    string? Protocol,
+    string? Address,
+    int Port,
+    string? User,
+    string? Password,
+    string? KeyFile,
+    string? Directory,
+    string? LogFile,
+    string? GameAddress,
+    string? PanelUrl,
+    int RconPort,
+    string? Platform,
+    string? ServerPassword,
+    bool ConsoleEnabled,
+    string? InstanceId);
 
   internal async Task RefreshStateAsync()
   {
@@ -597,12 +971,36 @@ public sealed class ServerViewModel : ViewModel
   }
 
   /// <summary>Takes the settings form as JSON, so one call saves them all and the checks see them together.</summary>
-  /// <returns>Empty when saved, otherwise the problems (one per line), and nothing was changed.</returns>
+  /// <returns>Empty when saved; otherwise <c>{"field": "message"}</c> for the fields to outline, and nothing was changed.</returns>
   public string Apply(string? json)
+  {
+    if (ReadLocal(json) is not var (form, candidate))
+    {
+      return "";
+    }
+
+    if (candidate.Validate() is { Count: > 0 } problems)
+    {
+      return ServersViewModel.ErrorsJson(problems);
+    }
+
+    Model.Name = candidate.Name;
+    Model.World = candidate.World;
+    Model.Port = candidate.Port;
+    Model.Password = candidate.Password;
+    return ApplyRest(form, candidate);
+  }
+
+  /// <summary>What's missing or wrong in the settings form as it stands, without saving: <c>{"field": "message"}</c>.</summary>
+  public string Check(string? json) =>
+    ReadLocal(json) is { } read ? ServersViewModel.ErrorsJson(read.Candidate.Validate()) : "{}";
+
+  /// <summary>The form and the profile it would make (checked on a copy, so a rejected form changes nothing).</summary>
+  private (ServerForm Form, ServerProfile Candidate)? ReadLocal(string? json)
   {
     if (string.IsNullOrEmpty(json))
     {
-      return "";
+      return null;
     }
 
     ServerForm? form;
@@ -610,18 +1008,17 @@ public sealed class ServerViewModel : ViewModel
     {
       form = JsonSerializer.Deserialize<ServerForm>(json, ServersViewModel.Json);
     }
-    catch (JsonException ex)
+    catch (JsonException)
     {
-      return ex.Message;
+      return null;
     }
 
     if (form is null)
     {
-      return "";
+      return null;
     }
 
-    // Checked on a copy, so a rejected form leaves the profile as it was.
-    var candidate = new ServerProfile
+    return (form, new ServerProfile
     {
       Name = form.Name?.Trim() ?? "",
       World = form.World?.Trim() ?? "",
@@ -638,17 +1035,11 @@ public sealed class ServerViewModel : ViewModel
       Binary = form.Binary switch { "launchheim" => ServerBinary.LaunchHeim, "custom" => ServerBinary.Custom, _ => ServerBinary.Steam },
       CustomDirectory = string.IsNullOrWhiteSpace(form.CustomDirectory) ? null : AppViewModel.LocalPath(form.CustomDirectory),
       SaveDirectory = string.IsNullOrWhiteSpace(form.SaveDirectory) ? null : AppViewModel.LocalPath(form.SaveDirectory),
-    };
+    });
+  }
 
-    if (candidate.Problems() is { Count: > 0 } problems)
-    {
-      return string.Join("\n", problems);
-    }
-
-    Model.Name = candidate.Name;
-    Model.World = candidate.World;
-    Model.Port = candidate.Port;
-    Model.Password = candidate.Password;
+  private string ApplyRest(ServerForm form, ServerProfile candidate)
+  {
     Model.Public = candidate.Public;
     Model.Crossplay = candidate.Crossplay;
     Model.Preset = candidate.Preset;
@@ -677,7 +1068,7 @@ public sealed class ServerViewModel : ViewModel
     foreach (var property in (string[])[nameof(Name), nameof(World), nameof(Port), nameof(Password), nameof(IsPublic), nameof(Crossplay), nameof(Preset),
       nameof(SaveInterval), nameof(Backups), nameof(ExtraArguments), nameof(ConsoleEnabled), nameof(RconPort), nameof(Binary), nameof(CustomDirectory),
       nameof(SaveDirectory), nameof(SaveDirectoryIsCustom), nameof(ServerDirectory), nameof(ServerMissingText), nameof(InstanceId), nameof(InstanceName),
-      nameof(InstanceMissing), nameof(JoinAddress), nameof(Problems), nameof(ModSummary)])
+      nameof(InstanceMissing), nameof(JoinAddress), nameof(Problems), nameof(ModSummary), nameof(FieldErrors)])
     {
       Raise(property);
     }
@@ -695,10 +1086,35 @@ public sealed class ServerViewModel : ViewModel
     }
   }
 
-  public void Start() => _ = StartAsync(replaceConfigs: false);
+  /// <summary>Starts a local server; a hosted one starts in its host's panel, which this opens.</summary>
+  public void Start()
+  {
+    if (Model.IsHosted)
+    {
+      if (Model.Host is { PanelUrl.Length: > 0 })
+      {
+        OpenPanel();
+      }
+      else
+      {
+        App.Toast("info", "Start it at your host", "LaunchHeim reaches this server only through its files. Start it in your host's panel, or add the panel's address in the connection settings.");
+      }
+
+      return;
+    }
+
+    if (Model.Validate().Count > 0)
+    {
+      Raise(nameof(FieldErrors));
+      this.ActivateSignal("settingsIncomplete");
+      return;
+    }
+
+    App.Guard($"Could not start {Model.Name}", () => StartAsync(replaceConfigs: false));
+  }
 
   /// <summary>Starts with the instance's configs copied over the server's, for when the server's drifted.</summary>
-  public void StartWithInstanceConfigs() => _ = StartAsync(replaceConfigs: true);
+  public void StartWithInstanceConfigs() => App.Guard($"Could not start {Model.Name}", () => StartAsync(replaceConfigs: true));
 
   private async Task StartAsync(bool replaceConfigs)
   {
@@ -718,9 +1134,9 @@ public sealed class ServerViewModel : ViewModel
       App.Toast("success", $"{Model.Name} is starting", $"Players join at {JoinAddress} once the world is loaded. The console shows the progress.");
       App.DebugConsole.ShowForServer(this, onlyIfOpen: true);
     }
-    catch (Exception ex) when (ex is LaunchException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or Core.Catalogs.CatalogException or HttpRequestException)
+    catch (Exception ex)
     {
-      Log.Error($"Starting server {Model.Name} failed", ex);
+      Log.Error($"Starting server {Model.Name} failed", ex is LaunchException ? null : ex);
       App.Toast("error", $"Could not start {Model.Name}", ex.Message);
     }
     finally
@@ -732,7 +1148,9 @@ public sealed class ServerViewModel : ViewModel
     }
   }
 
-  public async void Stop()
+  public void Stop() => App.Guard($"Could not stop {Model.Name}", StopAsync);
+
+  private async Task StopAsync()
   {
     if (IsBusy)
     {
@@ -747,10 +1165,18 @@ public sealed class ServerViewModel : ViewModel
       {
         App.Toast("error", $"{Model.Name} didn't stop", "It ignored the request to save and quit. Kill it from the server's page if it's stuck; that loses what happened since its last save.");
       }
+      else if (Model.IsHosted)
+      {
+        App.Toast("success", $"{Model.Name} is saving and stopping", "Many hosts start a stopped server again on their own; their panel has the final say.");
+      }
       else
       {
         App.Toast("success", $"{Model.Name} stopped", "The world was saved.");
       }
+    }
+    catch (RconException ex)
+    {
+      App.Toast("error", $"Could not reach {Model.Name}", ex.Message);
     }
     catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
     {
@@ -764,7 +1190,9 @@ public sealed class ServerViewModel : ViewModel
     }
   }
 
-  public async void Restart()
+  public void Restart() => App.Guard($"Could not restart {Model.Name}", RestartAsync);
+
+  private async Task RestartAsync()
   {
     if (IsBusy)
     {
@@ -793,7 +1221,9 @@ public sealed class ServerViewModel : ViewModel
   }
 
   /// <summary>Ends a server that won't stop. QML asks first; this loses what wasn't saved.</summary>
-  public async void Kill()
+  public void Kill() => App.Guard($"Could not kill {Model.Name}", KillAsync);
+
+  private async Task KillAsync()
   {
     try
     {
@@ -816,7 +1246,7 @@ public sealed class ServerViewModel : ViewModel
     {
       return await Task.Run(() => Manager.SendAsync(Model, command, CancellationToken.None));
     }
-    catch (RconException ex)
+    catch (Exception ex) when (ex is RconException or IOException or InvalidOperationException)
     {
       return "Error: " + ex.Message;
     }

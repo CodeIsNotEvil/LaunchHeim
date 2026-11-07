@@ -46,7 +46,7 @@ public static class ServerPluginInstaller
 
     var config = Path.Combine(serverDirectory, ConfigPath);
     Directory.CreateDirectory(Path.GetDirectoryName(config)!);
-    File.WriteAllText(config, Config(server, listenAddress));
+    File.WriteAllText(config, Config(server, listenAddress, server.EffectiveRconPort, rconEnabled: true));
     if (!OperatingSystem.IsWindows())
     {
       // It holds the RCON password.
@@ -64,19 +64,26 @@ public static class ServerPluginInstaller
     }
   }
 
+  /// <summary>
+  /// The config for a server at a host: RCON on every network when the host forwards a port for it
+  /// (<see cref="HostAccess.RconPort"/>), otherwise off, leaving the file channel.
+  /// </summary>
+  public static string HostedConfig(ServerProfile server) =>
+    server.Host is { RconPort: > 0 } host ? Config(server, "0.0.0.0", host.RconPort, rconEnabled: true) : Config(server, "127.0.0.1", 2458, rconEnabled: false);
+
   /// <summary>The plugin's BepInEx config. Section and key names match the plugin's <c>Config.Bind</c> calls.</summary>
-  public static string Config(ServerProfile server, string listenAddress) => string.Create(CultureInfo.InvariantCulture, $"""
+  public static string Config(ServerProfile server, string listenAddress, int rconPort, bool rconEnabled) => string.Create(CultureInfo.InvariantCulture, $"""
     ## Written by LaunchHeim on every start of the server; change these in LaunchHeim instead.
 
     [RCON]
 
     ## Source RCON, for LaunchHeim's console and any other RCON tool.
-    Enabled = true
+    Enabled = {(rconEnabled ? "true" : "false")}
 
     ## 127.0.0.1 accepts only this machine, 0.0.0.0 every network.
     Address = {listenAddress}
 
-    Port = {server.EffectiveRconPort}
+    Port = {rconPort}
 
     Password = {server.RconPassword}
 

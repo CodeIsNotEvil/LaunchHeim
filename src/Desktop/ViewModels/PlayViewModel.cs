@@ -128,7 +128,9 @@ public sealed class PlayViewModel : ViewModel
   /// Asks every server who is on it (<see cref="ServerQuery"/>). The page calls it every 30 seconds while
   /// it is shown. The servers are asked at the same time, each row updating when its answer arrives.
   /// </summary>
-  public async void RefreshServerStatus()
+  public void RefreshServerStatus() => _app.Guard("Couldn't ask the servers", RefreshServerStatusAsync);
+
+  private async Task RefreshServerStatusAsync()
   {
     // A round takes at most the timeout, so a slow one is never overlapped by the next.
     if (_isQueryingServers || _servers.Count == 0)
