@@ -49,6 +49,9 @@ public sealed class LogFollower(ILogSource source, long maxInitialBytes = LogFol
   /// <summary>How often reading is worth it: often for a local file, every few seconds for one at a host.</summary>
   public TimeSpan PollInterval => source.PollInterval;
 
+  /// <summary>Whether the last <see cref="Read"/> found the file.</summary>
+  public bool Exists { get; private set; }
+
   public LogChunk Read()
   {
     long? size;
@@ -61,6 +64,7 @@ public sealed class LogFollower(ILogSource source, long maxInitialBytes = LogFol
       size = null;
     }
 
+    Exists = size is not null;
     if (size is not { } length)
     {
       // Deleted, or not written yet: whatever appears next is a new file, read from its start.

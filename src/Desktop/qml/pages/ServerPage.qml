@@ -42,6 +42,8 @@ Item {
       property string customDirectory: ""
       property string saveDirectory: ""
       property string problems: ""
+      property string keyFile: ""
+      readonly property var protocols: ["sftp", "ftps", "ftp"]
 
       // The form starts from the saved profile, and again when another server is opened.
       function load() {
@@ -61,6 +63,49 @@ Item {
         customDirectory = server.customDirectory
         saveDirectory = server.saveDirectoryIsCustom ? server.saveDirectory : ""
         problems = ""
+        if (server.isHosted)
+          loadHosted()
+      }
+
+      function loadHosted() {
+        hostNameField.text = server.name
+        protocolBox.currentIndex = Math.max(0, protocols.indexOf(server.hostProtocol))
+        hostAddressField.text = server.hostAddress
+        hostPortField.text = server.hostPort > 0 ? server.hostPort : ""
+        hostUserField.text = server.hostUser
+        hostPasswordField.text = server.hostPassword
+        keyFile = server.hostKeyFile
+        hostDirectoryField.text = server.hostDirectory
+        hostLogField.text = server.hostLogFile
+        gameAddressField.text = server.gameAddress
+        panelField.text = server.panelUrl
+        rconPortField.text = server.hostRconPort > 0 ? server.hostRconPort : ""
+        platformBox.currentIndex = server.hostPlatform === "windows" ? 1 : 0
+        serverPasswordField.text = server.password
+        hostConsoleSwitch.checked = server.consoleEnabled
+        hostInstanceBox.currentIndex = Math.max(0, instanceIds.indexOf(server.instanceId))
+        problems = ""
+      }
+
+      function saveHosted() {
+        problems = server.applyHosted(JSON.stringify({
+          name: hostNameField.text,
+          protocol: protocols[protocolBox.currentIndex],
+          address: hostAddressField.text,
+          port: parseInt(hostPortField.text) || 0,
+          user: hostUserField.text,
+          password: hostPasswordField.text,
+          keyFile: keyFile,
+          directory: hostDirectoryField.text,
+          logFile: hostLogField.text,
+          gameAddress: gameAddressField.text,
+          panelUrl: panelField.text,
+          rconPort: parseInt(rconPortField.text) || 0,
+          platform: platformBox.currentIndex === 1 ? "windows" : "linux",
+          serverPassword: serverPasswordField.text,
+          consoleEnabled: hostConsoleSwitch.checked,
+          instanceId: instanceIds[hostInstanceBox.currentIndex]
+        }))
       }
 
       function save() {
@@ -106,7 +151,9 @@ Item {
       ConfirmDialog {
         id: deleteDialog
         title: "Delete server?"
-        text: "“" + root.server.name + "” and its folder will be removed from disk" + (root.server.saveDirectoryIsCustom ? ". Its worlds in " + root.server.saveDirectory + " stay." : ", with its worlds. This cannot be undone.")
+        text: root.server.isHosted
+          ? "“" + root.server.name + "” is removed from LaunchHeim. Nothing at the host is touched: the server, its mods and its worlds stay there."
+          : "“" + root.server.name + "” and its folder will be removed from disk" + (root.server.saveDirectoryIsCustom ? ". Its worlds in " + root.server.saveDirectory + " stay." : ", with its worlds. This cannot be undone.")
         onConfirmed: root.server.delete()
       }
 
@@ -122,6 +169,12 @@ Item {
         id: customDialog
         title: "Choose the dedicated server's folder"
         onAccepted: root.customDirectory = folder.toString()
+      }
+
+      Platform.FileDialog {
+        id: keyDialog
+        title: "Choose your SSH private key"
+        onAccepted: root.keyFile = file.toString()
       }
 
       Platform.FolderDialog {
@@ -157,7 +210,7 @@ Item {
 
               LhButton { text: "Console"; iconName: "log"; onClicked: root.server.openConsole() }
               LhButton {
-                visible: root.server.isRunning
+                visible: root.server.isRunning && !root.server.isHosted
                 text: "Restart"
                 iconName: "refresh"
                 enabled: !root.server.isBusy
@@ -173,6 +226,7 @@ Item {
                 onClicked: root.join()
               }
               LhButton {
+                visible: !root.server.isHosted
                 text: root.server.isRunning ? "Stop" : "Start"
                 iconName: root.server.isRunning ? "power" : "play"
                 kind: root.server.isRunning ? "secondary" : "primary"
@@ -180,11 +234,25 @@ Item {
                 enabled: !root.server.isBusy && (root.server.isRunning || (root.server.serverDirectory.length > 0 && root.server.problems.length === 0))
                 onClicked: root.server.isRunning ? root.server.stop() : root.server.start()
               }
+              // A hosted server starts in the host's panel; stopping goes through the plugin.
+              LhButton {
+                visible: root.server.isHosted && root.server.panelUrl.length > 0
+                text: "Host panel"
+                iconName: "external"
+                onClicked: root.server.openPanel()
+              }
+              LhButton {
+                visible: root.server.isHosted && root.server.isOnline && root.server.consoleEnabled
+                text: "Stop"
+                iconName: "power"
+                enabled: !root.server.isBusy
+                onClicked: root.server.stop()
+              }
             }
           }
 
           Banner {
-            visible: root.server.serverDirectory.length === 0
+            visible: !root.server.isHosted && root.server.serverDirectory.length === 0
             kind: "warning"
             text: root.server.serverMissingText
             actionText: root.server.binary === "steam" ? "Install with Steam" : root.server.binary === "launchheim" ? "Download" : ""
@@ -268,9 +336,13 @@ Item {
             iconName: "server"
             // The card above already says how the start is going.
             title: root.server.isStarting ? "Not joinable yet" : root.server.statusText
-            description: root.server.isRunning
-              ? "Your friends join with Valheim's “Join IP” and one of the addresses below."
-              : "Stopping saves the world first. Closing LaunchHeim leaves a running server running."
+            description: root.server.isHosted
+              ? (root.server.gameAddress.length === 0
+                ? "Enter the address players join at in the connection settings to see whether it's online."
+                : root.server.isOnline ? "Players join at " + root.server.gameAddress + "." : "It didn't answer at " + root.server.gameAddress + ". Start it in your host's panel.")
+              : root.server.isRunning
+                ? "Your friends join with Valheim's “Join IP” and one of the addresses below."
+                : "Stopping saves the world first. Closing LaunchHeim leaves a running server running."
             Layout.fillWidth: true
 
             // Join, with the server's own instance and password; the character is remembered.
@@ -294,6 +366,15 @@ Item {
             }
 
             RowLayout {
+              visible: root.server.isHosted && root.server.gameAddress.length > 0
+              spacing: 8
+              Label { text: "Players join at:"; color: Theme.textMuted }
+              Label { text: root.server.gameAddress; font.family: Theme.fontFamily; font.bold: true }
+              IconButton { iconName: "copy"; tip: "Copy the address"; onClicked: Clipboard.copy(root.server.gameAddress) }
+            }
+
+            RowLayout {
+              visible: !root.server.isHosted
               spacing: 8
               Label { text: "On this PC:"; color: Theme.textMuted }
               Label { text: root.server.joinAddress; font.family: Theme.fontFamily; font.bold: true }
@@ -305,6 +386,7 @@ Item {
 
           // The addresses friends type into "Join IP", for each way they can reach this PC.
           SettingsSection {
+            visible: !root.server.isHosted
             iconName: "link"
             title: "How friends join"
             description: "In Valheim: Start game → pick a character → Join game → Join IP, then one of these. Same network means the same home Wi-Fi or LAN."
@@ -394,7 +476,170 @@ Item {
             }
           }
 
+          // How LaunchHeim reaches a hosted server. Saved as one form, like the local settings.
           SettingsSection {
+            visible: root.server.isHosted
+            iconName: "link"
+            title: "Connection"
+            description: "Your host's FTP or SFTP login, from its panel. LaunchHeim uploads the mods and its plugin there, follows the log and sends console commands through files."
+            Layout.fillWidth: true
+
+            GridLayout {
+              columns: 2
+              columnSpacing: 14
+              rowSpacing: 10
+              Layout.fillWidth: true
+
+              Label { text: "Name" }
+              LhTextField { id: hostNameField; Layout.fillWidth: true }
+
+              Label { text: "Protocol" }
+              ComboBox {
+                id: protocolBox
+                model: ["SFTP (SSH)", "FTPS (FTP with TLS)", "FTP (unencrypted)"]
+                Layout.fillWidth: true
+                Material.foreground: Theme.text
+              }
+
+              Label { text: "Host" }
+              RowLayout {
+                spacing: 8
+                Layout.fillWidth: true
+                LhTextField { id: hostAddressField; placeholderText: "e.g. ftp.example-host.com or 203.0.113.7"; Layout.fillWidth: true }
+                Label { text: "Port"; color: Theme.textMuted }
+                LhTextField {
+                  id: hostPortField
+                  placeholderText: protocolBox.currentIndex === 0 ? "22" : "21"
+                  validator: IntValidator { bottom: 1; top: 65535 }
+                  Layout.preferredWidth: 90
+                }
+              }
+
+              Label { text: "User" }
+              LhTextField { id: hostUserField; Layout.fillWidth: true }
+
+              Label { text: "Password" }
+              RowLayout {
+                spacing: 8
+                Layout.fillWidth: true
+                LhTextField {
+                  id: hostPasswordField
+                  echoMode: revealHost.checked ? TextInput.Normal : TextInput.Password
+                  placeholderText: root.keyFile.length > 0 ? "The key's passphrase, if it has one" : ""
+                  Layout.fillWidth: true
+                }
+                IconButton { id: revealHost; checkable: true; iconName: "key"; tip: checked ? "Hide password" : "Show password" }
+              }
+
+              Label { text: "SSH key"; visible: protocolBox.currentIndex === 0 }
+              RowLayout {
+                visible: protocolBox.currentIndex === 0
+                spacing: 8
+                Layout.fillWidth: true
+                Label {
+                  text: root.keyFile.length > 0 ? decodeURIComponent(root.keyFile.replace(/^file:\/\//, "")) : "None, log in with the password"
+                  color: Theme.textMuted
+                  font.family: Theme.fontFamily
+                  elide: Text.ElideMiddle
+                  Layout.fillWidth: true
+                }
+                LhButton { text: "Choose…"; iconName: "key"; kind: "ghost"; onClicked: keyDialog.open() }
+                LhButton { text: "None"; kind: "ghost"; visible: root.keyFile.length > 0; onClicked: root.keyFile = "" }
+              }
+
+              Label { text: "Server folder" }
+              LhTextField { id: hostDirectoryField; placeholderText: "Empty for where the login starts, or e.g. /home/valheim/server"; Layout.fillWidth: true }
+
+              Label { text: "Log file" }
+              LhTextField { id: hostLogField; placeholderText: "BepInEx/LogOutput.log"; font.family: Theme.fontFamily; Layout.fillWidth: true }
+
+              Label { text: "Players join at" }
+              LhTextField { id: gameAddressField; placeholderText: "host:port from your host's panel, e.g. 203.0.113.7:2456"; Layout.fillWidth: true }
+
+              Label { text: "Server password" }
+              LhTextField { id: serverPasswordField; echoMode: TextInput.Password; placeholderText: "For Join; empty if it has none"; Layout.fillWidth: true }
+
+              Label { text: "Host panel" }
+              LhTextField { id: panelField; placeholderText: "The web address of your host's panel, where you start the server"; Layout.fillWidth: true }
+
+              Label { text: "Mods from" }
+              ComboBox {
+                id: hostInstanceBox
+                model: root.instanceNames
+                Layout.fillWidth: true
+                Material.foreground: Theme.text
+              }
+
+              Label { text: "RCON port" }
+              RowLayout {
+                spacing: 8
+                Layout.fillWidth: true
+                LhTextField {
+                  id: rconPortField
+                  placeholderText: "None"
+                  validator: IntValidator { bottom: 1; top: 65535 }
+                  Layout.preferredWidth: 90
+                }
+                Label {
+                  text: "Only if your host forwards a TCP port to the server for it. Without one, commands go through files, which takes a few seconds."
+                  color: Theme.textMuted
+                  font.pointSize: Theme.small
+                  wrapMode: Text.Wrap
+                  Layout.fillWidth: true
+                }
+              }
+
+              Label { text: "Host system" }
+              ComboBox {
+                id: platformBox
+                model: ["Linux", "Windows"]
+                Layout.fillWidth: true
+                Material.foreground: Theme.text
+              }
+            }
+
+            LhSwitch { id: hostConsoleSwitch; text: "Console with LaunchHeim's server plugin (uploaded with the mods)" }
+
+            RowLayout {
+              spacing: 8
+              visible: root.server.hostFingerprint.length > 0
+              Label {
+                text: (root.server.hostProtocol === "sftp" ? "Host key: " : "Certificate: ") + root.server.hostFingerprint
+                color: Theme.textMuted
+                font.pointSize: Theme.small
+                font.family: Theme.fontFamily
+                elide: Text.ElideMiddle
+                Layout.fillWidth: true
+              }
+              LhButton { text: "Forget"; kind: "ghost"; onClicked: root.server.clearFingerprint() }
+            }
+
+            Label {
+              text: root.problems
+              visible: root.problems.length > 0
+              color: Theme.negative
+              wrapMode: Text.Wrap
+              Layout.fillWidth: true
+            }
+
+            RowLayout {
+              spacing: 8
+              LhButton { text: "Save"; kind: "primary"; iconName: "check"; onClicked: root.saveHosted() }
+              LhButton { text: "Undo changes"; kind: "ghost"; onClicked: root.loadHosted() }
+              LhButton { text: "Test connection"; iconName: "refresh"; kind: "ghost"; onClicked: root.server.testConnection() }
+            }
+
+            Label {
+              text: root.server.hostStatus
+              visible: text.length > 0
+              wrapMode: Text.Wrap
+              color: root.server.hostStatus.indexOf("Couldn't") === 0 ? Theme.negative : Theme.textMuted
+              Layout.fillWidth: true
+            }
+          }
+
+          SettingsSection {
+            visible: !root.server.isHosted
             iconName: "settings"
             title: "Settings"
             description: "Used from the next start. A private server isn't listed in Valheim's server browser; friends join by address."
@@ -563,7 +808,10 @@ Item {
             title: "Mods · " + root.server.modSummary
             description: root.server.instanceId.length === 0
               ? "A vanilla server. Choose an instance under “Mods from” to run its mods; manage them on the instance as usual."
-              : "Copied from the instance at every start. Thunderstore's Client-side mods (maps, UI, graphics) stay off unless you switch them on. Configs are only copied while the server has none of that name, so changes made on the server stay."
+              : (root.server.isHosted
+                ? "Uploaded to the host when you click Upload mods; only changed files go up. "
+                : "Copied from the instance at every start. ")
+                + "Thunderstore's Client-side mods (maps, UI, graphics) stay off unless you switch them on. Configs are only copied while the server has none of that name, so changes made on the server stay."
             Layout.fillWidth: true
 
             Repeater {
@@ -590,8 +838,38 @@ Item {
               }
             }
 
+            // Uploading to a host: BepInEx, the mods and the plugin, with progress.
+            ColumnLayout {
+              visible: root.server.isHosted
+              spacing: 8
+              Layout.fillWidth: true
+
+              RowLayout {
+                spacing: 8
+                LhButton { text: "Upload mods"; iconName: "export"; kind: "primary"; enabled: !root.server.isDeploying && root.server.problems.length === 0; onClicked: root.server.deployMods() }
+                LhButton { text: "With the instance's configs"; kind: "ghost"; visible: root.server.instanceId.length > 0; enabled: !root.server.isDeploying && root.server.problems.length === 0; onClicked: root.server.deployModsWithConfigs() }
+                LhButton { text: "Everything again"; kind: "ghost"; enabled: !root.server.isDeploying && root.server.problems.length === 0; onClicked: root.server.deployModsAgain() }
+              }
+
+              ProgressBar {
+                visible: root.server.isDeploying
+                from: 0
+                to: 1
+                value: Math.max(0, root.server.deployProgress)
+                indeterminate: root.server.deployProgress < 0
+                Layout.fillWidth: true
+              }
+
+              Label {
+                text: root.server.deployText + (root.server.isDeploying ? "" : " The host's server has to start with BepInEx (often a “mods” or “BepInEx” switch in its panel) for them to load.")
+                color: Theme.textMuted
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+              }
+            }
+
             RowLayout {
-              visible: root.server.instanceId.length > 0
+              visible: root.server.instanceId.length > 0 && !root.server.isHosted
               spacing: 8
               LhButton {
                 text: "Start with the instance's configs"
@@ -603,7 +881,49 @@ Item {
             }
           }
 
+          // For a VPS: Valheim's dedicated server itself, uploaded from LaunchHeim's SteamCMD download.
           SettingsSection {
+            visible: root.server.isHosted
+            iconName: "download"
+            title: "Server program"
+            description: "Game hosts install Valheim's server themselves. On a VPS that doesn't have it yet, LaunchHeim downloads it with SteamCMD for the host's system (" + (root.server.hostPlatform === "windows" ? "Windows" : "Linux") + ") and uploads it into the server folder: about 2 GB the first time, only changes after an update."
+            Layout.fillWidth: true
+
+            RowLayout {
+              spacing: 8
+              LhButton {
+                text: "Upload Valheim's server"
+                iconName: "export"
+                enabled: !root.server.isDeploying && !Vm.servers.isDownloading && root.server.problems.length === 0
+                onClicked: root.server.uploadServerProgram()
+              }
+            }
+
+            Label {
+              text: "LaunchHeim can't start programs over FTP or SFTP. Start it on the VPS with start_server_bepinex.sh (with mods) or start_headless_server.sh, from a shell, a service or your provider's console."
+              color: Theme.textMuted
+              font.pointSize: Theme.small
+              wrapMode: Text.Wrap
+              Layout.fillWidth: true
+            }
+          }
+
+          SettingsSection {
+            visible: root.server.isHosted
+            iconName: "folder"
+            title: "In LaunchHeim"
+            description: "Removing the server here leaves everything at the host as it is."
+            Layout.fillWidth: true
+
+            RowLayout {
+              spacing: 8
+              Item { Layout.fillWidth: true }
+              LhButton { text: "Remove…"; kind: "danger"; iconName: "trash"; onClicked: deleteDialog.open() }
+            }
+          }
+
+          SettingsSection {
+            visible: !root.server.isHosted
             iconName: "folder"
             title: "Files"
             description: "The server's folder holds its BepInEx, mods, configs and log; its worlds too unless you chose another place."

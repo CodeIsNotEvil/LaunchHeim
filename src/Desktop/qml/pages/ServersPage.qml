@@ -184,7 +184,9 @@ Item {
                   }
 
                   Label {
-                    text: row.server.statusText + " · " + row.server.world + " · " + row.server.modSummary
+                    text: row.server.isHosted
+                      ? row.server.statusText + " · at " + (row.server.hostAddress.length > 0 ? row.server.hostAddress : "a host") + " · " + row.server.modSummary
+                      : row.server.statusText + " · " + row.server.world + " · " + row.server.modSummary
                     color: Theme.textMuted
                     font.pointSize: Theme.small
                     elide: Text.ElideRight
@@ -224,11 +226,14 @@ Item {
                   }
                 }
 
+                // A hosted server starts in its host's panel, so offline it offers that, when there is one.
                 LhButton {
-                  text: row.server.isRunning ? "Stop" : "Start"
-                  iconName: row.server.isRunning ? "power" : "play"
+                  visible: !row.server.isHosted || row.server.isRunning || row.server.panelUrl.length > 0
+                  text: row.server.isRunning ? "Stop" : row.server.isHosted ? "Host panel" : "Start"
+                  iconName: row.server.isRunning ? "power" : row.server.isHosted ? "external" : "play"
                   kind: row.server.isRunning ? "ghost" : "primary"
-                  enabled: !row.server.isBusy && (row.server.isRunning || row.server.serverDirectory.length > 0)
+                  // A hosted server's Start opens its host's panel (ServerViewModel.start).
+                  enabled: !row.server.isBusy && (row.server.isRunning || row.server.isHosted || row.server.serverDirectory.length > 0)
                   onClicked: row.server.isRunning ? row.server.stop() : row.server.start()
                 }
               }

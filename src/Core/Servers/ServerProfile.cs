@@ -199,6 +199,9 @@ public sealed class ServerProfile
 
   public DateTimeOffset? LastStartedAt { get; set; }
 
+  /// <summary>When a hosted server last got its mods and plugin uploaded.</summary>
+  public DateTimeOffset? LastDeployedAt { get; set; }
+
   /// <summary>The RCON port in use: <see cref="RconPort"/>, or the default next to the game ports.</summary>
   public int EffectiveRconPort => RconPort > 0 ? RconPort : Port + 2;
 
@@ -206,10 +209,11 @@ public sealed class ServerProfile
   /// What LaunchHeim's own Join connects to, always with the port, so it matches the key Valheim's server
   /// list and the Play page use (<c>server:127.0.0.1:2456</c>) and the remembered choice is shared.
   /// </summary>
-  public string ConnectAddress => $"127.0.0.1:{Port}";
+  public string ConnectAddress => IsHosted ? Host?.GameAddress ?? "" : $"127.0.0.1:{Port}";
 
   /// <summary>The address players join, for the Play page and the copy button.</summary>
-  public string JoinAddress(string host = "127.0.0.1") => Port == DefaultPort ? host : $"{host}:{Port}";
+  public string JoinAddress(string host = "127.0.0.1") =>
+    IsHosted ? Host?.GameAddress ?? "" : Port == DefaultPort ? host : $"{host}:{Port}";
 
   /// <summary>What stops Valheim from starting with these settings, or what it would refuse, in plain words.</summary>
   /// <remarks>
