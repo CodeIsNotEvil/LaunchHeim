@@ -40,7 +40,16 @@ public interface IServerFiles : IAsyncDisposable
 
   /// <summary>Deletes the file if it is there.</summary>
   Task DeleteAsync(string path, CancellationToken cancellationToken);
+
+  /// <summary>Files and folders in a folder; empty when it doesn't exist. Not recursive, and without <c>.</c> and <c>..</c>.</summary>
+  Task<IReadOnlyList<ServerFileEntry>> ListEntriesAsync(string directory, CancellationToken cancellationToken);
+
+  /// <summary>Copies the file into <paramref name="destination"/>, for backups of worlds that may be hundreds of MB.</summary>
+  Task DownloadAsync(string path, Stream destination, CancellationToken cancellationToken);
 }
+
+/// <summary>One entry of <see cref="IServerFiles.ListEntriesAsync"/>.</summary>
+public sealed record ServerFileEntry(string Name, bool IsDirectory, long Size);
 
 /// <summary>A server folder on this machine.</summary>
 public sealed class LocalServerFiles(string root) : IServerFiles
@@ -120,10 +129,47 @@ public sealed class LocalServerFiles(string root) : IServerFiles
     return Task.CompletedTask;
   }
 
+  public Task<IReadOnlyList<ServerFileEntry>> ListEntriesAsync(string directory, CancellationToken cancellationToken)
+  {
+    var full = Full(directory);
+    IReadOnlyList<ServerFileEntry> entries = Directory.Exists(full)
+      ? new DirectoryInfo(full).EnumerateFileSystemInfos()
+        .Select(i => new ServerFileEntry(i.Name, i is DirectoryInfo, i is FileInfo f ? f.Length : 0))
+        .OrderBy(e => e.Name, StringComparer.Ordinal)
+        .ToList()
+      : [];
+    return Task.FromResult(entries);
+  }
+
+  public async Task DownloadAsync(string path, Stream destination, CancellationToken cancellationToken)
+  {
+    await using var source = new FileStream(Full(path), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+    await source.CopyToAsync(destination, cancellationToken);
+  }
+
   public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
   private string Full(string path) =>
     Path.Combine([root, .. path.Split('/', StringSplitOptions.RemoveEmptyEntries)]);
+}
+
+/// <summary>A folder inside another <see cref="IServerFiles"/>, sharing its connection (which it never closes).</summary>
+internal sealed class SubFolderFiles(IServerFiles inner, string folder) : IServerFiles
+{
+  public string Describe => $"{inner.Describe.TrimEnd('/')}/{folder}";
+
+  private string In(string path) => folder.Length == 0 ? path : path.Length == 0 ? folder : $"{folder.TrimEnd('/')}/{path}";
+
+  public Task<string?> ReadTextAsync(string path, CancellationToken c) => inner.ReadTextAsync(In(path), c);
+  public Task WriteTextAsync(string path, string text, CancellationToken c) => inner.WriteTextAsync(In(path), text, c);
+  public Task UploadAsync(string localFile, string path, bool executable, CancellationToken c) => inner.UploadAsync(localFile, In(path), executable, c);
+  public Task<IReadOnlyList<string>> ListAsync(string directory, string extension, CancellationToken c) => inner.ListAsync(In(directory), extension, c);
+  public Task<long?> SizeAsync(string path, CancellationToken c) => inner.SizeAsync(In(path), c);
+  public Task<byte[]> ReadRangeAsync(string path, long offset, int count, CancellationToken c) => inner.ReadRangeAsync(In(path), offset, count, c);
+  public Task DeleteAsync(string path, CancellationToken c) => inner.DeleteAsync(In(path), c);
+  public Task<IReadOnlyList<ServerFileEntry>> ListEntriesAsync(string directory, CancellationToken c) => inner.ListEntriesAsync(In(directory), c);
+  public Task DownloadAsync(string path, Stream destination, CancellationToken c) => inner.DownloadAsync(In(path), destination, c);
+  public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
 
 /// <summary>Joins a host's server folder and a path inside it the way FTP and SFTP want them.</summary>

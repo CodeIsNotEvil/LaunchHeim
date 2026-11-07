@@ -127,6 +127,31 @@ public sealed class FtpServerFiles : IServerFiles
     return true;
   });
 
+  public Task<IReadOnlyList<ServerFileEntry>> ListEntriesAsync(string directory, CancellationToken cancellationToken) => RunAsync<IReadOnlyList<ServerFileEntry>>(async () =>
+  {
+    var full = Full(directory);
+    if (!await _client.DirectoryExists(full.Length == 0 ? "." : full, cancellationToken))
+    {
+      return [];
+    }
+
+    var items = await _client.GetListing(full.Length == 0 ? "." : full, cancellationToken);
+    return items.Where(i => i.Type is FtpObjectType.File or FtpObjectType.Directory && i.Name is not ("." or ".."))
+      .Select(i => new ServerFileEntry(i.Name, i.Type == FtpObjectType.Directory, i.Type == FtpObjectType.File ? i.Size : 0))
+      .OrderBy(e => e.Name, StringComparer.Ordinal)
+      .ToList();
+  });
+
+  public Task DownloadAsync(string path, Stream destination, CancellationToken cancellationToken) => RunAsync(async () =>
+  {
+    if (!await _client.DownloadStream(destination, Full(path), token: cancellationToken))
+    {
+      throw new IOException($"The host didn't hand over {path}.");
+    }
+
+    return true;
+  });
+
   public async ValueTask DisposeAsync()
   {
     try

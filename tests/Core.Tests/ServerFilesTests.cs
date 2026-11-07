@@ -172,6 +172,17 @@ public class ServerFilesTests(ITestOutputHelper output) : IDisposable
     Assert.Equal((0, 1, 1), (third.Uploaded, third.Unchanged, third.Removed));
     Assert.Null(await files.SizeAsync($"{root}/plugins/b.dll", default));
 
+    // Listing a folder and downloading whole files, as backups do.
+    var entries = await files.ListEntriesAsync(root, default);
+    Assert.Contains(entries, e => e is { Name: "x", IsDirectory: true });
+    Assert.Contains(await files.ListEntriesAsync($"{root}/x", default), e => e is { Name: "server.sh", IsDirectory: false } && e.Size == content.Length);
+    Assert.Empty(await files.ListEntriesAsync($"{root}/nowhere", default));
+    using (var downloaded = new MemoryStream())
+    {
+      await files.DownloadAsync($"{root}/x/server.sh", downloaded, default);
+      Assert.Equal(content, downloaded.ToArray());
+    }
+
     await files.DeleteAsync($"{root}/a/b/hello.cmd", default);
     await files.DeleteAsync($"{root}/a/b/hello.cmd", default);
     Assert.Empty(await files.ListAsync($"{root}/a/b", ".cmd", default));
@@ -189,6 +200,8 @@ public class ServerFilesTests(ITestOutputHelper output) : IDisposable
     public Task<long?> SizeAsync(string path, CancellationToken c) => files.SizeAsync($"{root}/{path}", c);
     public Task<byte[]> ReadRangeAsync(string path, long offset, int count, CancellationToken c) => files.ReadRangeAsync($"{root}/{path}", offset, count, c);
     public Task DeleteAsync(string path, CancellationToken c) => files.DeleteAsync($"{root}/{path}", c);
+    public Task<IReadOnlyList<ServerFileEntry>> ListEntriesAsync(string directory, CancellationToken c) => files.ListEntriesAsync($"{root}/{directory}", c);
+    public Task DownloadAsync(string path, Stream destination, CancellationToken c) => files.DownloadAsync($"{root}/{path}", destination, c);
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
   }
 }

@@ -69,6 +69,14 @@ public sealed class HostAccess
   /// </summary>
   public int RconPort { get; set; }
 
+  /// <summary>
+  /// Where the server keeps its worlds at the host (the folder with <c>worlds_local/</c> in it): inside the
+  /// server folder (<c>saves</c>), absolute (<c>/home/valheim/saves</c>), or from the login's home
+  /// (<c>~/.config/unity3d/IronGate/Valheim</c>, Valheim's default on Linux). Empty until found or set;
+  /// backups need it (<see cref="Backups.ServerBackup.FindSaveDirectoryAsync"/>).
+  /// </summary>
+  public string SaveDirectory { get; set; } = "";
+
   /// <summary>The host's operating system, for uploading the matching build of the server program.</summary>
   public Game.GamePlatform Platform { get; set; } = Game.GamePlatform.Linux;
 
@@ -80,6 +88,14 @@ public sealed class HostAccess
   public string? Fingerprint { get; set; }
 
   public int EffectivePort => Port > 0 ? Port : Protocol == FileProtocol.Sftp ? 22 : 21;
+
+  /// <summary>The same login, starting in another folder (a save folder outside the server's).</summary>
+  public HostAccess WithDirectory(string directory) => new()
+  {
+    Protocol = Protocol, Address = Address, Port = Port, User = User, Password = Password, KeyFile = KeyFile,
+    Directory = directory, LogFile = LogFile, GameAddress = GameAddress, PanelUrl = PanelUrl, RconPort = RconPort,
+    Platform = Platform, Fingerprint = Fingerprint, SaveDirectory = SaveDirectory,
+  };
 
   /// <summary>What's missing or wrong for connecting, by form field (see <see cref="ServerProfile.Validate"/>).</summary>
   public IReadOnlyList<FieldProblem> Validate()
@@ -213,6 +229,8 @@ public sealed class ServerProfile
 
   /// <summary>When a hosted server last got its mods and plugin uploaded.</summary>
   public DateTimeOffset? LastDeployedAt { get; set; }
+
+  public Backups.BackupSettings Backup { get; set; } = new();
 
   /// <summary>The RCON port in use: <see cref="RconPort"/>, or the default next to the game ports.</summary>
   public int EffectiveRconPort => RconPort > 0 ? RconPort : Port + 2;
