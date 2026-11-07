@@ -21,7 +21,11 @@ internal sealed class FileChannel(string configDirectory, ManualLogSource logger
   /// <summary>An answer nobody picked up within this time is deleted; the console that asked has given up.</summary>
   private static readonly TimeSpan AnswerLifetime = TimeSpan.FromMinutes(10);
 
+  /// <summary>How often the heartbeat is written. Core's ServerManager counts one older than a minute as gone.</summary>
+  private const float HeartbeatSeconds = 15f;
+
   private float _nextPoll;
+  private float _nextHeartbeat;
 
   public string Directory { get; } = Path.Combine(configDirectory, "LaunchHeim.Server");
 
@@ -62,6 +66,33 @@ internal sealed class FileChannel(string configDirectory, ManualLogSource logger
     {
       // An upload still in progress, or a host that locks files for a moment; the next poll tries again.
       logger.LogDebug($"File channel: {ex.Message}");
+    }
+  }
+
+  /// <summary>
+  /// Writes <c>status.json</c>: the server is up, when, and who's on. A hosted server can't be seen from
+  /// outside when it's private (Steam's query doesn't answer), so LaunchHeim reads this through the files.
+  /// </summary>
+  /// <param name="status">The JSON to write, or null while the server isn't up yet.</param>
+  public void Heartbeat(float now, Func<string?> status, bool force = false)
+  {
+    if (!force && now < _nextHeartbeat)
+    {
+      return;
+    }
+
+    _nextHeartbeat = now + HeartbeatSeconds;
+    try
+    {
+      if (status() is { } json)
+      {
+        System.IO.Directory.CreateDirectory(Directory);
+        Write(Path.Combine(Directory, "status.json"), json);
+      }
+    }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+    {
+      logger.LogDebug($"Heartbeat: {ex.Message}");
     }
   }
 

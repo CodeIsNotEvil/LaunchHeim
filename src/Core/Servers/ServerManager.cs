@@ -81,16 +81,30 @@ public sealed class ServerManager(
   {
     if (server.IsHosted)
     {
-      // Only the outside is visible: a server that answers Steam's query is up. Its process isn't ours to see.
-      if (server.Host is not { GameAddress.Length: > 0 } host)
+      // Its process isn't ours to see. Up is what answers Steam's query, or the plugin's heartbeat in its files.
+      if (server.Host is { GameAddress.Length: > 0 } host
+        && await ServerQuery.QueryAsync(host.GameAddress, TimeSpan.FromSeconds(3), cancellationToken) is { } answer)
       {
-        return new ServerState(false, false, 0, 0);
+        return new ServerState(true, true, answer.Players, answer.MaxPlayers, ServerStartPhase.Online);
       }
 
-      var answer = await ServerQuery.QueryAsync(host.GameAddress, TimeSpan.FromSeconds(3), cancellationToken);
-      return answer is null
-        ? new ServerState(false, false, 0, 0)
-        : new ServerState(true, true, answer.Players, answer.MaxPlayers, ServerStartPhase.Online);
+      if (server.ConsoleEnabled && server.Host is { Address.Length: > 0 })
+      {
+        try
+        {
+          var beat = ServerHeartbeat.Parse(await WithFilesAsync(server, files => files.ReadTextAsync(ServerHeartbeat.FileName, cancellationToken)));
+          if (beat is not null && beat.IsAlive(DateTimeOffset.UtcNow))
+          {
+            return new ServerState(true, true, beat.Players, MaxPlayers, ServerStartPhase.Online);
+          }
+        }
+        catch (IOException ex)
+        {
+          Log.Warning($"Couldn't read {server.Name}'s heartbeat: {ex.Message}");
+        }
+      }
+
+      return new ServerState(false, false, 0, 0);
     }
 
     using var process = FindProcess(server);

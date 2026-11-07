@@ -49,3 +49,35 @@ public class ServerStartupTests : IDisposable
     Assert.Equal(ServerStartPhase.Online, ServerStartup.Detect(log));
   }
 }
+
+public class ServerHeartbeatTests
+{
+  private static readonly DateTimeOffset Now = new(2026, 11, 7, 12, 0, 0, TimeSpan.Zero);
+
+  [Fact]
+  public void A_recent_beat_means_up_with_its_players()
+  {
+    var beat = ServerHeartbeat.Parse("""{"time":"2026-11-07T11:59:40.123Z","players":3,"world":"Midgard","version":"l-1.0.21","stopped":false}""");
+
+    Assert.NotNull(beat);
+    Assert.True(beat.IsAlive(Now));
+    Assert.Equal((3, "Midgard", "l-1.0.21"), (beat.Players, beat.World, beat.Version));
+  }
+
+  [Fact]
+  public void An_old_or_last_beat_means_down()
+  {
+    Assert.False(ServerHeartbeat.Parse("""{"time":"2026-11-07T11:55:00Z","players":0}""")!.IsAlive(Now));
+    Assert.False(ServerHeartbeat.Parse("""{"time":"2026-11-07T11:59:59Z","players":0,"stopped":true}""")!.IsAlive(Now));
+  }
+
+  [Theory]
+  [InlineData(null)]
+  [InlineData("")]
+  [InlineData("{\"players\":1}")]
+  [InlineData("not json")]
+  public void Anything_else_is_no_beat(string? json)
+  {
+    Assert.Null(ServerHeartbeat.Parse(json));
+  }
+}

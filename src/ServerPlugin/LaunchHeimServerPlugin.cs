@@ -115,6 +115,7 @@ public sealed class LaunchHeimServerPlugin : BaseUnityPlugin
     }
 
     _files?.Poll(Time.unscaledTime, _commands.Run);
+    _files?.Heartbeat(Time.unscaledTime, () => _commands.StatusJson(stopped: false));
   }
 
   private void StopServer()
@@ -133,6 +134,12 @@ public sealed class LaunchHeimServerPlugin : BaseUnityPlugin
 
   private void OnDestroy()
   {
+    // The last heartbeat says it stopped, so a hosted server shows as offline at once.
+    if (_commands is not null)
+    {
+      _files?.Heartbeat(0, () => _commands.StatusJson(stopped: true), force: true);
+    }
+
     _rcon?.Dispose();
     while (_queue.TryDequeue(out var pending))
     {
