@@ -140,6 +140,11 @@ accounts) and CurseForge (API key).
   untrusted), so "Install with Steam" with `steam://install/896660` did nothing (owner, 2026-11-07).
   LaunchHeim's own `steam://` links go through `DesktopShell.OpenSteamLink` (xdg-open on Linux, the
   shell on Windows).
+- BepInEx's `LogOutput.log` carries Unity's own lines too ("Game server connected" and so on), so a
+  hosted server's console follows that by default. Valheim's `-logFile` may be anywhere at a host
+  (2026-11-07).
+- zsh doesn't word-split `$VAR`, so `V="dotnet x.dll"; $V args` fails with "no such file or
+  directory". Use a function (2026-11-07).
 - `CHANGELOG.md` can't have an "Unreleased" section: `Scripts/changelog.py` (and so the site build)
   rejects any `## ` heading that isn't `<version> - <date>`. Write the entry when preparing the release
   (2026-11-06).

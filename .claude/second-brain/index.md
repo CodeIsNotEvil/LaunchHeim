@@ -35,6 +35,7 @@ references in code and READMEs stay right.
 - [[0018-launchheim-own-repository]]: LaunchHeim, its history and its site moved out of MyMonoRepo
 - [[0019-launchheim-server-manager]]: servers are folders that take their mods from an instance, run detached, and reach remote hosts through file access
 - [[0020-launchheim-server-plugin-speaks-source-rcon]]: LaunchHeim's server plugin gives Valheim's server a console over Source RCON and through files
+- [[0021-launchheim-hosted-servers-through-their-files]]: servers at a host or VPS are managed over FTP/FTPS/SFTP, with pinned keys, a deploy record and the plugin's heartbeat
 
 ## Inbox
 Untriaged captures live in `inbox/`. Empty it now and then.

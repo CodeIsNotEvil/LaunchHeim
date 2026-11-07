@@ -44,8 +44,9 @@
         <li><strong>Settings</strong>, including any Nexus Mods or CurseForge API keys you enter, passwords
           you save for Valheim servers, and the choices you make per server or world.</li>
         <li><strong>Instances:</strong> mods, configuration files, and the icons and pictures you pick.</li>
-        <li><strong>Dedicated servers</strong> you set up: their settings (including the server password
-          and the password of LaunchHeim's server console), mods, worlds and logs.</li>
+        <li><strong>Dedicated servers</strong> you set up: their settings (including the server password,
+          the password of LaunchHeim's server console and, for a server at a host, its FTP/SFTP login),
+          mods, worlds and logs.</li>
         <li><strong>A log file</strong> that records what LaunchHeim did, such as installs, game launches
           and errors, to help with troubleshooting. It contains file paths, which may include your user
           name. Server passwords are removed before anything is written to the log.</li>
@@ -80,6 +81,10 @@
         <li><strong>Valve's SteamCMD</strong> (steamcdn-a.akamaihd.net and Steam's download servers): only
           when you let LaunchHeim download Valheim's dedicated server. It logs in anonymously, without
           your Steam account.</li>
+        <li><strong>Your server host</strong> (the FTP, FTPS or SFTP address you enter for a server at a
+          game host or VPS): LaunchHeim logs in with the user name, password or key you gave and uploads
+          mods, its server plugin and, if you ask, Valheim's server; it reads the server's log and
+          status there. Nothing goes anywhere else.</li>
         <li><strong>ipify</strong> (api.ipify.org): only when you click "Show my internet address" on a
           server's page, to learn the address your friends join from the internet. The service sees your
           IP address, which is what it tells LaunchHeim.</li>
