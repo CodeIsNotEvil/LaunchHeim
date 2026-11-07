@@ -111,9 +111,39 @@ public sealed class FtpServerFiles : IServerFiles
 
   public Task<byte[]> ReadRangeAsync(string path, long offset, int count, CancellationToken cancellationToken) => RunAsync(async () =>
   {
-    // REST sets where the download starts; FluentFTP stops reading at the stop position.
-    var bytes = await _client.DownloadBytes(Full(path), offset, null, cancellationToken, offset + count);
-    return bytes ?? [];
+    // A transfer stopped early leaves the server's closing reply (426 or 226) on the control connection.
+    // DownloadBytes with a stop position didn't read it, and the next command took "Transfer complete"
+    // for its own answer (found 2026-11-07, with a backup's listing after the console's reads). So the
+    // stream is read by hand and the reply fetched after closing it, as FluentFTP asks for OpenRead.
+    var buffer = new byte[count];
+    var read = 0;
+    await using (var stream = await _client.OpenRead(Full(path), FtpDataType.Binary, offset, checkIfFileExists: false, cancellationToken))
+    {
+      while (read < count)
+      {
+        var n = await stream.ReadAsync(buffer.AsMemory(read, count - read), cancellationToken);
+        if (n == 0)
+        {
+          break;
+        }
+
+        read += n;
+      }
+    }
+
+    try
+    {
+      using var replyTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+      replyTimeout.CancelAfter(TimeSpan.FromSeconds(5));
+      await _client.GetReply(replyTimeout.Token);
+    }
+    catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+    {
+      // No reply, or one that can't be read: start the next command on a fresh connection instead.
+      await _client.Disconnect(CancellationToken.None);
+    }
+
+    return read == count ? buffer : buffer[..read];
   });
 
   public Task DeleteAsync(string path, CancellationToken cancellationToken) => RunAsync(async () =>
